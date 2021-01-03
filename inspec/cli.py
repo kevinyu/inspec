@@ -19,7 +19,10 @@ def cli():
 @click.option("-c", "--cols", type=int, default=1)
 @click.option("--cmap", type=str, default="greys")
 @click.option("--show-logs", is_flag=True)
-def load_wavs(filenames, rows, cols, cmap, show_logs):
+def open(filenames, rows, cols, cmap, show_logs):
+    if not len(filenames):
+        filenames = ["."]
+
     panels = rows * cols
     files = []
     for filename in filenames:
@@ -29,8 +32,15 @@ def load_wavs(filenames, rows, cols, cmap, show_logs):
             for _filename in glob.glob(os.path.join(filename, "*.wav")):
                 files.append(_filename)
 
-    curses.wrapper(main.main, rows, cols, files, cmap=cmap, show_logs=show_logs)
+    if not len(files):
+        click.echo("No files matching {} were found.".format(filenames))
+    else:
+        curses.wrapper(main.main, rows, cols, files, cmap=cmap, show_logs=show_logs)
 
+
+@click.group()
+def dev():
+    pass
 
 @click.command()
 @click.option("--cmap", type=str, default=None)
@@ -45,9 +55,10 @@ def test_windows(rows, cols):
     curses.wrapper(main.test_windows, rows, cols)
 
 
-cli.add_command(view_colormap)
-cli.add_command(test_windows)
-cli.add_command(load_wavs)
+cli.add_command(open)
+cli.add_command(dev)
+dev.add_command(test_windows)
+dev.add_command(view_colormap)
 
 
 if __name__ == "__main__":
