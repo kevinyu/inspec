@@ -7,7 +7,7 @@ View spectrograms of audio data files in the terminal using curses
 git clone git@github.com:kevinyu/inspec.git
 cd inspec
 python -m venv env
-source env/bin/activate
+source bin/activate
 pip install -r requirements.txt
 ```
 

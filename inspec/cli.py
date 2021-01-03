@@ -5,7 +5,7 @@ import os
 
 import click
 
-import main
+from . import main
 
 
 @click.group()

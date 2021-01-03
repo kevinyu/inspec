@@ -19,8 +19,9 @@ from soundsig.sound import spectrogram
 import numpy as np
 import cv2
 
-import const, var
-from colormaps import get_colormaps
+from . import const, var
+from .colormaps import get_colormaps
+from ._logging import CursesHandler
 
 
 logger = logging.getLogger(__name__)
@@ -509,7 +510,6 @@ def main(stdscr, rows, cols, files, cmap="greys", show_logs=False):
         cmap,
     )
 
-    from _logging import CursesHandler
     handler = CursesHandler()
     handler.setLevel(logging.DEBUG)
     if show_logs:

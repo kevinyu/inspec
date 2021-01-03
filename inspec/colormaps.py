@@ -2,7 +2,7 @@ import curses
 
 import numpy as np
 
-import const, var
+from . import const, var
 
 
 class Colormap(object):
@@ -96,13 +96,13 @@ class Colormap(object):
         return self.get_pair_idx(fg_idx, bg_idx)
 
     def get_char_by_idx(self, idx):
-        return "▄", curses.color_pair(idx)
+        return const.HALF_01, curses.color_pair(idx)
 
     def get_char_by_frac(self, frac, bg_frac=0):
         """Return a character and color idx for the given foreground and bg fracs
         """
         color_idx = self.frac(frac, bg_frac)
-        return "▄", curses.color_pair(color_idx)
+        return const.HALF_01, curses.color_pair(color_idx)
 
 
 class PairedColormap(Colormap):
@@ -139,9 +139,9 @@ class PairedColormap(Colormap):
 
     def get_char_by_idx(self, idx):
         if idx == 0:
-            return "█", curses.color_pair(self._case00)
+            return const.FULL_1, curses.color_pair(self._case00)
         else:
-            return "▄", curses.color_pair(idx)
+            return const.HALF_01, curses.color_pair(idx)
 
     def get_char_by_frac(self, frac, bg_frac=0):
         """Return a character and color idx for the given foreground and bg fracs
