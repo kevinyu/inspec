@@ -38,6 +38,34 @@ def open(filenames, rows, cols, cmap, show_logs):
         curses.wrapper(main.main, rows, cols, files, cmap=cmap, show_logs=show_logs)
 
 
+@click.command()
+@click.argument("filename", type=click.Path(exists=True))
+@click.option("--cmap", type=str, default="greys")
+@click.option("-d", "--duration", type=float, default=None)
+@click.option("-t", "--time", "_time", type=float, default=0.0)
+def check(filename, cmap, duration, _time):
+    import numpy as np
+    from .plugins.views.spectrogram_view import BaseAsciiSpectrogramPlugin
+    viewer = BaseAsciiSpectrogramPlugin()
+    viewer.set_cmap(cmap)
+
+    metadata = viewer.read_file_metadata(filename)
+    if _time:
+        start_idx = int(np.floor(_time * metadata["sampling_rate"]))
+    else:
+        start_idx = 0
+
+    if duration:
+        read_samples = int(np.floor(duration * metadata["sampling_rate"]))
+    else:
+        read_samples = metadata["frames"]
+    # raise Exception("{} {}".format(read_samples, start_idx))
+    viewer.read_file_partial(filename, read_samples, start_idx)
+    viewer.render()
+    print("freqs: {:.2f} to {:.2f}".format(*viewer.last_render_data["f"][[0, -1]]))
+    print("time: {:.2f}s to {:.2f}s".format(*viewer.last_render_data["t"][[0, -1]]))
+
+
 @click.group()
 def dev():
     pass
@@ -54,7 +82,7 @@ def view_colormap(cmap):
 def test_windows(rows, cols):
     curses.wrapper(main.test_windows, rows, cols)
 
-
+cli.add_command(check)
 cli.add_command(open)
 cli.add_command(dev)
 dev.add_command(test_windows)

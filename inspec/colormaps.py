@@ -3,6 +3,7 @@ import curses
 import numpy as np
 
 from . import const, var
+from .colormap import curses_cmap
 
 
 class Colormap(object):

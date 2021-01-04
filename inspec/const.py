@@ -1,5 +1,7 @@
 DEFAULT_BG_COLOR = 232
+MAX_PAIRED_COLORS = 22
 FULL_1 = "█"
+FULL_0 = " "
 HALF_01 = "▄"
 HALF_10 = "▀"
 QTR_0010 = "▖"

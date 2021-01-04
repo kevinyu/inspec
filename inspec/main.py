@@ -15,7 +15,6 @@ from collections import namedtuple
 
 import click
 import soundfile
-from soundsig.sound import spectrogram
 import numpy as np
 import cv2
 
@@ -219,6 +218,7 @@ def wav_to_curses_spectrogram(filename, window, cmap, t_start=None, duration=Non
     #     data = data[0]
 
     # Compute spec of shape (freqs, time) or (y, x)
+    from soundsig.sound import spectrogram
     t, f, spec, _ = spectrogram(
         data,
         samplerate,
@@ -463,23 +463,83 @@ def test_windows(stdscr, rows, cols):
 
 
 def view_colormap(stdscr, cmap=None):
-    cmaps = get_colormaps()
-
     curses.use_default_colors()
-    if cmap is None:
-        cmap = cmaps.get("full")
+
+    from .colormap import get_colormap, curses_cmap
+
+    show_full = False
+    try:
+        get_colormap(cmap)
+    except ValueError:
+        cmaps = get_colormaps()
+        if cmap is None:
+            cmap = cmaps.get("full")
+            show_full = True
+        else:
+            cmap = cmaps[cmap]
+        cmap.setup()
+        curses_cmap = None
     else:
-        cmap = cmaps[cmap]
+        curses_cmap.init_colormap(cmap)
 
-    cmap.setup()
+    if show_full == True:
+        for color_idx in cmap:
 
-    for color_idx in cmap:
-        color_str = str(color_idx)
-        full_str = (4 - len(color_str)) * " " + color_str
-        row_idx = 1 + color_idx % (curses.LINES - 2)
-        col_idx = (color_idx // (curses.LINES - 2)) * 5
-        char, color = cmap.get_char_by_idx(color_idx)
-        stdscr.addstr(row_idx, col_idx, full_str + char, color)
+            color_str = str(color_idx)
+            full_str = (4 - len(color_str)) * " " + color_str
+
+            if color_idx < 16:
+                row_idx = 1 + color_idx % (curses.LINES - 2)
+                col_idx = (color_idx // (curses.LINES - 2)) * 5
+                char, color = cmap.get_char_by_idx(color_idx)
+                stdscr.addstr(row_idx, col_idx, full_str + char, color)
+
+            else:
+                pos_idx = color_idx - 16
+                section = pos_idx // 36
+                pos_in_section = pos_idx % 36
+
+                row_idx = 1 + pos_in_section % 6
+                col_idx = 6 + (6 * 5) * section + pos_in_section // 6 * 5
+                # row_idx = 1 + color_idx % (curses.LINES - 2)
+                # col_idx = (color_idx // (curses.LINES - 2)) * 5
+
+                char, color = cmap.get_char_by_idx(color_idx)
+                stdscr.addstr(row_idx, col_idx, full_str + char, color)
+    elif curses_cmap is None:
+        for color_idx in cmap:
+
+            color_str = str(color_idx)
+            full_str = (4 - len(color_str)) * " " + color_str
+
+            row_idx = 1 + color_idx % (curses.LINES - 2)
+            col_idx = (color_idx // (curses.LINES - 2)) * 5
+            char, color = cmap.get_char_by_idx(color_idx)
+            stdscr.addstr(row_idx, col_idx, full_str + char, color)
+    else:
+        col_idx = -6
+        row_idx = 0
+        bump_col = False
+        for color0 in curses_cmap.colors:
+            for color1 in curses_cmap.colors:
+                try:
+                    slot = curses_cmap.colors_to_color_slot(color0, color1)
+                except ValueError:
+                    bump_col = True
+                    continue
+
+                color_str = str(slot)
+                full_str = (3 - len(color_str)) * " " + color_str
+
+                row_idx += 1
+                if bump_col:
+                    row_idx = 0
+                    col_idx += 6
+                    bump_col = False
+                # col_idx = (slot // len(curses_cmap.colors)) * 7
+                char = const.HALF_01 + const.HALF_10 + const.FULL_1
+                color = curses.color_pair(slot)
+                stdscr.addstr(row_idx, col_idx, full_str + char, color)
 
     while True:
         ch = stdscr.getch()
@@ -490,6 +550,7 @@ def view_colormap(stdscr, cmap=None):
 
 def main(stdscr, rows, cols, files, cmap="greys", show_logs=False):
     """View wav files spectrograms in multiple windows"""
+    from soundsig.sound import spectrogram
     stdscr.nodelay(True)
     cmaps = get_colormaps()
     curses.use_default_colors()
