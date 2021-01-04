@@ -1,13 +1,15 @@
 import curses
 import os
 from collections import namedtuple
+from collections import defaultdict
+import time
 
 import cv2
 import numpy as np
-from soundsig.sound import spectrogram
 
 from inspec import const, var
 from inspec.plugins.colormap import curses_cmap, load_cmap
+from inspec.plugins.audio.spectrogram import spectrogram
 
 from .base import BaseAudioPlugin, SoundFileMixin
 
@@ -42,14 +44,13 @@ class BaseAsciiSpectrogramPlugin(BaseAudioPlugin, SoundFileMixin):
 
     def convert_audio(self, data, sampling_rate):
         spec_height, spec_width = self.size_available()
-        t, f, spec, _ = spectrogram(
+        t, f, spec = spectrogram(
             data,
             sampling_rate,
             var.SPECTROGRAM_SAMPLE_RATE,
             var.SPECTROGRAM_FREQ_SPACING,
             min_freq=var.SPECTROGRAM_MIN_FREQ,
-            max_freq=var.SPECTROGRAM_MAX_FREQ,
-            cmplx=False
+            max_freq=var.SPECTROGRAM_MAX_FREQ
         )
         resized_spec = cv2.resize(
             spec,
@@ -172,14 +173,13 @@ class AsciiSpectrogram2x2Plugin(BaseAsciiSpectrogramPlugin):
 
     def convert_audio(self, data, sampling_rate):
         spec_height, spec_width = self.size_available()
-        t, f, spec, _ = spectrogram(
+        t, f, spec = spectrogram(
             data,
             sampling_rate,
             var.SPECTROGRAM_SAMPLE_RATE,
             var.SPECTROGRAM_FREQ_SPACING,
             min_freq=var.SPECTROGRAM_MIN_FREQ,
             max_freq=var.SPECTROGRAM_MAX_FREQ,
-            cmplx=False
         )
         resized_spec = cv2.resize(
             spec,
