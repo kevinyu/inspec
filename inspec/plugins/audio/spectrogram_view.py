@@ -34,16 +34,23 @@ class BaseAsciiSpectrogramPlugin(BaseAudioPlugin, SoundFileMixin):
         raise NotImplementedError
 
     def size_available(self):
-        """Return half the screen vertically
+        """Determine the max size of data array that can be rendered based on terminal size
         """
         size = os.get_terminal_size()
+        return (size.lines * 2, size.columns)
+
+    def size_render(self):
+        """Determine the max size of data array to render
+        """
+        y, x = self.size_available()
+
         return (
-            int(var.PRINT_SPEC_TERMINAL_Y_FRAC * size.lines * 2),
-            int(var.PRINT_SPEC_TERMINAL_X_FRAC * size.columns)
+            int(var.PRINT_SPEC_TERMINAL_Y_FRAC * y),
+            int(var.PRINT_SPEC_TERMINAL_X_FRAC * x)
         )
 
     def convert_audio(self, data, sampling_rate):
-        spec_height, spec_width = self.size_available()
+        spec_height, spec_width = self.size_render()
         t, f, spec = spectrogram(
             data,
             sampling_rate,
@@ -63,7 +70,7 @@ class BaseAsciiSpectrogramPlugin(BaseAudioPlugin, SoundFileMixin):
         return resized_t, resized_f, resized_spec
 
     def ascii_background(self):
-        return ColorBin(char=const.FULL_1, fg=self.cmap.colors[0], bg=self.cmap.colors[-1])
+        return CharBin(char=const.FULL_1, fg=self.cmap.colors[0], bg=self.cmap.colors[-1])
 
     def to_ascii_char(self, frac0, frac1):
         """Returns a character and foreground and background terminal colors (0-255)
@@ -83,13 +90,13 @@ class BaseAsciiSpectrogramPlugin(BaseAudioPlugin, SoundFileMixin):
             )
         elif bin0 < bin1:
             return CharBin(
-                char=const.HALF_01,
+                char=const.HALF_10,
                 fg=self.cmap.colors[bin0],
                 bg=self.cmap.colors[bin1],
             )
         elif bin1 < bin0:
             return CharBin(
-                char=const.HALF_10,
+                char=const.HALF_01,
                 fg=self.cmap.colors[bin1],
                 bg=self.cmap.colors[bin0]
             )
@@ -166,13 +173,10 @@ class AsciiSpectrogram2x2Plugin(BaseAsciiSpectrogramPlugin):
         """Return half the screen vertically
         """
         size = os.get_terminal_size()
-        return (
-            int(var.PRINT_SPEC_TERMINAL_Y_FRAC * size.lines * 2),
-            int(var.PRINT_SPEC_TERMINAL_X_FRAC * size.columns * 2)
-        )
+        return (size.lines * 2, size.columns * 2)
 
     def convert_audio(self, data, sampling_rate):
-        spec_height, spec_width = self.size_available()
+        spec_height, spec_width = self.size_render()
         t, f, spec = spectrogram(
             data,
             sampling_rate,
@@ -201,19 +205,29 @@ class AsciiSpectrogram2x2Plugin(BaseAsciiSpectrogramPlugin):
         mask = [p > patch_mean for p in flat_patch]
         char = getattr(const, "QTR_{2}{0}{3}{1}".format(*map(int, mask)))
 
+        flat_patch = patch[0, 0], patch[0, 1], patch[1, 0], patch[1, 1]
+        patch_mean = sum(flat_patch) / 4
+        mask = [p < patch_mean for p in flat_patch]
+        char = getattr(const, "QTR_{0}{2}{1}{3}".format(*map(int, mask)))
+
         frac0 = 0.0
         frac1 = 0.0
         len0 = 0
         len1 = 0
         for i in range(len(flat_patch)):
             if mask[i]:
-                frac1 += flat_patch[i]
-                len1 += 1
-            else:
                 frac0 += flat_patch[i]
                 len0 += 1
+            else:
+                frac1 += flat_patch[i]
+                len1 += 1
+
+        if len0 == 0 or len1 == 0:
+            return self.ascii_background()
+
         frac0 /= len0
         frac1 /= len1
+
 
         bin0, bin1 = self.cmap.scale(frac0), self.cmap.scale(frac1)
         if bin0 == bin1 == 0:
@@ -292,8 +306,12 @@ class CursesSpectrogramPlugin(AsciiSpectrogram2x2Plugin, SoundFileMixin):
 
     def size_available(self):
         lines, cols = self.window.getmaxyx()
-        lines -= 1  # Or else I get out of bounds errors in render()....
         return (2 * lines, 2 * cols)
+
+    def size_render(self):
+        y, x = self.size_available()
+        # Subtract one row because of an overflow error on the addstr in render()?
+        return y - 1, x
 
     def render(self):
         t, f, spec = self.convert_audio(self.data, self.sampling_rate)

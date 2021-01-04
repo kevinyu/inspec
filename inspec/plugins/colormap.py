@@ -6,6 +6,10 @@ import numpy as np
 from inspec import const, var
 
 
+class ColormapNotFound(Exception):
+    pass
+
+
 class PairedColormap(object):
 
     def __init__(self, colors, bin_edges=None):
@@ -28,10 +32,13 @@ class PairedColormap(object):
 
         self.validate()
 
-    def default_bin_edges(self, colors):
+    @staticmethod
+    def default_bin_edges(colors):
         return np.arange(1, len(colors)) / len(colors)
 
     def validate(self):
+        if len(self.colors) <= 1:
+            raise ValueError("At least 2 colors must be defined in a colormap")
         if len(self.colors) > const.MAX_PAIRED_COLORS:
             raise ValueError("Too many colors! {} out of max {}".format(
                 len(self.colors), const.MAX_PAIRED_COLORS))
@@ -70,6 +77,11 @@ class CursesColormapSingleton(object):
         """
         if fg_bin >= bg_bin:
             raise ValueError("fg_bin should never be greater than bg_bin")
+        if fg_bin < 0 or fg_bin >= len(self.cmap.colors):
+            raise ValueError("fg_bin is out of range [0, NCOLORS)")
+        if bg_bin <= 0 or bg_bin >= len(self.cmap.colors):
+            raise ValueError("bg_bin is out of range [1, NCOLORS)")
+
         return (
             (fg_bin * (len(self.cmap.colors) - 1))
             - ((fg_bin * (fg_bin - 1)) // 2)
@@ -161,9 +173,9 @@ def load_cmap(cmap):
         if cmap in _registered_colormaps:
             return _registered_colormaps[cmap]
         else:
-            raise ValueError("cmap {} not found in {}".format(cmap, list(_registered_colormaps.keys())))
+            raise ColormapNotFound("cmap {} not found in {}".format(cmap, list(_registered_colormaps.keys())))
     else:
-        raise ValueError("cmap {} of type {} is not valid".format(cmap, type(cmap)))
+        raise ColormapNotFound("cmap {} of type {} is not valid".format(cmap, type(cmap)))
 
 
 curses_cmap = CursesColormapSingleton()
@@ -172,5 +184,6 @@ curses_cmap = CursesColormapSingleton()
 __all__ = [
     "curses_cmap",
     "load_cmap",
-    "VALID_CMAPS"
+    "ColormapNotFound",
+    "VALID_CMAPS",
 ]

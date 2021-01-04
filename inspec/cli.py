@@ -138,7 +138,6 @@ def dev():
     pass
 
 
-
 @click.command(help="View colormap palettes")
 @click.option("--cmap", type=str, help="Choose colormap (see list-cmaps for options). Leave blank to show all possible colors", default=None)
 @click.option("--num/--no-num", help="Display terminal color numbers, or just show colors", default=True)
@@ -155,6 +154,13 @@ def test_windows(rows, cols):
     curses.wrapper(debug.test_windows, rows, cols)
 
 
+@click.command(help="Run unittests")
+def test():
+    import unittest
+    testsuite = unittest.TestLoader().discover('.')
+    unittest.TextTestRunner(verbosity=2).run(testsuite)
+
+
 cli.add_command(show)
 cli.add_command(open_)
 cli.add_command(list_cmaps)
@@ -162,6 +168,7 @@ cli.add_command(dev)
 dev.add_command(test_windows)
 dev.add_command(view_cmap)
 dev.add_command(benchmark_render)
+dev.add_command(test)
 
 
 if __name__ == "__main__":
