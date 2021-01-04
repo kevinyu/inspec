@@ -1,5 +1,5 @@
 # inspec
-View spectrograms of audio data files in the terminal using curses
+View spectrograms of audio data files in the terminal as ascii characters. Provides printing to stdout, a terminal gui built on curses, and importable functions.
 
 ## setup
 
@@ -11,30 +11,54 @@ source bin/activate
 pip install -r requirements.txt
 ```
 
-## run
+## cli
 
-The `inspec` command in `bin/` is essentially an alias for `inspec/cli.py` when the environment is activated with `bin/activate`. Invocation of `inspec` in the following examples can be replaced by `python inspec/cli.py` while in the virtual environment.
+The **inspec** command in bin/ is essentially an alias for **python inspec/cli.py** when the environment is activated with bin/activate. Invocation of **inspec** in the following examples can be replaced by **python inspec/cli.py** while in the virtual environment.
 
 
-```shell
-# Print to the command line
-inspec show FILENAME
-# Open the viewer
-inspec open [FILENAMES]
+#### inspec show
+```
+Usage: inspec show [OPTIONS] FILENAME
+
+  Print visual representation of audio file in command line
+
+Options:
+  --cmap TEXT           Choose colormap (see list-cmaps for options)
+  -d, --duration FLOAT
+  -t, --time FLOAT
+  --amp                 Show amplitude of signal instead of spectrogram
+  --help                Show this message and exit.
 ```
 
-Or in python
+#### inspec open
+```
+Usage: inspec open [OPTIONS] [FILENAMES]...
+
+  Open interactive gui for viewing audio files in command line
+
+Options:
+  -r, --rows INTEGER  Number of rows in layout
+  -c, --cols INTEGER  Number of columns in layout
+  --cmap TEXT         Choose colormap (see list-cmaps for options)
+  --show-logs
+  --help              Show this message and exit.
+```
+
+## python
+
+The code can be imported so renders can be done dynamically in other programs. This is the current gist.
 
 ```python
-from inspec.plugins.views.spectrogram_view import BaseAsciiSpectrogramPlugin
+from inspec.plugins.audio.spectrogram_view import BaseAsciiSpectrogramPlugin
 
+# Printing to stdout
 plugin = BaseAsciiSpectrogramPlugin()
 plugin.set_cmap("plasma")
 plugin.read_file(FILENAME)
 plugin.render()
 ```
 
-## outline
+## design notes
 
 ### inspec/main.py
 * main application functions that implement curses
@@ -46,12 +70,10 @@ plugin.render()
 
 ### inspec/plugins/
 
-#### views
+#### audio
 * different modules for viewing data (time-freq, amlitude, psd, etc)
 
-## ascii rendering
-
-### terminal color encoding
+## terminal color encoding
 
 To increase the resolution of rendering images in the y-axis, each terminal row is divided into two pixels using the unicode characters `█`, ` `, `▄`, and `▀`, labeled as `const.FULL_1`, `const.FULL_0`, `const.HALF_01`, and `const.HALF_10` respectively. A pair of these "pixels" being rendered as a single character I call a "patch".
 
@@ -92,11 +114,9 @@ The formula for this is
 
 `SLOT = (X0 * (K - 1)) - (X_0 * (X_0 - 1)) // 2 + X1 - X0`
 
-
 ## todo
 
 * Remove heavy dependencies if possible
-    * soundsig for spectrogram computation
     * opencv for spectrogram resizing
 * Refactoring application state so that view state (time) is per file
 * Refactor visualization code into a swappable/toggleable plugin structure
