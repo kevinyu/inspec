@@ -43,10 +43,16 @@ def open(filenames, rows, cols, cmap, show_logs):
 @click.option("--cmap", type=str, default="greys")
 @click.option("-d", "--duration", type=float, default=None)
 @click.option("-t", "--time", "_time", type=float, default=0.0)
-def check(filename, cmap, duration, _time):
+@click.option("--amp", is_flag=True)
+def check(filename, cmap, duration, _time, amp):
     import numpy as np
-    from .plugins.views.spectrogram_view import BaseAsciiSpectrogramPlugin
-    viewer = BaseAsciiSpectrogramPlugin()
+
+    if amp:
+        from .plugins.audio.amplitude_view import AsciiAmplitudeTwoSidedPlugin as Plugin
+    else:
+        from .plugins.audio.spectrogram_view import BaseAsciiSpectrogramPlugin as Plugin
+
+    viewer = Plugin()
     viewer.set_cmap(cmap)
 
     metadata = viewer.read_file_metadata(filename)
@@ -62,7 +68,7 @@ def check(filename, cmap, duration, _time):
     # raise Exception("{} {}".format(read_samples, start_idx))
     viewer.read_file_partial(filename, read_samples, start_idx)
     viewer.render()
-    print("freqs: {:.2f} to {:.2f}".format(*viewer.last_render_data["f"][[0, -1]]))
+    # print("freqs: {:.2f} to {:.2f}".format(*viewer.last_render_data["f"][[0, -1]]))
     print("time: {:.2f}s to {:.2f}s".format(*viewer.last_render_data["t"][[0, -1]]))
 
 

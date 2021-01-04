@@ -3,11 +3,12 @@ from collections import namedtuple
 
 import cv2
 import numpy as np
-import soundfile
 from soundsig.sound import spectrogram
 
 from inspec import const, var
 from inspec.colormap import curses_cmap, get_colormap
+
+from .base import BaseAudioPlugin, SoundFileMixin
 
 
 CharBin = namedtuple("CharBin", [
@@ -17,46 +18,7 @@ CharBin = namedtuple("CharBin", [
 ])
 
 
-class BaseSpectrogramPlugin(object):
-
-    def __init__(self):
-        self.data = None
-        self.sampling_rate = None
-        self._last_render_metadata = {}
-
-    def set_data(self, data, sampling_rate):
-        self.data = data
-        self.sampling_rate = sampling_rate
-
-    @property
-    def last_render_data(self):
-        return self._last_render_data
-
-    def render(self):
-        raise NotImplementedError
-
-
-class SoundFileMixin(object):
-
-    def read_file(self, filename):
-        data, sampling_rate = soundfile.read(filename)
-        self.set_data(data, sampling_rate)
-
-    def read_file_partial(self, filename, read_samples, start_idx):
-        data, sampling_rate = soundfile.read(filename, read_samples, start_idx)
-        self.set_data(data, sampling_rate)
-
-    def read_file_metadata(self, filename):
-        with soundfile.SoundFile(filename) as f:
-            return {
-                "sampling_rate": f.samplerate,
-                "frames": f.frames,
-                "n_channels": f.channels,
-                "duration": f.frames / f.samplerate
-            }
-
-
-class BaseAsciiSpectrogramPlugin(BaseSpectrogramPlugin, SoundFileMixin):
+class BaseAsciiSpectrogramPlugin(BaseAudioPlugin, SoundFileMixin):
 
     def __init__(self):
         super().__init__()
@@ -73,8 +35,8 @@ class BaseAsciiSpectrogramPlugin(BaseSpectrogramPlugin, SoundFileMixin):
         """
         size = os.get_terminal_size()
         return (
-            int(var.PRINT_TERMINAL_Y_FRAC * size.lines * 2),
-            int(var.PRINT_TERMINAL_X_FRAC * size.columns)
+            int(var.PRINT_SPEC_TERMINAL_Y_FRAC * size.lines * 2),
+            int(var.PRINT_SPEC_TERMINAL_X_FRAC * size.columns)
         )
 
     def convert_audio(self, data, sampling_rate):
@@ -99,7 +61,7 @@ class BaseAsciiSpectrogramPlugin(BaseSpectrogramPlugin, SoundFileMixin):
         return resized_t, resized_f, resized_spec
 
     def ascii_background(self):
-        return ColorBin(char=const.FULL_1, fg=0, bg=self.cmap.colors[-1])
+        return ColorBin(char=const.FULL_1, fg=self.cmap.colors[0], bg=self.cmap.colors[-1])
 
     def to_ascii_char(self, frac0, frac1):
         """Returns a character and foreground and background terminal colors (0-255)
