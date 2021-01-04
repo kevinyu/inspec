@@ -193,14 +193,27 @@ class AsciiSpectrogram2x2Plugin(BaseAsciiSpectrogramPlugin):
 
     def to_ascii_char(self, patch):
         """Returns a character and foreground and background terminal colors (0-255)
+
+        Avoids using slower numpy operations for means and stuff
         """
-        mask = (patch > np.mean(patch)).astype(bool)
-        char = getattr(const, "QTR_{2}{0}{3}{1}".format(*mask.astype(int).flatten()))
-        # raise Exception(~mask)
-        # frac0 = np.mean(patch[~mask])
-        # frac1 = np.mean(patch[mask])
-        frac0 = np.mean(np.ma.masked_array(patch, mask=mask))
-        frac1 = np.mean(np.ma.masked_array(patch, mask=~mask))
+        flat_patch = patch[0, 0], patch[0, 1], patch[1, 0], patch[1, 1]
+        patch_mean = sum(flat_patch) / 4
+        mask = [p > patch_mean for p in flat_patch]
+        char = getattr(const, "QTR_{2}{0}{3}{1}".format(*map(int, mask)))
+
+        frac0 = 0.0
+        frac1 = 0.0
+        len0 = 0
+        len1 = 0
+        for i in range(len(flat_patch)):
+            if mask[i]:
+                frac1 += flat_patch[i]
+                len1 += 1
+            else:
+                frac0 += flat_patch[i]
+                len0 += 1
+        frac0 /= len0
+        frac1 /= len1
 
         bin0, bin1 = self.cmap.scale(frac0), self.cmap.scale(frac1)
         if bin0 == bin1 == 0:
@@ -264,7 +277,6 @@ class AsciiSpectrogram2x2Plugin(BaseAsciiSpectrogramPlugin):
                     char, fg_color, bg_color = self.to_ascii_char(patch_frac)
 
                 output_characters[output_row, output_col] = (char, fg_color, bg_color)
-
         return output_characters
 
 

@@ -1,3 +1,4 @@
+import bisect
 import curses
 
 import numpy as np
@@ -38,7 +39,7 @@ class PairedColormap(object):
     def scale(self, frac):
         """Maps frac to a color bin
         """
-        return np.searchsorted(self.bin_edges, frac)
+        return bisect.bisect_left(self.bin_edges, frac)
 
 
 class CursesColormapSingleton(object):
