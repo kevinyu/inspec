@@ -71,16 +71,72 @@ def show(filename, cmap, duration, _time, amp):
     print("time: {:.2f}s to {:.2f}s".format(*viewer.last_render_data["t"][[0, -1]]))
 
 
-@click.group()
-def dev():
-    pass
-
-
 @click.command(help="View colormap choices")
 def list_cmaps():
     from .plugins.colormap import VALID_CMAPS
     click.echo(VALID_CMAPS)
     click.echo("Default: {}".format(var.DEFAULT_CMAP))
+
+
+@click.command(help="Benchmark a render function")
+@click.argument("plugin_module", type=str)
+@click.option("-p", "--plugin", type=str, default=None)
+@click.option("-d", "--duration", type=float, help="duration of test data", default=1)
+@click.option("-r", "--rate", type=int, help="sampling rate of test data", default=48000)
+def benchmark_render(plugin_module, plugin, duration, rate):
+    import importlib
+    try:
+        module = importlib.import_module(plugin_module)
+    except ImportError:
+        click.echo("Could not find module {}".format(plugin_module))
+        return
+
+    if "__all__" in module.__dict__:
+        plugin_names = module.__dict__["__all__"]
+    else:
+        plugin_names = []
+
+    if plugin is None:
+        click.echo("Plugins in {} are:\n{}".format(plugin_module, plugin_names))
+        return
+    elif plugin not in plugin_names:
+        click.echo("Plugin {} not found. Available plugins in {} are:\n{}".format(
+            plugin,
+            plugin_module,
+            plugin_names
+        ))
+        return
+    else:
+        Plugin = getattr(module, plugin)
+
+    import numpy as np
+    import time
+
+    sampling_rate = int(rate)
+    random_data = np.random.random(int(sampling_rate * duration))
+
+    _t = time.time()
+    def _profile(msg, cycles=1):
+        nonlocal _t
+        click.echo("{}: {:.3f}".format(msg, (time.time() - _t) / cycles))
+        _t = time.time()
+
+    viewer = Plugin()
+    _profile("Initialized plugin")
+
+    viewer.set_data(random_data, sampling_rate)
+    _profile("Set data")
+
+    for _ in range(10):
+        viewer.render()
+
+    _profile("Rendered 10x", cycles=10)
+
+
+@click.group(help="Functions for development and debugging")
+def dev():
+    pass
+
 
 
 @click.command(help="View colormap palettes")
@@ -105,6 +161,7 @@ cli.add_command(list_cmaps)
 cli.add_command(dev)
 dev.add_command(test_windows)
 dev.add_command(view_cmap)
+dev.add_command(benchmark_render)
 
 
 if __name__ == "__main__":
