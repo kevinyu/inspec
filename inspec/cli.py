@@ -5,8 +5,7 @@ import os
 
 import click
 
-from . import main
-from . import debug
+from . import var, const
 
 
 @click.group()
@@ -14,13 +13,15 @@ def cli():
     pass
 
 
-@click.command()
+@click.command("open", help="Open interactive gui for viewing audio files in command line")
 @click.argument("filenames", nargs=-1, type=click.Path(exists=True))
-@click.option("-r", "--rows", type=int, default=1)
-@click.option("-c", "--cols", type=int, default=1)
-@click.option("--cmap", type=str, default="greys")
+@click.option("-r", "--rows", help="Number of rows in layout", type=int, default=1)
+@click.option("-c", "--cols", help="Number of columns in layout", type=int, default=1)
+@click.option("--cmap", help="Choose colormap (see list-cmaps for options)", type=str, default="greys")
 @click.option("--show-logs", is_flag=True)
-def open(filenames, rows, cols, cmap, show_logs):
+def open_(filenames, rows, cols, cmap, show_logs):
+    from . import gui
+
     if not len(filenames):
         filenames = ["."]
 
@@ -36,22 +37,21 @@ def open(filenames, rows, cols, cmap, show_logs):
     if not len(files):
         click.echo("No files matching {} were found.".format(filenames))
     else:
-        curses.wrapper(main.main, rows, cols, files, cmap=cmap, show_logs=show_logs)
+        curses.wrapper(gui.main, rows, cols, files, cmap=cmap, show_logs=show_logs)
 
 
-@click.command()
+@click.command(help="Print visual representation of audio file in command line")
 @click.argument("filename", type=click.Path(exists=True))
-@click.option("--cmap", type=str, default="greys")
+@click.option("--cmap", type=str, help="Choose colormap (see list-cmaps for options)", default="greys")
 @click.option("-d", "--duration", type=float, default=None)
 @click.option("-t", "--time", "_time", type=float, default=0.0)
-@click.option("--amp", is_flag=True)
-def check(filename, cmap, duration, _time, amp):
+@click.option("--amp", help="Show amplitude of signal instead of spectrogram", is_flag=True)
+def show(filename, cmap, duration, _time, amp):
     import numpy as np
-
     if amp:
         from .plugins.audio.amplitude_view import AsciiAmplitudeTwoSidedPlugin as Plugin
     else:
-        from .plugins.audio.spectrogram_view import BaseAsciiSpectrogramPlugin as Plugin
+        from .plugins.audio.spectrogram_view import AsciiSpectrogram2x2Plugin as Plugin
 
     viewer = Plugin()
     viewer.set_cmap(cmap)
@@ -75,24 +75,36 @@ def check(filename, cmap, duration, _time, amp):
 def dev():
     pass
 
-@click.command()
-@click.option("--cmap", type=str, default=None)
-@click.option("--num/--no-num", default=True)
-def view_colormap(cmap, num):
+
+@click.command(help="View colormap choices")
+def list_cmaps():
+    from .plugins.colormap import VALID_CMAPS
+    click.echo(VALID_CMAPS)
+    click.echo("Default: {}".format(var.DEFAULT_CMAP))
+
+
+@click.command(help="View colormap palettes")
+@click.option("--cmap", type=str, help="Choose colormap (see list-cmaps for options). Leave blank to show all possible colors", default=None)
+@click.option("--num/--no-num", help="Display terminal color numbers, or just show colors", default=True)
+def view_cmap(cmap, num):
+    from . import debug
     curses.wrapper(debug.view_colormap, cmap, num)
 
 
-@click.command()
+@click.command(help="View window layout")
 @click.option("-r", "--rows", type=int, default=1)
 @click.option("-c", "--cols", type=int, default=1)
 def test_windows(rows, cols):
+    from . import debug
     curses.wrapper(debug.test_windows, rows, cols)
 
-cli.add_command(check)
-cli.add_command(open)
+
+cli.add_command(show)
+cli.add_command(open_)
+cli.add_command(list_cmaps)
 cli.add_command(dev)
 dev.add_command(test_windows)
-dev.add_command(view_colormap)
+dev.add_command(view_cmap)
 
 
 if __name__ == "__main__":

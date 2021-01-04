@@ -18,7 +18,7 @@ The `inspec` command in `bin/` is essentially an alias for `inspec/cli.py` when 
 
 ```shell
 # Print to the command line
-inspec check FILENAME
+inspec show FILENAME
 # Open the viewer
 inspec open [FILENAMES]
 ```
@@ -100,6 +100,6 @@ The formula for this is
     * opencv for spectrogram resizing
 * Refactoring application state so that view state (time) is per file
 * Refactor visualization code into a swappable/toggleable plugin structure
-    * Convert spectrogram ploting code into a spectrogram_view plugin
-    * Create a amplitude_view plugin
-* Create a module for live streaming data (integrate into plugin code)
+    * How to select and configure active plugins?
+* Create a module for live streaming data (integrate into plugin code?)
+    * Or create a new plugin group

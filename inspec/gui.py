@@ -336,7 +336,7 @@ def draw_instructions(stdscr):
 
 def main(stdscr, rows, cols, files, cmap="greys", show_logs=False):
     from .plugins.audio.spectrogram_view import CursesSpectrogramPlugin
-    from .colormap import get_colormap, curses_cmap
+    from .plugins.colormap import load_cmap, curses_cmap
 
     curses.use_default_colors()
     stdscr.nodelay(True)
@@ -347,7 +347,7 @@ def main(stdscr, rows, cols, files, cmap="greys", show_logs=False):
         len(files),
         0,
         0,
-        cmap=get_colormap(cmap)
+        cmap=load_cmap(cmap)
     )
 
     curses_cmap.init_colormap(view_state.cmap)

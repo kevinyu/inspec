@@ -1,7 +1,7 @@
 import curses
 
 from . import const, var
-from .main import compute_layout, create_panel, create_window, annotate_window
+from .gui import compute_layout, create_panel, create_window, annotate_window
 
 
 def test_windows(stdscr, rows, cols):
@@ -60,13 +60,14 @@ def test_windows(stdscr, rows, cols):
 def view_colormap(stdscr, cmap=None, num=True):
     curses.use_default_colors()
 
-    from .colormap import get_colormap, curses_cmap
+    from .plugins.colormap import curses_cmap, load_cmap
 
     if cmap is None:
         show_full = True
     else:
         show_full = False
 
+    WIDTH = 4
     if show_full:
         i = 0
         for color in range(curses.COLORS):
@@ -83,7 +84,6 @@ def view_colormap(stdscr, cmap=None, num=True):
             range(160 + 36, 160 + 72),
             range(160 + 72, 256),
         ]
-        WIDTH = 4
         tempts = []
         for i, block in enumerate(blocks):
             if i == 0 or i == 7:
@@ -113,10 +113,10 @@ def view_colormap(stdscr, cmap=None, num=True):
                     color = curses.color_pair(color_idx)
                     stdscr.addstr(row, col, full_str, color)
     else:
-        cmap = get_colormap(cmap)
+        cmap = load_cmap(cmap)
         curses_cmap.init_colormap(cmap)
 
-        col_idx = -6
+        col_idx = -WIDTH
         row_idx = 0
         bump_col = False
         for color0 in curses_cmap.colors:
@@ -128,16 +128,18 @@ def view_colormap(stdscr, cmap=None, num=True):
                     continue
 
                 color_str = str(slot)
-                full_str = (3 - len(color_str)) * " " + color_str
+                if num:
+                    full_str = (WIDTH - len(color_str)) * " " + color_str
+                else:
+                    full_str = WIDTH * const.FULL_1
 
                 row_idx += 1
                 if bump_col:
                     row_idx = 0
-                    col_idx += 6
+                    col_idx += WIDTH
                     bump_col = False
-                char = const.HALF_01 + const.HALF_10 + const.FULL_1
                 color = curses.color_pair(slot)
-                stdscr.addstr(row_idx, col_idx, full_str + char, color)
+                stdscr.addstr(row_idx, col_idx, full_str, color)
 
     while True:
         ch = stdscr.getch()

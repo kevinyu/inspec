@@ -3,7 +3,7 @@ import os
 import numpy as np
 
 from inspec import const, var
-from inspec.colormap import curses_cmap, get_colormap
+from inspec.plugins.colormap import curses_cmap, load_cmap
 
 from .base import BaseAudioPlugin, SoundFileMixin
 
@@ -12,10 +12,10 @@ class BaseAsciiAmplitudePlugin(BaseAudioPlugin, SoundFileMixin):
 
     def __init__(self):
         super().__init__()
-        self.cmap = get_colormap(var.DEFAULT_CMAP)
+        self.cmap = load_cmap(var.DEFAULT_CMAP)
 
     def set_cmap(self, cmap):
-        self.cmap = get_colormap(cmap)
+        self.cmap = load_cmap(cmap)
 
     def receive(self, data):
         raise NotImplementedError
@@ -193,3 +193,9 @@ class AsciiAmplitudeTwoSidedPlugin(BaseAsciiAmplitudePlugin):
                 )
 
         return output_characters
+
+
+__all__ = [
+    "BaseAsciiAmplitudePlugin",
+    "AsciiAmplitudeTwoSidedPlugin",
+]

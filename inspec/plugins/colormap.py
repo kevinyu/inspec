@@ -2,7 +2,7 @@ import curses
 
 import numpy as np
 
-from . import const, var
+from inspec import const, var
 
 
 class PairedColormap(object):
@@ -87,7 +87,7 @@ class CursesColormapSingleton(object):
         )
 
     def init_colormap(self, cmap):
-        self.cmap = get_colormap(cmap)
+        self.cmap = load_cmap(cmap)
 
         # Assign fg and bg color pairs to terminal colors
         self.reverse_color_lookup = {}
@@ -104,62 +104,57 @@ class CursesColormapSingleton(object):
                 )
 
 
-_colormaps = {}
-def get_colormaps():
-    global _colormaps
-    if len(_colormaps):
-        return _colormaps
-
-    _colormaps = {
-        "greys": PairedColormap(
-            [16]
-            + list(range(232, 250))
-            + [251, 253, 255]),
-        "plasma": PairedColormap([
-            16, 232, 17, 18, 19, 20,
-            21, 57, 56, 55, 91, 127,
-            163, 169, 168, 167, 166, 172,
-            208, 214, 220, 221
-        ]),
-        "viridis": PairedColormap([
-            16, 232, 17, 18, 19, 20,
-            26, 25, 24, 23, 22, 28,
-            34, 40, 46, 82, 118, 154,
-            148, 184, 220, 221
-        ]),
-        "blues": PairedColormap([
-            16, 232, 17, 18, 19, 20,
-            21, 27, 26, 25, 24, 30,
-            37, 44, 51, 87, 123, 159,
-            195, 231, 255
-        ]),
-        "bluered": PairedColormap([
-            21, 27, 33, 39, 45, 51,
-            87, 123, 159, 195, 231, 255,
-            231, 224, 217, 210, 203, 196,
-            160, 124, 88, 52,
-        ]),
-    }
-
-    for key in list(_colormaps.keys()):
-        if isinstance(_colormaps[key], PairedColormap):
-            _colormaps["{}_r".format(key)] = PairedColormap(
-            list(reversed(_colormaps[key].colors))
-        )
-
-    return _colormaps
+_registered_colormaps = {
+    "greys": PairedColormap(
+        [16]
+        + list(range(232, 250))
+        + [251, 253, 255]),
+    "plasma": PairedColormap([
+        16, 232, 17, 18, 19, 20,
+        21, 57, 56, 55, 91, 127,
+        163, 169, 168, 167, 166, 172,
+        208, 214, 220, 221
+    ]),
+    "viridis": PairedColormap([
+        16, 232, 17, 18, 19, 20,
+        26, 25, 24, 23, 22, 28,
+        34, 40, 46, 82, 118, 154,
+        148, 184, 220, 221
+    ]),
+    "blues": PairedColormap([
+        16, 232, 17, 18, 19, 20,
+        21, 27, 26, 25, 24, 30,
+        37, 44, 51, 87, 123, 159,
+        195, 231, 255
+    ]),
+    "bluered": PairedColormap([
+        21, 27, 33, 39, 45, 51,
+        87, 123, 159, 195, 231, 255,
+        231, 224, 217, 210, 203, 196,
+        160, 124, 88, 52,
+    ]),
+}
 
 
-def get_colormap(cmap):
+for key in list(_registered_colormaps.keys()):
+    if isinstance(_registered_colormaps[key], PairedColormap):
+        _registered_colormaps["{}_r".format(key)] = PairedColormap(
+        list(reversed(_registered_colormaps[key].colors))
+    )
+
+
+VALID_CMAPS = list(sorted(_registered_colormaps.keys()))
+
+
+def load_cmap(cmap):
     """Get a colormap by string or object"""
     if isinstance(cmap, PairedColormap):
         return cmap
     elif isinstance(cmap, str):
-        available_cmaps = get_colormaps()
-        if cmap in available_cmaps:
-            return available_cmaps[cmap]
+        if cmap in _registered_colormaps:
+            return _registered_colormaps[cmap]
         else:
-            raise ValueError("cmap {} not found in {}".format(cmap, list(available_cmaps.keys())))
+            raise ValueError("cmap {} not found in {}".format(cmap, list(_registered_colormaps.keys())))
     else:
         raise ValueError("cmap {} of type {} is not valid".format(cmap, type(cmap)))
 
@@ -167,4 +162,8 @@ def get_colormap(cmap):
 curses_cmap = CursesColormapSingleton()
 
 
-__all__ = ["curses_cmap", "get_colormaps", "get_colormap"]
+__all__ = [
+    "curses_cmap",
+    "load_cmap",
+    "VALID_CMAPS"
+]
