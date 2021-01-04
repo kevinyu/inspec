@@ -6,6 +6,7 @@ import os
 import click
 
 from . import main
+from . import debug
 
 
 @click.group()
@@ -65,10 +66,8 @@ def check(filename, cmap, duration, _time, amp):
         read_samples = int(np.floor(duration * metadata["sampling_rate"]))
     else:
         read_samples = metadata["frames"]
-    # raise Exception("{} {}".format(read_samples, start_idx))
-    viewer.read_file_partial(filename, read_samples, start_idx)
+    viewer.read_file(filename, read_samples, start_idx)
     viewer.render()
-    # print("freqs: {:.2f} to {:.2f}".format(*viewer.last_render_data["f"][[0, -1]]))
     print("time: {:.2f}s to {:.2f}s".format(*viewer.last_render_data["t"][[0, -1]]))
 
 
@@ -78,15 +77,16 @@ def dev():
 
 @click.command()
 @click.option("--cmap", type=str, default=None)
-def view_colormap(cmap):
-    curses.wrapper(main.view_colormap, cmap)
+@click.option("--num/--no-num", default=True)
+def view_colormap(cmap, num):
+    curses.wrapper(debug.view_colormap, cmap, num)
 
 
 @click.command()
 @click.option("-r", "--rows", type=int, default=1)
 @click.option("-c", "--cols", type=int, default=1)
 def test_windows(rows, cols):
-    curses.wrapper(main.test_windows, rows, cols)
+    curses.wrapper(debug.test_windows, rows, cols)
 
 cli.add_command(check)
 cli.add_command(open)

@@ -1,3 +1,4 @@
+import curses
 import os
 from collections import namedtuple
 
@@ -164,18 +165,19 @@ class CursesSpectrogramPlugin(BaseAsciiSpectrogramPlugin, SoundFileMixin):
 
     def size_available(self):
         lines, cols = self.window.getmaxyx()
+        lines -= 1  # Or else I get out of bounds errors in render()....
         return (2 * lines, cols)
 
     def render(self):
         t, f, spec = self.convert_audio(self.data, self.sampling_rate)
-        chars = self.to_ascii(spec)
+        chars = self.to_ascii_array(spec)
 
         for row in range(chars.shape[0]):
             for col in range(chars.shape[1]):
                 char, fg_color, bg_color = chars[row, col]
                 color = curses.color_pair(self.cmap.colors_to_color_slot(fg_color, bg_color))
                 self.window.addstr(
-                    chars.shape[0] - row,
+                    chars.shape[0] - row - 1,
                     col,
                     char,
                     color
