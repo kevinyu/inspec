@@ -78,6 +78,11 @@ def list_cmaps():
     click.echo("Default: {}".format(var.DEFAULT_CMAP))
 
 
+@click.group(help="Functions for development and debugging")
+def dev():
+    pass
+
+
 @click.command(help="Benchmark a render function")
 @click.argument("plugin_module", type=str)
 @click.option("-p", "--plugin", type=str, default=None)
@@ -118,7 +123,7 @@ def benchmark_render(plugin_module, plugin, duration, rate):
     _t = time.time()
     def _profile(msg, cycles=1):
         nonlocal _t
-        click.echo("{}: {:.3f}".format(msg, (time.time() - _t) / cycles))
+        click.echo("{}: {:.3f}s / loop".format(msg, (time.time() - _t) / cycles))
         _t = time.time()
 
     viewer = Plugin()
@@ -132,10 +137,36 @@ def benchmark_render(plugin_module, plugin, duration, rate):
 
     _profile("Rendered 10x", cycles=10)
 
+@click.command(help="Benchmark a spectrogram function")
+@click.option("-s", "--signal-size", type=int, help="size in samples of test data", default=48000)
+@click.option("-r", "--rate", type=int, help="sampling rate of test data", default=48000)
+@click.option("--spec-sample-rate", type=int, help="sampling rate of output spectrogram", default=var.SPECTROGRAM_SAMPLE_RATE)
+@click.option("--spec-freq-spacing", type=int, help="approx freq spacing of output spectrogram", default=var.SPECTROGRAM_FREQ_SPACING)
+@click.option("--resize-x", type=int, help="resize to number of spec time bins", default=80)
+@click.option("--resize-y", type=int, help="resize to number of spec freq bins", default=40)
+@click.option("--repeat", type=int, help="iterations for timing", default=1)
+def benchmark_spectrogram(signal_size, rate, spec_sample_rate, spec_freq_spacing, resize_x, resize_y, repeat):
+    import time
+    import numpy as np
+    from .plugins.audio.spectrogram import spectrogram, resize
 
-@click.group(help="Functions for development and debugging")
-def dev():
-    pass
+    signal = np.random.random(signal_size)
+
+    _t = time.time()
+    def _profile(msg, cycles=1):
+        nonlocal _t
+        click.echo("{}: {:.3f}s / loop".format(msg, (time.time() - _t) / cycles))
+        _t = time.time()
+
+    specs = []
+    for _ in range(repeat):
+        t, f, spec = spectrogram(signal, rate, spec_sample_rate, spec_freq_spacing)
+        specs.append(spec)
+    _profile("Spectrogram finished (x{})".format(repeat), cycles=repeat)
+
+    for spec in specs:
+        resize(spec, resize_y, resize_x)
+    _profile("Resizing finished (x{})".format(repeat), cycles=repeat)
 
 
 @click.command(help="View colormap palettes")
@@ -164,9 +195,15 @@ def test_pagination(rows, cols, n_panels):
 
 
 @click.command(help="Run unittests")
-def unittest():
+@click.option("-d", "--dir", "_dir", type=str, default=".")
+def unittest(_dir):
+    import os
     import unittest
-    testsuite = unittest.TestLoader().discover('.')
+
+    if os.path.isdir(_dir):
+        testsuite = unittest.TestLoader().discover(".")
+    else:
+        testsuite = unittest.TestLoader().loadTestsFromName(_dir)
     unittest.TextTestRunner(verbosity=2).run(testsuite)
 
 
@@ -178,6 +215,7 @@ dev.add_command(test_windows)
 dev.add_command(test_pagination)
 dev.add_command(view_cmap)
 dev.add_command(benchmark_render)
+dev.add_command(benchmark_spectrogram)
 dev.add_command(unittest)
 
 
