@@ -154,8 +154,17 @@ def test_windows(rows, cols):
     curses.wrapper(debug.test_windows, rows, cols)
 
 
+@click.command(help="View window layout")
+@click.option("-r", "--rows", type=int, default=1)
+@click.option("-c", "--cols", type=int, default=1)
+@click.option("-n", "--n-panels", type=int, default=10)
+def test_pagination(rows, cols, n_panels):
+    from . import debug
+    curses.wrapper(debug.test_pagination, rows, cols, n_panels)
+
+
 @click.command(help="Run unittests")
-def test():
+def unittest():
     import unittest
     testsuite = unittest.TestLoader().discover('.')
     unittest.TextTestRunner(verbosity=2).run(testsuite)
@@ -166,9 +175,10 @@ cli.add_command(open_)
 cli.add_command(list_cmaps)
 cli.add_command(dev)
 dev.add_command(test_windows)
+dev.add_command(test_pagination)
 dev.add_command(view_cmap)
 dev.add_command(benchmark_render)
-dev.add_command(test)
+dev.add_command(unittest)
 
 
 if __name__ == "__main__":
