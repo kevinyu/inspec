@@ -3,6 +3,8 @@ View spectrograms of audio data files in the terminal as ascii characters. Provi
 
 ## setup
 
+To install for development
+
 ```
 git clone git@github.com:kevinyu/inspec.git
 cd inspec
@@ -11,10 +13,13 @@ source bin/activate
 pip install -r requirements.txt
 ```
 
+## compatibility
+
+Definitely works on Ubuntu + Python3.8. Kind of works on Windows 10 + Python3.8 in Powershell but a little unstable, needs `pip install windows-curses` as well.
+
 ## cli
 
-The **inspec** command in bin/ is essentially an alias for **python inspec/cli.py** when the environment is activated with bin/activate. Invocation of **inspec** in the following examples can be replaced by **python inspec/cli.py** while in the virtual environment.
-
+The **inspec** command at bin/inspec is essentially an alias for **python -m inspec.cli** when the environment is activated with bin/activate. Invocation of **inspec** in the following examples can be replaced by **python -m inspec.cli** while in the virtual environment.
 
 #### inspec show
 ```
@@ -44,7 +49,19 @@ Options:
   --help              Show this message and exit.
 ```
 
-## python
+#### other important commands
+
+```
+inspec list-cmaps
+inspec dev view-cmap
+```
+
+Run unittests 
+```
+inspec dev unittests
+```
+
+#### importing in python
 
 The code can be imported so renders can be done dynamically in other programs. This is the current gist.
 
@@ -60,26 +77,29 @@ plugin.render()
 
 ## design notes
 
-### inspec/main.py
+### file organization
+
+#### inspec/main.py
 * main application functions that implement curses
 * manage open files
 * keep a global view state and per-file view state in the GUI
 
-### inspec/cli.py
+#### inspec/cli.py
 * defines commands as entrypoints to invoking programs in main.py
 
-### inspec/plugins/
-
-#### audio
+#### inspec/plugins/audio
 * different modules for viewing data (time-freq, amlitude, psd, etc)
 
-## terminal color encoding
+#### inspec/plugins/colormap.py
+* colormaps defined in terminal colors
+
+### terminal color encoding
 
 To increase the resolution of rendering images in the y-axis, each terminal row is divided into two pixels using the unicode characters `█`, ` `, `▄`, and `▀`, labeled as `const.FULL_1`, `const.FULL_0`, `const.HALF_01`, and `const.HALF_10` respectively. A pair of these "pixels" being rendered as a single character I call a "patch".
 
 curses has 255 slots for foreground/background color pairs. We assign each SLOT to a (F, B) color where SLOT is a number between 1 and 255 inclusive representing a curses color slot, and F and B are numbers between 0 and 255 inclusive representing terminal colors for the foreground and background respectively. F and B must come from the set of K colors in a colormap.
 
-To increase the capacity of colors per colormap, we note that we never need to use a slot where F == B since we can always just use `█` colored by (F, \*), or ` ` colored using (\*, B). Similarly, we never need to use a slot for F > B. If we wanted a slot colored as `▄` (F, B) with F > B, we can replace it with `▀` (B, F).
+To increase the capacity of colors per colormap, we note that we never need to use a slot where F == B since we can always just use `█` colored by (F, \*), or ` ` colored using (\*, B). Similarly, we never need to use a slot for F < B. If we wanted a slot colored as `▄` (F, B) with F < B, we can replace it with `▀` (B, F).
 
 Thus we have the following solution so that every possible patch can be encoded in the colormap using a combination of one of `█`, ` `, `▄`, and `▀` and one of our stored (F, B) pairs.
 
@@ -91,28 +111,28 @@ PATCH is a (X0, X1) pair where X0 and X1 are the indices into COLORS that we wan
 
 | PATCH = (X0, X1) | (COLORS, CHAR) | (SLOT, CHAR) |
 |---|---|---|
-|`(0, 0)`| `(COLORS[0], COLORS[K-1], "█")` | `(K-1, "█")` |
-|`(0, 1)`| `(COLORS[0], COLORS[1], "▄")` | `(1, "▄")` |
-|`(0, 2)`| `(COLORS[0], COLORS[2], "▄")` | `(2, "▄")` |
+|`(0, 0)`| `(COLORS[K-1], COLORS[0]), " ")` | `(K-1, " ")` |
+|`(1, 0)`| `(COLORS[1], COLORS[0]), "▀")` | `(1, "▀")` |
+|`(2, 0)`| `(COLORS[2], COLORS[0]), "▀")` | `(2, "▀")` |
 |...|...|...|
-|`(0, K-1)`| `(COLORS[0], COLORS[K-1], "▄")` | `(K-1, "▄")` |
-|`(1, 0)`| `(COLORS[0], COLORS[1], "▀")` | `(2, "▀")` |
-|`(1, 1)`| `(COLORS[0], COLORS[1], " ")` | `(2, " ")` |
-|`(1, 2)`| `(COLORS[1], COLORS[2], "▄")` | `(K, "▄")` |
+|`(K-1, 0)`| `(COLORS[K-1], COLORS[0]), "▀")` | `(K-1, "▀")` |
+|`(0, 1)`| `(COLORS[1], COLORS[0]), "▄")` | `(2, "▄")` |
+|`(1, 1)`| `(COLORS[1], COLORS[0]), "█")` | `(2, "█")` |
+|`(2, 1)`| `(COLORS[2], COLORS[1]), "▀")` | `(K, "▀")` |
 |...|...|...|
-|`(1, K-1)`| `(COLORS[1], COLORS[K-1], "▄")` | `(2K-1, "▄")` |
-|`(2, 0)`| `(COLORS[0], COLORS[2], "▀")` | `(3, "▀")` |
-|`(2, 1)`| `(COLORS[1], COLORS[2], "▀")` | `(K+1, "▀")` |
-|`(2, 2)`| `(COLORS[0], COLORS[2], " ")` | `(3, " ")` |
-|`(2, 3)`| `(COLORS[2], COLORS[3], "▄")` | `(2K, "▄")` |
+|`(K-1, 1)`| `(COLORS[K-1], COLORS[1]), "▀")` | `(2K-1, "▀")` |
+|`(0, 2)`| `(COLORS[2], COLORS[0]), "▄")` | `(3, "▄")` |
+|`(1, 2)`| `(COLORS[2], COLORS[1]), "▄")` | `(K+1, "▄")` |
+|`(2, 2)`| `(COLORS[2], COLORS[0]), "█")` | `(3, "█")` |
+|`(3, 2)`| `(COLORS[3], COLORS[2]), "▀")` | `(2K, "▀")` |
 |...|...|...|
-|`(2, K-1)`| `(COLORS[2], COLORS[3], "▄")` | `(3K-4, "▄")` |
+|`(K-1, 2)`| `(COLORS[3], COLORS[2]), "▀")` | `(3K-4, "▀")` |
 |...|...|...|
-|`(K-1, K-1)`| `(COLORS[0], COLORS[K-1], " ")` | `(K-1, " ")` |
+|`(K-1, K-1)`| `(COLORS[K-1], COLORS[0]), "█")` | `(K-1, "█")` |
 
 The formula for this is
 
-`SLOT = (X0 * (K - 1)) - (X_0 * (X_0 - 1)) // 2 + X1 - X0`
+`SLOT = (X1 * (K - 1)) - (X_1 * (X_1 - 1)) // 2 + X0 - X1`
 
 ## todo
 
