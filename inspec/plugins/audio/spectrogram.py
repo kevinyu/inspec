@@ -76,3 +76,63 @@ def spectrogram(signal, sampling_rate, spec_sample_rate, freq_spacing, nstd=6, m
     spec = np.abs(spec)
 
     return t_arr, freq_arr, spec
+
+
+def resize(spec, target_height, target_width):
+    """Resize a 2D array with bilinear interpolation
+
+    A modified version of https://chao-ji.github.io/jekyll/update/2018/07/19/BilinearResize.html
+
+    `image` is a 2-D numpy array
+    `height` and `width` are the desired spatial dimension of the new 2-D array.
+    """
+    original_height, original_width = spec.shape
+    resized = np.empty([target_height, target_width])
+
+    dy = (original_height - 1) / (target_height - 1)
+    dx = (original_width - 1) / (target_width - 1)
+
+    for i in range(target_height):
+        for j in range(target_width):
+            # Where would this point have been in the old coordinates?
+            reference_i = i * dy
+            reference_j = j * dx
+
+            ref_i_lower = int(np.floor(reference_i))
+            ref_i_upper = int(np.ceil(reference_i))
+            ref_j_lower = int(np.floor(reference_j))
+            ref_j_upper = int(np.ceil(reference_j))
+
+            corner_00 = spec[ref_i_lower, ref_j_lower]
+            corner_01 = spec[ref_i_lower, ref_j_upper]
+            corner_10 = spec[ref_i_upper, ref_j_lower]
+            corner_11 = spec[ref_i_upper, ref_j_upper]
+
+            # Linear interpolation by distances to corners
+            weight_i_lower = 1 - np.abs(reference_i - ref_i_lower)
+            weight_i_upper = 1 - weight_i_lower
+            weight_j_lower = 1 - np.abs(reference_j - ref_j_lower)
+            weight_j_upper = 1 - weight_j_lower
+
+            corner_00_weight = weight_i_lower * weight_j_lower
+            corner_01_weight = weight_i_lower * weight_j_upper
+            corner_10_weight = weight_i_upper * weight_j_lower
+            corner_11_weight = weight_i_upper * weight_j_upper
+
+            resized[i][j] = (
+                corner_00 * corner_00_weight
+                + corner_01 * corner_01_weight
+                + corner_10 * corner_10_weight
+                + corner_11 * corner_11_weight
+            )
+
+    return resized
+
+
+def cv2_resize(spec, target_height, target_width):
+    import cv2
+    return cv2.resize(
+        spec,
+        dsize=(target_width, target_height),
+        interpolation=cv2.INTER_CUBIC
+    )

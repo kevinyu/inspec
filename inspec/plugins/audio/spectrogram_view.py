@@ -4,12 +4,11 @@ import sys
 from collections import namedtuple
 from collections import defaultdict
 
-import cv2
 import numpy as np
 
 from inspec import const, var
 from inspec.plugins.colormap import curses_cmap, load_cmap
-from inspec.plugins.audio.spectrogram import spectrogram
+from inspec.plugins.audio.spectrogram import resize, spectrogram
 
 from .base import BaseAudioPlugin, SoundFileMixin
 
@@ -66,11 +65,12 @@ class BaseAsciiSpectrogramPlugin(BaseAudioPlugin, SoundFileMixin):
             min_freq=var.SPECTROGRAM_MIN_FREQ,
             max_freq=var.SPECTROGRAM_MAX_FREQ
         )
-        resized_spec = cv2.resize(
+        resized_spec = resize(
             spec,
-            dsize=(spec_width, spec_height),
-            interpolation=cv2.INTER_CUBIC
+            spec_height,
+            spec_width,
         )
+
         resized_t = np.linspace(t[0], t[-1], spec_width)
         resized_f = np.linspace(f[0], f[-1], spec_height)
 
@@ -192,10 +192,10 @@ class AsciiSpectrogram2x2Plugin(BaseAsciiSpectrogramPlugin):
             min_freq=var.SPECTROGRAM_MIN_FREQ,
             max_freq=var.SPECTROGRAM_MAX_FREQ,
         )
-        resized_spec = cv2.resize(
+        resized_spec = resize(
             spec,
-            dsize=(spec_width, spec_height),
-            interpolation=cv2.INTER_CUBIC
+            spec_height,
+            spec_width,
         )
         resized_t = np.linspace(t[0], t[-1], spec_width)
         resized_f = np.linspace(f[0], f[-1], spec_height)
