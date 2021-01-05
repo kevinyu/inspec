@@ -21,6 +21,9 @@ import cv2
 from . import const, var
 from ._logging import CursesHandler
 
+from .plugins.audio.spectrogram_view import CursesSpectrogramPlugin
+from .plugins.colormap import load_cmap, VALID_CMAPS
+
 
 logger = logging.getLogger(__name__)
 logger.propagate = False
@@ -271,20 +274,21 @@ def prompt(stdscr, msg):
     resp = ""
 
     stdscr.addstr(
-        stdscr.getmaxyx()[0] - var.DEFAULT_BUFFER_CHARS,
-        var.DEFAULT_BUFFER_CHARS,
-        msg + (stdscr.getmaxyx()[1] - 2 * var.DEFAULT_BUFFER_CHARS - len(msg)) * " "
+        stdscr.getmaxyx()[0] - 1,
+        0,
+        msg + (stdscr.getmaxyx()[1] - 2 * 1 - len(msg)) * " "
     )
     stdscr.refresh()
 
     resp_window = stdscr.subwin(
         1,
-        stdscr.getmaxyx()[1] - 2 * var.DEFAULT_BUFFER_CHARS - len(msg),
-        stdscr.getmaxyx()[0] - var.DEFAULT_BUFFER_CHARS,
-        var.DEFAULT_BUFFER_CHARS + len(msg),
+        stdscr.getmaxyx()[1] - len(msg) - 2,
+        curses.LINES - 1,
+        1 + len(msg),
     )
-    resp_input = curses.textpad.Textbox(resp_window)
 
+    resp_input = curses.textpad.Textbox(resp_window)
+    #
     try:
         resp_input.edit()
     except KeyboardInterrupt:
@@ -293,6 +297,9 @@ def prompt(stdscr, msg):
         resp = resp_input.gather()
     finally:
         del resp_window
+
+    stdscr.addstr(stdscr.getmaxyx()[0] - 1, 0, " " * (stdscr.getmaxyx()[1] - 1))
+    stdscr.refresh()
 
     return str(resp)
 
@@ -330,6 +337,319 @@ def draw_instructions(stdscr):
         var.DEFAULT_BUFFER_CHARS,
         text
     )
+
+
+class Paginator(object):
+    def __init__(self, rows, cols, total):
+        self.rows = rows
+        self.cols = cols
+        self.total = total
+
+    @property
+    def n_pages(self):
+        return 1 + (self.total - 1) // (self.rows * self.cols)
+
+    @property
+    def last_page():
+        return self.n_pages - 1
+
+    @property
+    def n_visible(self):
+        return self.rows * self.cols
+
+    def items_on_page(self, page_idx):
+        return list(range(
+            page_idx * self.n_visible,
+            min((page_idx + 1) * self.n_visible, self.total)
+        ))
+
+    def item_to_page(self, item_idx):
+        return item_idx // (self.rows * self.cols)
+
+
+class GlobalState(object):
+    def __init__(
+            self,
+            rows,
+            cols,
+            filenames,
+            cmap,
+            current_selection=0,
+            current_page=0,
+            time_scale=None,
+            ):
+        self.rows = rows
+        self.cols = cols
+        self.filenames = filenames
+        self.cmap = cmap
+        self.current_selection = current_selection
+        self.current_page = current_page
+        self.time_scale = time_scale
+
+        self.view_states = []
+
+        self.paginator = Paginator(self.rows, self.cols, len(self.filenames))
+
+    def left(self):
+        """Return if the selection has changed, the current, and previous selections"""
+        if self.current_selection <= 0:
+            return False, self.current_selection, self.current_selection
+        else:
+            prev_selection = self.current_selection
+            self.current_selection = max(0, self.current_selection - self.cols)
+            self.current_page = self.paginator.item_to_page(self.current_selection)
+            return True, self.current_selection, prev_selection
+
+    def right(self):
+        """Return if the selection has changed, the current, and previous selections"""
+        if self.current_selection >= len(self.filenames) - 1:
+            return False, self.current_selection, self.current_selection
+        else:
+            prev_selection = self.current_selection
+            self.current_selection = min(len(self.filenames) - 1, self.current_selection + self.cols)
+            self.current_page = self.paginator.item_to_page(self.current_selection)
+            return True, self.current_selection, prev_selection
+
+    def up(self):
+        """Return if the selection has changed, the current, and previous selections"""
+        if self.current_selection <= 0:
+            return False, self.current_selection, self.current_selection
+        else:
+            self.current_selection -= 1
+            self.current_page = self.paginator.item_to_page(self.current_selection)
+            return True, self.current_selection, self.current_selection + 1
+
+    def down(self):
+        """Return if the selection has changed, the current, and previous selections"""
+        if self.current_selection >= len(self.filenames) - 1:
+            return False, self.current_selection, self.current_selection
+        else:
+            self.current_selection += 1
+            self.current_page = self.paginator.item_to_page(self.current_selection)
+            return True, self.current_selection, self.current_selection - 1
+
+
+class ViewStateLocal(object):
+    def __init__(
+            self,
+            global_state,
+            window,
+            viewer,
+            filename,
+            idx,
+            time_start=0.0,
+            ):
+        self.window = window
+        self.viewer = viewer
+        self.filename = filename
+        self.time_start = time_start
+        self.idx = idx
+        self.out_of_date = True
+        self._file_metadata = {}
+        self.G = global_state
+
+    @property
+    def file_metadata(self):
+        if not self._file_metadata:
+            self._file_metadata = self.viewer.read_file_metadata(self.filename)
+        return self._file_metadata
+
+    @property
+    def duration(self):
+        return self.file_metadata.get("duration")
+
+    def set_visible(self, value):
+        self._is_visible = bool(value)
+
+    def refresh_view(self):
+        if self.out_of_date:
+            if self.G.time_scale:
+                self.viewer.read_file_by_time(
+                    self.filename,
+                    duration=self.G.time_scale,
+                    time_start=self.time_start,
+                )
+            else:
+                self.viewer.read_file(self.filename)
+            self.viewer.render()
+            self.out_of_date = False
+
+
+def create_pad(
+        screen_height,
+        screen_width,
+        show_rows,
+        show_cols,
+        n_panels,
+        padx=0,
+        pady=0
+    ):
+    """Create a curses pad to represent panels we can page through horizontally
+    """
+
+    panel_occupies = (
+        screen_height // show_rows,
+        screen_width // show_cols
+    )
+
+    full_cols = 1 + (n_panels - 1) // show_rows
+    pad_width = full_cols * panel_occupies[1] + panel_occupies[1]
+    pad_height = show_rows * panel_occupies[0]
+
+    pad = curses.newpad(pad_height, pad_width)
+
+    coordinates = []
+    for col in range(full_cols):
+        for row in range(show_rows):
+            coordinates.append(
+                PanelCoord(
+                    nlines=panel_occupies[0] - 2 * pady,
+                    ncols=panel_occupies[1] - 2 * padx,
+                    y=panel_occupies[0] * row + pady,
+                    x=panel_occupies[1] * col + padx
+                )
+            )
+
+    page_size = panel_occupies[1]
+
+    return pad, coordinates, page_size * show_cols
+
+
+def new_main(stdscr, rows, cols, files, cmap="greys", show_logs=False):
+    """Main application loop
+    """
+    curses.use_default_colors()
+    stdscr.refresh()
+
+    n_panels = len(files)
+
+    G = GlobalState(
+        rows,
+        cols,
+        files,
+        load_cmap(cmap),
+    )
+
+    pageline = curses.newwin(1, curses.COLS - 1, curses.LINES - 2, 0)
+    logline = curses.newwin(1, curses.COLS - 1, curses.LINES - 1, 0)
+
+    handler = CursesHandler()
+    handler.setLevel(logging.DEBUG)
+    if show_logs:
+        logger.addHandler(handler)
+        handler.set_screen(logline)
+
+    padx = 0
+    pady = 0
+    pad, coords, page_size = create_pad(
+        curses.LINES - 2,
+        curses.COLS,
+        rows,
+        cols,
+        n_panels,
+        padx=padx,
+        pady=pady
+    )
+
+    def decorate_panel(view_state):
+        annotate_window(
+            view_state.window,
+            title=os.path.basename(view_state.filename),
+            subtitle="{:.2f}s".format(view_state.duration),
+            page="{}".format(view_state.idx),
+            border=(0, 0, 0, 0) if view_state.idx != G.current_selection else (1, 1, 1, 1,)
+        )
+
+    def update_page():
+        """Have all panels in the visible screen refresh their plots"""
+        for visible_idx in G.paginator.items_on_page(G.current_page):
+            view_state = G.view_states[visible_idx]
+            view_state.refresh_view()
+
+        pad.refresh(0, page_size * (G.current_page), pady, padx, curses.LINES - 1 - pady, curses.COLS - 1 - padx)
+        pageline.addstr(0, 0, "{}/{}".format(G.current_page, G.paginator.n_pages), curses.A_BOLD)
+        pageline.refresh()
+        stdscr.refresh()
+
+    def move(move_direction):
+        changed, curr, prev = getattr(G, move_direction)()
+        if changed:
+            decorate_panel(G.view_states[prev])
+            decorate_panel(G.view_states[curr])
+            update_page()
+
+    for i, coord in enumerate(coords):
+        window = pad.subwin(*coord)
+        inset_window = pad.subwin(
+            coord[0] - 2,
+            coord[1] - 2,
+            coord[2] + 1,
+            coord[3] + 1
+        )
+
+        view_state = ViewStateLocal(
+            G,
+            window,
+            CursesSpectrogramPlugin(inset_window),
+            G.filenames[i],
+            i,
+        )
+        G.view_states.append(view_state)
+        view_state.viewer.set_cmap(G.cmap)
+        decorate_panel(view_state)
+
+    update_page()
+    last_size = stdscr.getmaxyx()
+    running = True
+    while running:
+        ch = stdscr.getch()
+        if ch == ord("q"):
+            running = False
+            stdscr.clear()
+        elif ch == curses.KEY_RESIZE:
+            curr_size = stdscr.getmaxyx()
+            if curr_size != last_size:
+                # logger.debug("Debug: resizing terminal to {}".format(curr_size))
+                curses.resizeterm(*curr_size)
+                stdscr.clear()
+                stdscr.refresh()
+                last_size = curr_size
+        elif ch == curses.KEY_LEFT or ch == ord("h"):
+            move("left")
+        elif ch == curses.KEY_RIGHT or ch == ord("l"):
+            move("right")
+        elif ch == curses.KEY_UP or ch == ord("k"):
+            move("up")
+        elif ch == curses.KEY_DOWN or ch == ord("j"):
+            move("down")
+        elif ch == ord("m"):
+            resp = prompt(logline, "Choose colormap ['greys', 'viridis', 'plasma', ...]: ")
+            resp = resp.strip()
+            if resp in VALID_CMAPS:
+                cmap = load_cmap(resp)
+
+            for vs in G.view_states:
+                vs.viewer.set_cmap(cmap)
+                vs.out_of_date = True
+            update_page()
+            update_page()  # Don't know why
+        elif ch == ord("s"):
+            resp = prompt(logline, "Set timescale (max {}, blank for default): ".format(var.MAX_TIMESCALE))
+            if resp is None or not resp.strip():
+                G.time_scale = None
+            else:
+                try:
+                    scale = float(resp)
+                except ValueError:
+                    pass
+                else:
+                    if var.MIN_TIMESCALE < scale <= var.MAX_TIMESCALE:
+                        G.time_scale = scale
+            for vs in G.view_states:
+                vs.viewer.set_cmap(cmap)
+                vs.out_of_date = True
+            update_page()
+            update_page()  #  ???
 
 
 def main(stdscr, rows, cols, files, cmap="greys", show_logs=False):

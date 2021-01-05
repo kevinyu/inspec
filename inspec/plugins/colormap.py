@@ -63,6 +63,7 @@ class CursesColormapSingleton(object):
 
     def __init__(self):
         self.cmap = None
+        self._last_cmap = None
 
     def __getattr__(self, attr):
         try:
@@ -102,12 +103,14 @@ class CursesColormapSingleton(object):
     def init_colormap(self, cmap):
         self.cmap = load_cmap(cmap)
 
+        if self.cmap is self._last_cmap:
+            return
+
         # Assign fg and bg color pairs to terminal colors
         self.reverse_color_lookup = {}
-        boogies = []
-        for fg_idx, fg_color in enumerate(self.colors):
+        for fg_idx, fg_color in enumerate(self.cmap.colors):
             self.reverse_color_lookup[fg_color] = fg_idx
-            for bg_idx, bg_color in enumerate(self.colors):
+            for bg_idx, bg_color in enumerate(self.cmap.colors):
                 if fg_idx <= bg_idx:
                     continue
                 curses.init_pair(
@@ -115,6 +118,8 @@ class CursesColormapSingleton(object):
                     fg_color,
                     bg_color
                 )
+
+        self._last_cmap = self.cmap
 
 
 _registered_colormaps = {

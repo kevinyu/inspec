@@ -56,7 +56,7 @@ inspec list-cmaps
 inspec dev view-cmap
 ```
 
-Run unittests 
+Run unittests
 ```
 inspec dev unittests
 ```
@@ -83,6 +83,32 @@ plugin.render()
 * main application functions that implement curses
 * manage open files
 * keep a global view state and per-file view state in the GUI
+
+**State**
+
+```
+GlobalState
+
+  int rows
+  int cols
+  str[] filenames
+  Colormap cmap
+
+  int current_selection_idx
+  int current_page_idx
+  float time_scale
+  ViewState[] view_states
+
+ViewState
+
+  Plugin[] viewers
+  float time_start
+  str filename
+  dict file_metadata
+
+  bool is_visible
+```
+
 
 #### inspec/cli.py
 * defines commands as entrypoints to invoking programs in main.py

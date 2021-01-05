@@ -37,7 +37,7 @@ def open_(filenames, rows, cols, cmap, show_logs):
     if not len(files):
         click.echo("No files matching {} were found.".format(filenames))
     else:
-        curses.wrapper(gui.main, rows, cols, files, cmap=cmap, show_logs=show_logs)
+        curses.wrapper(gui.new_main, rows, cols, files, cmap=cmap, show_logs=show_logs)
 
 
 @click.command(help="Print visual representation of audio file in command line")
@@ -164,6 +164,8 @@ def benchmark_spectrogram(signal_size, rate, spec_sample_rate, spec_freq_spacing
         specs.append(spec)
     _profile("Spectrogram finished (x{})".format(repeat), cycles=repeat)
 
+    click.echo("Spectrogram to desired size"
+        "mismatch: {} -> {}".format(specs[0].shape, (resize_y, resize_x)))
     for spec in specs:
         resize(spec, resize_y, resize_x)
     _profile("Resizing finished (x{})".format(repeat), cycles=repeat)

@@ -330,8 +330,6 @@ class CursesSpectrogramPlugin(AsciiSpectrogram2x2Plugin, SoundFileMixin):
                     color
                 )
 
-        self.window.refresh()
-
         self._last_render_data = {
             "t": t,
             "f": f,

@@ -28,6 +28,10 @@ def _estimate(signal, sample_rate, start_time, end_time, nstd):
     return freq[nz], s_fft[nz]
 
 
+def _get_window_length(freq_spacing, nstd):
+    return nstd / (2.0 * np.pi * freq_spacing)
+
+
 def spectrogram(signal, sampling_rate, spec_sample_rate, freq_spacing, nstd=6, min_freq=0, max_freq=None):
     """Spectrogram computation
 
@@ -35,7 +39,7 @@ def spectrogram(signal, sampling_rate, spec_sample_rate, freq_spacing, nstd=6, m
     dependency and avoid slow import
     """
     increment = 1.0 / spec_sample_rate
-    window_length = nstd / (2.0 * np.pi * freq_spacing)
+    window_length = _get_window_length(freq_spacing, nstd)
 
     if max_freq is None:
         max_freq = sampling_rate / 2.0

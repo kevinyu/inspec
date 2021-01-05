@@ -33,7 +33,10 @@ class BaseAudioPlugin(object):
 class SoundFileMixin(object):
 
     def read_file(self, filename, read_samples=None, start_idx=None):
-        data, sampling_rate = soundfile.read(filename, read_samples, start_idx)
+        if read_samples is not None:
+            data, sampling_rate = soundfile.read(filename, read_samples, start_idx)
+        else:
+            data, sampling_rate = soundfile.read(filename)
         metadata = {
             "sampling_rate": sampling_rate,
             "frames": len(data),
