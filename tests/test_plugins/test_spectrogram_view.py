@@ -211,7 +211,6 @@ class TestAsciiSpectrogram2x2Plugin(unittest.TestCase):
     @mock.patch("inspec.var.SPECTROGRAM_LOWER_QUANTILE", 0.0)
     @mock.patch("inspec.var.SPECTROGRAM_UPPER_QUANTILE", 1.0)
     def test_ascii_array_conversion(self):
-        """Isn't actually validating much, but tests that the function runs"""
         self.plugin.set_cmap(self.simple_cmap)
         np.testing.assert_array_equal(self.plugin.cmap.bin_edges, np.array([0.25, 0.5, 0.75]))
 

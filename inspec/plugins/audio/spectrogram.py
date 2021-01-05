@@ -1,8 +1,3 @@
-"""Spectrogram computation
-
-Copied/adapted from https://github.com/theunissenlab/soundsig to remove
-dependency and avoid slow import
-"""
 import numpy as np
 
 
@@ -12,15 +7,15 @@ def _get_frequencies(signal_length, sample_rate):
     return freq[nz]
 
 
-def _estimate(nstd, signal, sample_rate, start_time, end_time):
-    nwinlen = len(signal)
-    if nwinlen % 2 == 0:
-        nwinlen += 1
-    hnwinlen = nwinlen // 2
+def _estimate(signal, sample_rate, start_time, end_time, nstd):
+    win_size = len(signal)
+    if win_size % 2 == 0:
+        win_size += 1
+    half_win_size = win_size // 2
 
     # Construct the window
-    gauss_t = np.arange(-hnwinlen, hnwinlen + 1, 1.0)
-    gauss_std = float(nwinlen) / float(nstd)
+    gauss_t = np.arange(-half_win_size, half_win_size + 1, 1.0)
+    gauss_std = float(win_size) / float(nstd)
     gauss_window = np.exp(-gauss_t**2 / (2.0 * gauss_std**2)) / (gauss_std * np.sqrt(2 * np.pi))
 
     # Window the signal and take the FFT
@@ -34,21 +29,26 @@ def _estimate(nstd, signal, sample_rate, start_time, end_time):
 
 
 def spectrogram(signal, sampling_rate, spec_sample_rate, freq_spacing, nstd=6, min_freq=0, max_freq=None):
+    """Spectrogram computation
+
+    Copied/adapted from https://github.com/theunissenlab/soundsig to remove
+    dependency and avoid slow import
+    """
     increment = 1.0 / spec_sample_rate
     window_length = nstd / (2.0 * np.pi * freq_spacing)
 
     if max_freq is None:
-        max_freq = sample_rate / 2.0
+        max_freq = sampling_rate / 2.0
 
     # Compute lengths in # of samples
-    nwinlen = int(sampling_rate * window_length)
-    if nwinlen % 2 == 0:
-        nwinlen += 1
-    hnwinlen = nwinlen // 2
-    assert len(signal) > nwinlen, "len(s)=%d, nwinlen=%d" % (len(signal), nwinlen)
+    win_size = int(sampling_rate * window_length)
+    if win_size % 2 == 0:
+        win_size += 1
+    half_win_size = win_size // 2
+    assert len(signal) > win_size, "len(s)=%d, win_size=%d" % (len(signal), win_size)
 
     # Get the values for the frequency axis by estimating the spectrum of a dummy slice
-    full_freq = _get_frequencies(nwinlen, sampling_rate)
+    full_freq = _get_frequencies(win_size, sampling_rate)
     freq_index = (full_freq >= min_freq) & (full_freq <= max_freq)
     freq_arr = full_freq[freq_index]
     nfreq = freq_index.sum()
@@ -56,18 +56,24 @@ def spectrogram(signal, sampling_rate, spec_sample_rate, freq_spacing, nstd=6, m
     nincrement = int(np.round(sampling_rate * increment))
     nwindows = len(signal) // nincrement
     # Pad the signal with zeros
-    zs = np.zeros([len(signal) + 2 * hnwinlen])
-    zs[hnwinlen:-hnwinlen] = signal
-    window_centers = np.arange(nwindows) * nincrement + hnwinlen
+    zeros = np.zeros([len(signal) + 2 * half_win_size])
+    zeros[half_win_size:-half_win_size] = signal
+    window_centers = np.arange(nwindows) * nincrement + half_win_size
 
     # Take the FFT of each segment, padding with zeros when necessary to keep window length the same
     spec = np.zeros([nfreq, nwindows], dtype='complex')
     for k in range(nwindows):
         center = window_centers[k]
-        si = center - hnwinlen
-        ei = center + hnwinlen + 1
+        start_idx = center - half_win_size
+        end_idx = center + half_win_size + 1
 
-        spec_freq, est = _estimate(nstd, zs[si:ei], sampling_rate, si / sampling_rate, ei / sampling_rate)
+        spec_freq, est = _estimate(
+            zeros[start_idx:end_idx],
+            sampling_rate,
+            start_idx / sampling_rate,
+            end_idx / sampling_rate,
+            nstd
+        )
         findex = (spec_freq <= max_freq) & (spec_freq >= min_freq)
         spec[:, k] = est[findex]
 
@@ -102,6 +108,15 @@ def resize(spec, target_height, target_width):
             ref_i_upper = int(np.ceil(reference_i))
             ref_j_lower = int(np.floor(reference_j))
             ref_j_upper = int(np.ceil(reference_j))
+
+            # Floating point error can lead to the reference_indices
+            # being ever-so-slightly greater than original_height|width
+            # When that happens, lets just round it down. It will
+            # receive a negligible weight anyway
+            if ref_j_upper == original_width:
+                ref_j_upper -= 1
+            elif ref_i_upper == original_height:
+                ref_i_upper -= 1
 
             corner_00 = spec[ref_i_lower, ref_j_lower]
             corner_01 = spec[ref_i_lower, ref_j_upper]
