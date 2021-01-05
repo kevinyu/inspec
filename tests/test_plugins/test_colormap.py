@@ -75,20 +75,20 @@ class TestCursesColormapSingleton(unittest.TestCase):
             4: 2
         }
         self.expected_bins_to_slot_mappings = (
-            ((0, 1), 1),
-            ((0, 2), 2),
-            ((0, 3), 3),
-            ((1, 2), 4),
-            ((1, 3), 5),
-            ((2, 3), 6),
+            ((1, 0), 1),
+            ((2, 0), 2),
+            ((3, 0), 3),
+            ((2, 1), 4),
+            ((3, 1), 5),
+            ((3, 2), 6),
         )
         self.expected_colors_to_slot_mappings = (
-            ((1, 2), 1),
-            ((1, 4), 2),
-            ((1, 3), 3),
-            ((2, 4), 4),
-            ((2, 3), 5),
-            ((4, 3), 6),
+            ((2, 1), 1),
+            ((4, 1), 2),
+            ((3, 1), 3),
+            ((4, 2), 4),
+            ((3, 2), 5),
+            ((3, 4), 6),
         )
         self.preinstalled_cmap_name = VALID_CMAPS[0]
 
@@ -109,20 +109,20 @@ class TestCursesColormapSingleton(unittest.TestCase):
             curses_cmap.bins_to_color_slot(1, 1)
 
         with self.assertRaises(ValueError):
-            curses_cmap.bins_to_color_slot(1, 0)
+            curses_cmap.bins_to_color_slot(0, 1)
 
         with self.assertRaises(ValueError):
-            curses_cmap.bins_to_color_slot(-1, 1)
+            curses_cmap.bins_to_color_slot(1, -1)
 
         with self.assertRaises(ValueError):
-            curses_cmap.bins_to_color_slot(0, len(self.dummy_cmap.colors))
+            curses_cmap.bins_to_color_slot(len(self.dummy_cmap.colors), 0)
 
-        self.assertEqual(curses_cmap.bins_to_color_slot(0, 1), 1)
-        self.assertEqual(curses_cmap.bins_to_color_slot(0, 2), 2)
-        self.assertEqual(curses_cmap.bins_to_color_slot(0, 3), 3)
-        self.assertEqual(curses_cmap.bins_to_color_slot(1, 2), 4)
-        self.assertEqual(curses_cmap.bins_to_color_slot(1, 3), 5)
-        self.assertEqual(curses_cmap.bins_to_color_slot(2, 3), 6)
+        self.assertEqual(curses_cmap.bins_to_color_slot(1, 0), 1)
+        self.assertEqual(curses_cmap.bins_to_color_slot(2, 0), 2)
+        self.assertEqual(curses_cmap.bins_to_color_slot(3, 0), 3)
+        self.assertEqual(curses_cmap.bins_to_color_slot(2, 1), 4)
+        self.assertEqual(curses_cmap.bins_to_color_slot(3, 1), 5)
+        self.assertEqual(curses_cmap.bins_to_color_slot(3, 2), 6)
 
     def test_init_colormap(self):
         expected_init_pair_calls = [

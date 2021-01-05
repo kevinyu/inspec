@@ -63,8 +63,8 @@ class TestBasicAsciiSpectrogramPlugin(unittest.TestCase):
         self.plugin.set_cmap(self.simple_cmap)
         charbin = self.plugin.ascii_background()
 
-        self.assertEqual(charbin.char, const.FULL_1)
-        self.assertEqual(charbin.fg, self.COLORS["black"])
+        self.assertEqual(charbin.char, const.FULL_0)
+        self.assertEqual(charbin.bg, self.COLORS["black"])
         # this is not important to test as it is not relevant to the render:
         # self.assertEqual(charbin.bg, self.COLORS["white"])
 
@@ -80,16 +80,16 @@ class TestBasicAsciiSpectrogramPlugin(unittest.TestCase):
         )
 
         test_equal = self.plugin.to_ascii_char(0.6, 0.7)
-        self.assertEqual(test_equal.char, const.FULL_0, "Should render as fully light grey")
-        self.assertEqual(test_equal.bg, self.COLORS["lightgrey"], "Should render as fully light grey")
+        self.assertEqual(test_equal.char, const.FULL_1, "Should render as fully light grey")
+        self.assertEqual(test_equal.fg, self.COLORS["lightgrey"], "Should render as fully light grey")
 
         test_first_greater = self.plugin.to_ascii_char(0.9, 0.4)
         self.assertEqual(
             test_first_greater,
             CharBin(
-                char=const.HALF_01,
-                fg=self.COLORS["darkgrey"],
-                bg=self.COLORS["white"]
+                char=const.HALF_10,
+                fg=self.COLORS["white"],
+                bg=self.COLORS["darkgrey"]
             ),
             "Should render as white on bottom and darkgrey on top")
 
@@ -97,9 +97,9 @@ class TestBasicAsciiSpectrogramPlugin(unittest.TestCase):
         self.assertEqual(
             test_second_greater,
             CharBin(
-                char=const.HALF_10,
-                fg=self.COLORS["darkgrey"],
-                bg=self.COLORS["white"]
+                char=const.HALF_01,
+                fg=self.COLORS["white"],
+                bg=self.COLORS["darkgrey"]
             ),
             "Should render as darkgrey on bottom and white on top")
 
@@ -191,7 +191,7 @@ class TestAsciiSpectrogram2x2Plugin(unittest.TestCase):
             [0.2, 0.9],
             [0.8, 0.1]
         ])
-        self.assertEqual(self.plugin.to_ascii_char(patch).char, const.QTR_1001)
+        self.assertEqual(self.plugin.to_ascii_char(patch).char, const.QTR_0110)
 
         for a in [0, 1]:
             for b in [0, 1]:
@@ -202,9 +202,9 @@ class TestAsciiSpectrogram2x2Plugin(unittest.TestCase):
                             [b, d]
                         ])
                         if a == b == c == d:
-                            expected_char = const.FULL_1
+                            expected_char = const.FULL_0
                         else:
-                            expected_char = getattr(const, "QTR_{}{}{}{}".format(1-a, 1-b, 1-c, 1-d))
+                            expected_char = getattr(const, "QTR_{}{}{}{}".format(a, b, c, d))
                         charbin = self.plugin.to_ascii_char(patch)
                         self.assertEqual(charbin.char, expected_char)
 
@@ -234,8 +234,8 @@ class TestAsciiSpectrogram2x2Plugin(unittest.TestCase):
             ],
         ]
         expected_chars = [
-            [const.QTR_1101, const.QTR_1001],
-            [const.QTR_1010, const.QTR_1100]
+            [const.QTR_0010, const.QTR_0110],
+            [const.QTR_0101, const.QTR_0011]
         ]
 
         ascii_spec = self.plugin.to_ascii_array(spec)
@@ -262,12 +262,12 @@ class TestCursesSpectrogramPlugin(unittest.TestCase):
         self.window = mock.Mock(spec=curses.window)
         self.simple_cmap = PairedColormap(colors=[1, 2, 3, 4])
         self.expected_colors_to_slot_mappings = (
-            ((1, 2), 1),
-            ((1, 3), 2),
-            ((1, 4), 3),
-            ((2, 3), 4),
-            ((2, 4), 5),
-            ((3, 4), 6),
+            ((2, 1), 1),
+            ((3, 1), 2),
+            ((4, 1), 3),
+            ((3, 2), 4),
+            ((4, 2), 5),
+            ((4, 3), 6),
         )
         self.plugin = CursesSpectrogramPlugin(self.window)
 
@@ -308,12 +308,12 @@ class TestCursesSpectrogramPlugin(unittest.TestCase):
         charbins_to_render = np.empty((2, 2), dtype=object)
         charbins_to_render[:] = [
             [
-                CharBin(const.QTR_1100, 1, 2),
-                CharBin(const.QTR_1110, 2, 3),
+                CharBin(const.QTR_1100, 2, 1),
+                CharBin(const.QTR_1110, 3, 2),
             ],
             [
-                CharBin(const.FULL_1, 1, 4),
-                CharBin(const.QTR_0101, 3, 4),
+                CharBin(const.FULL_1, 4, 1),
+                CharBin(const.QTR_0101, 4, 3),
             ],
         ]
 

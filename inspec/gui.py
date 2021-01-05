@@ -115,8 +115,6 @@ def annotate_window(
             page_string,
             curses.A_NORMAL)
 
-    window.refresh()
-
 
 def compute_layout(nlines, ncols, panel_lines=1, panel_cols=1, pady=(0, 0), padx=(0, 0)):
     """Compute where panels should live in coordinate system

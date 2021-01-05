@@ -1,8 +1,8 @@
 import curses
 import os
+import sys
 from collections import namedtuple
 from collections import defaultdict
-import time
 
 import cv2
 import numpy as np
@@ -12,6 +12,13 @@ from inspec.plugins.colormap import curses_cmap, load_cmap
 from inspec.plugins.audio.spectrogram import spectrogram
 
 from .base import BaseAudioPlugin, SoundFileMixin
+
+
+# Set Console Mode so that ANSI codes will work
+if sys.platform == "win32":
+    import ctypes
+    kernel32 = ctypes.windll.kernel32
+    kernel32.SetConsoleMode(kernel32.GetStdHandle(-11), 7)
 
 
 CharBin = namedtuple("CharBin", [
@@ -70,7 +77,7 @@ class BaseAsciiSpectrogramPlugin(BaseAudioPlugin, SoundFileMixin):
         return resized_t, resized_f, resized_spec
 
     def ascii_background(self):
-        return CharBin(char=const.FULL_1, fg=self.cmap.colors[0], bg=self.cmap.colors[-1])
+        return CharBin(char=const.FULL_0, fg=self.cmap.colors[-1], bg=self.cmap.colors[0])
 
     def to_ascii_char(self, frac0, frac1):
         """Returns a character and foreground and background terminal colors (0-255)
@@ -78,27 +85,27 @@ class BaseAsciiSpectrogramPlugin(BaseAudioPlugin, SoundFileMixin):
         bin0, bin1 = self.cmap.scale(frac0), self.cmap.scale(frac1)
         if bin0 == bin1 == 0:
             return CharBin(
-                char=const.FULL_1,
-                fg=self.cmap.colors[0],
-                bg=self.cmap.colors[-1]
+                char=const.FULL_0,
+                fg=self.cmap.colors[-1],
+                bg=self.cmap.colors[0]
             )
         elif bin0 == bin1:
             return CharBin(
-                char=const.FULL_0,
-                fg=self.cmap.colors[0],
-                bg=self.cmap.colors[bin1]
+                char=const.FULL_1,
+                fg=self.cmap.colors[bin1],
+                bg=self.cmap.colors[0]
             )
         elif bin0 < bin1:
             return CharBin(
-                char=const.HALF_10,
-                fg=self.cmap.colors[bin0],
-                bg=self.cmap.colors[bin1],
+                char=const.HALF_01,
+                fg=self.cmap.colors[bin1],
+                bg=self.cmap.colors[bin0],
             )
         elif bin1 < bin0:
             return CharBin(
-                char=const.HALF_01,
-                fg=self.cmap.colors[bin1],
-                bg=self.cmap.colors[bin0]
+                char=const.HALF_10,
+                fg=self.cmap.colors[bin0],
+                bg=self.cmap.colors[bin1]
             )
 
     def to_ascii_array(self, spec):
@@ -203,11 +210,6 @@ class AsciiSpectrogram2x2Plugin(BaseAsciiSpectrogramPlugin):
         flat_patch = patch[0, 0], patch[0, 1], patch[1, 0], patch[1, 1]
         patch_mean = sum(flat_patch) / 4
         mask = [p > patch_mean for p in flat_patch]
-        char = getattr(const, "QTR_{2}{0}{3}{1}".format(*map(int, mask)))
-
-        flat_patch = patch[0, 0], patch[0, 1], patch[1, 0], patch[1, 1]
-        patch_mean = sum(flat_patch) / 4
-        mask = [p < patch_mean for p in flat_patch]
         char = getattr(const, "QTR_{0}{2}{1}{3}".format(*map(int, mask)))
 
         frac0 = 0.0
@@ -232,17 +234,17 @@ class AsciiSpectrogram2x2Plugin(BaseAsciiSpectrogramPlugin):
         bin0, bin1 = self.cmap.scale(frac0), self.cmap.scale(frac1)
         if bin0 == bin1 == 0:
             return CharBin(
-                char=const.FULL_1,
-                fg=self.cmap.colors[0],
-                bg=self.cmap.colors[-1]
+                char=const.FULL_0,
+                fg=self.cmap.colors[-1],
+                bg=self.cmap.colors[0]
             )
         elif bin0 == bin1:
             return CharBin(
-                char=const.FULL_0,
-                fg=self.cmap.colors[0],
-                bg=self.cmap.colors[bin1]
+                char=const.FULL_1,
+                fg=self.cmap.colors[bin1],
+                bg=self.cmap.colors[0]
             )
-        elif bin0 < bin1:
+        elif bin0 > bin1:
             return CharBin(
                 char=char,
                 fg=self.cmap.colors[bin0],

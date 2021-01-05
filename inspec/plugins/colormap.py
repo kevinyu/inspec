@@ -75,18 +75,18 @@ class CursesColormapSingleton(object):
 
         Used with curses.init_pair and curses.color_pair
         """
-        if fg_bin >= bg_bin:
-            raise ValueError("fg_bin should never be greater than bg_bin")
-        if fg_bin < 0 or fg_bin >= len(self.cmap.colors):
-            raise ValueError("fg_bin is out of range [0, NCOLORS)")
-        if bg_bin <= 0 or bg_bin >= len(self.cmap.colors):
-            raise ValueError("bg_bin is out of range [1, NCOLORS)")
+        if fg_bin <= bg_bin:
+            raise ValueError("fg_bin should never be less than bg_bin")
+        if fg_bin <= 0 or fg_bin >= len(self.cmap.colors):
+            raise ValueError("fg_bin is out of range [1, NCOLORS)")
+        if bg_bin < 0 or bg_bin >= len(self.cmap.colors):
+            raise ValueError("bg_bin is out of range [0, NCOLORS)")
 
         return (
-            (fg_bin * (len(self.cmap.colors) - 1))
-            - ((fg_bin * (fg_bin - 1)) // 2)
-            + bg_bin
-            - fg_bin
+            (bg_bin * (len(self.cmap.colors) - 1))
+            - ((bg_bin * (bg_bin - 1)) // 2)
+            + fg_bin
+            - bg_bin
         )
 
     def colors_to_color_slot(self, fg_color, bg_color):
@@ -108,7 +108,7 @@ class CursesColormapSingleton(object):
         for fg_idx, fg_color in enumerate(self.colors):
             self.reverse_color_lookup[fg_color] = fg_idx
             for bg_idx, bg_color in enumerate(self.colors):
-                if fg_idx >= bg_idx:
+                if fg_idx <= bg_idx:
                     continue
                 curses.init_pair(
                     self.bins_to_color_slot(fg_idx, bg_idx),

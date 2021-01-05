@@ -189,9 +189,10 @@ def view_colormap(stdscr, cmap=None, num=True):
 
     WIDTH = 4
     if show_full:
-        i = 0
-        for color in range(curses.COLORS):
-            curses.init_pair(i, color, -1)
+        # might have a different behavior on windows vs ubuntu
+        i = 1
+        for color in range(255):
+            curses.init_pair(i, color + 1, -1)
             i += 1
 
         blocks = [
