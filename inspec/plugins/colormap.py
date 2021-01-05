@@ -77,6 +77,11 @@ class CursesColormapSingleton(object):
         Used with curses.init_pair and curses.color_pair
         """
         if fg_bin <= bg_bin:
+            # TODO: I'd want this to be an error since our convention is fg_bin > bg_bin
+            # But there is a bug where if a colormap has a repeated color, this is going
+            # to break and can be equal.
+            # I need to fix the reverse_color_lookup to optionally (or always) hold lists (for multiples)
+            # and colors_to_color_slot can resolve this if it gets a double
             raise ValueError("fg_bin should never be less than bg_bin")
         if fg_bin <= 0 or fg_bin >= len(self.cmap.colors):
             raise ValueError("fg_bin is out of range [1, NCOLORS)")
