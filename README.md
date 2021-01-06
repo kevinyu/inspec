@@ -7,10 +7,6 @@ View spectrograms of audio data files in the terminal as ascii characters. Provi
 pip install git@github.com:kevinyu/inspec.git 
 ```
 
-## compatibility
-
-Definitely works on Ubuntu + Python3.8. Kind of works on Windows 10 + Python3.8 in Powershell but a little unstable, needs `pip install windows-curses` as well.
-
 ## cli
 
 Invocation of **inspec** uses the entrypoint **python -m inspec.cli**.
@@ -75,6 +71,9 @@ Run unittests
 ```
 inspec dev unittests
 ```
+
+Definitely works on Ubuntu + Python3.8. Kind of works on Windows 10 + Python3.8 in Powershell but a little unstable, needs `pip install windows-curses` as well.
+
 
 ## design notes
 
