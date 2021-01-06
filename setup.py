@@ -25,7 +25,9 @@ setuptools.setup(
     keywords = "spectrogram audio visualization sound terminal",
     classifiers = [
         "Development Status :: 4 - Beta",
-        "Programming Language :: Python :: 3.0"
+        "Programming Language :: Python :: 3.0",
+        "License :: OSI Approved :: MIT License",
+        "Operating System :: OS Independent",
     ],
     install_requires = [
         "Click",
