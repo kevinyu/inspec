@@ -149,8 +149,13 @@ class BaseAsciiSpectrogramPlugin(BaseAudioPlugin, SoundFileMixin):
             return "\u001b[0m"
         return "\u001b[38;5;{fg_color}m\u001b[48;5;{bg_color}m".format(fg_color=fg_color, bg_color=bg_color)
 
-    def render(self):
-        t, f, spec = self.convert_audio(self.data, self.sampling_rate)
+    def render(self, channel=0):
+        if self.data.ndim > 1:
+            data = self.data[:, channel]
+        else:
+            data = self.data
+
+        t, f, spec = self.convert_audio(data, self.sampling_rate)
         chars = self.to_ascii_array(spec)
 
         print()
@@ -315,8 +320,9 @@ class CursesSpectrogramPlugin(AsciiSpectrogram2x2Plugin, SoundFileMixin):
         # Subtract one row because of an overflow error on the addstr in render()?
         return y - 1, x
 
-    def render(self):
-        t, f, spec = self.convert_audio(self.data, self.sampling_rate)
+    def render(self, channel=0):
+        data = self.get_channel(channel)
+        t, f, spec = self.convert_audio(data, self.sampling_rate)
         chars = self.to_ascii_array(spec)
 
         for row in range(chars.shape[0]):

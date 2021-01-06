@@ -13,6 +13,13 @@ class BaseAudioPlugin(object):
         self.data = data
         self.sampling_rate = sampling_rate
 
+    def get_channel(self, channel):
+        if self.data.ndim > 1:
+            data = self.data[:, channel]
+        else:
+            data = self.data
+        return data
+
     @property
     def last_render_data(self):
         return self._last_render_data
