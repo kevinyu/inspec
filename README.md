@@ -4,7 +4,7 @@ View spectrograms of audio data files in the terminal as ascii characters. Provi
 ## install
 
 ```
-pip install git@github.com:kevinyu/inspec.git 
+pip install inspec
 ```
 
 ## cli
