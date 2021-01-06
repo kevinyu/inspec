@@ -83,7 +83,15 @@ def annotate_window(
         title = title[:max_title_len]
         window.addstr(0, 1, title, curses.A_NORMAL)
     if progress_bar:
-        position_string = "{:.2f}-{:.2f}/{:.2f}s".format(*progress_bar)
+        if ncols > 60:
+            position_string = "{:.2f}-{:.2f}/{:.2f}s".format(*progress_bar)
+        elif ncols > 40:
+            position_string = "{:.2f}/{:.2f}s".format(progress_bar[0], progress_bar[-1])
+        elif ncols > 20:
+            position_string = "{:.1f}/{:.1f}".format(progress_bar[0], progress_bar[-1])
+        else:
+            position_string = ""
+
         max_progress_bar_len = (
             ncols
             - 2   # buffers on left and right
@@ -97,6 +105,8 @@ def annotate_window(
             progress_bar,
             max_progress_bar_len
         )
+        if len(progress_bar_string) <= 3:
+            progress_bar_string = ""
         window.addstr(nlines - 1, 1, position_string + " " + progress_bar_string, curses.A_NORMAL)
 
     if page is not None:
