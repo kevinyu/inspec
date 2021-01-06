@@ -3,7 +3,8 @@ import logging
 
 from . import const, var
 from ._logging import CursesHandler
-from .gui.main import PanelCoord, annotate_window
+from .gui.main import annotate_window
+from .gui.utils import PanelCoord
 
 
 logger = logging.getLogger(__name__)
