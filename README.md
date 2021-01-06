@@ -15,6 +15,22 @@ Definitely works on Ubuntu + Python3.8. Kind of works on Windows 10 + Python3.8 
 
 Invocation of **inspec** uses the entrypoint **python -m inspec.cli**.
 
+#### inspec open
+```
+Usage: inspec open [OPTIONS] [FILENAMES]...
+
+  Open interactive gui for viewing audio files in command line
+
+Options:
+  -r, --rows INTEGER  Number of rows in layout
+  -c, --cols INTEGER  Number of columns in layout
+  -t, --time FLOAT    Jump to time in file
+  --cmap TEXT         Choose colormap (see list-cmaps for options)
+  --help              Show this message and exit.
+```
+
+![inspec open demo](demo/inspec_open_demo.gif)
+
 #### inspec show
 ```
 Usage: inspec show [OPTIONS] FILENAME
@@ -29,19 +45,7 @@ Options:
   --help                Show this message and exit.
 ```
 
-#### inspec open
-```
-Usage: inspec open [OPTIONS] [FILENAMES]...
-
-  Open interactive gui for viewing audio files in command line
-
-Options:
-  -r, --rows INTEGER  Number of rows in layout
-  -c, --cols INTEGER  Number of columns in layout
-  -t, --time FLOAT    Jump to time in file
-  --cmap TEXT         Choose colormap (see list-cmaps for options)
-  --help              Show this message and exit.
-```
+![inspec show demo](demo/inspec_show_demo.gif)
 
 #### importing in python
 
