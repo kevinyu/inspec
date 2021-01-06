@@ -16,7 +16,6 @@ from collections import namedtuple
 import click
 import soundfile
 import numpy as np
-import cv2
 
 from . import const, var
 from ._logging import CursesHandler
@@ -84,10 +83,59 @@ def create_panel(
     return outer_window, inner_window
 
 
+HighlightBar = namedtuple("HighlightBar", [
+    "start",
+    "end",
+    "total"
+])
+
+
+def progress_bar_fractions_to_character_positions(
+        highlight_tuple,
+        n_chars):
+    # Get the starting character to 1/2 character resolution
+    char_to_start =  np.round(2 * n_chars * highlight_tuple.start / highlight_tuple.total) / 2
+    # Get the ending character to 1/2 character resolution
+    char_to_end = np.round(2 * n_chars * highlight_tuple.end / highlight_tuple.total) / 2
+    return char_to_start, char_to_end
+
+
+def generate_progress_bar_string(highlight_tuple, n_chars):
+    """Subdivide the characters into 8ths and draw progress"""
+    n_chars -= 2
+    char_to_start, char_to_end = progress_bar_fractions_to_character_positions(
+        highlight_tuple,
+        n_chars
+    )
+
+    char_width = char_to_end - char_to_start
+
+    string = ""
+    for i in range(n_chars):
+        if i < char_to_start and i + 1 <= char_to_start:
+            string += const.FULL_0
+        elif i < char_to_start and i + 1 > char_to_start:
+            string += const.QTR_0010
+        elif i == char_to_start and char_width < 1:
+            string += const.QTR_1000
+        elif i == char_to_start:
+            string += const.HALF_10
+        elif i < char_to_start < i + 1:
+            string += const.QTR_0010
+        elif i < char_to_end and i + 1 <= char_to_end:
+            string += const.HALF_10
+        elif i < char_to_end and i + 1 > char_to_end:
+            string += const.QTR_1000
+        else:
+            string += const.FULL_0
+
+    return "[{}]".format(string)
+
+
 def annotate_window(
         window,
         title=None,
-        subtitle=None,
+        progress_bar=None,
         page=None,
         border=None
     ):
@@ -101,17 +149,34 @@ def annotate_window(
     nlines, ncols = window.getmaxyx()
 
     title = title or getattr(window, "title", None)
-    subtitle = subtitle or getattr(window, "subtitle", None)
+
+    max_title_len = ncols - 2  # buffers on left and right
+    max_page_len = 3  # no way we are opening over 999 files right?
+
+    position_string = "{:.2f}-{:.2f}/{:.2f}s".format(*progress_bar)
+    max_progress_bar_len = (
+        ncols
+        - 2   # buffers on left and right
+        - max_page_len
+        - 1   # Extra buffer before page len
+        - len(position_string)
+        - 1   # Buffer after position string
+    )
 
     if border is not None:
         window.border(*border)
     if title:
+        title = title[:max_title_len]
         window.addstr(0, 1, title, curses.A_NORMAL)
-    if subtitle:
-        window.addstr(nlines - 1, 1, subtitle, curses.A_NORMAL)
+    if progress_bar:
+        progress_bar_string = generate_progress_bar_string(
+            progress_bar,
+            max_progress_bar_len
+        )
+        window.addstr(nlines - 1, 1, position_string + " " + progress_bar_string, curses.A_NORMAL)
 
     if page is not None:
-        page_string = str(page)
+        page_string = str(page)[-max_page_len:]
         window.addstr(
             nlines - 1,
             ncols - 1 - len(page_string),
@@ -350,14 +415,14 @@ class Paginator(object):
         return 1 + (self.total - 1) // (self.rows * self.cols)
 
     @property
-    def last_page():
-        return self.n_pages - 1
-
-    @property
     def n_visible(self):
         return self.rows * self.cols
 
     def items_on_page(self, page_idx):
+        if page_idx < 0:
+            raise ValueError("Page < 0 out of range")
+        elif page_idx > self.n_pages - 1:
+            raise ValueError("Page > {} out of range".format(self.n_pages - 1))
         return list(range(
             page_idx * self.n_visible,
             min((page_idx + 1) * self.n_visible, self.total)
@@ -390,13 +455,17 @@ class GlobalState(object):
 
         self.paginator = Paginator(self.rows, self.cols, len(self.filenames))
 
+    @property
+    def current_view_state(self):
+        return self.view_states[self.current_selection]
+
     def left(self):
         """Return if the selection has changed, the current, and previous selections"""
         if self.current_selection <= 0:
             return False, self.current_selection, self.current_selection
         else:
             prev_selection = self.current_selection
-            self.current_selection = max(0, self.current_selection - self.cols)
+            self.current_selection = max(0, self.current_selection - self.rows)
             self.current_page = self.paginator.item_to_page(self.current_selection)
             return True, self.current_selection, prev_selection
 
@@ -406,7 +475,7 @@ class GlobalState(object):
             return False, self.current_selection, self.current_selection
         else:
             prev_selection = self.current_selection
-            self.current_selection = min(len(self.filenames) - 1, self.current_selection + self.cols)
+            self.current_selection = min(len(self.filenames) - 1, self.current_selection + self.rows)
             self.current_page = self.paginator.item_to_page(self.current_selection)
             return True, self.current_selection, prev_selection
 
@@ -448,6 +517,20 @@ class ViewStateLocal(object):
         self._file_metadata = {}
         self.G = global_state
 
+    def decorate(self):
+        progress_values = HighlightBar(
+            start=self.time_start,
+            end=self.time_start + self.time_scale,
+            total=self.duration,
+        )
+        annotate_window(
+            self.window,
+            title=os.path.basename(self.filename),
+            progress_bar=progress_values,
+            page="{}".format(self.idx),
+            border=(0, 0, 0, 0) if self.idx == self.G.current_selection else (1, 1, 1, 1,)
+        )
+
     @property
     def file_metadata(self):
         if not self._file_metadata:
@@ -461,18 +544,45 @@ class ViewStateLocal(object):
     def set_visible(self, value):
         self._is_visible = bool(value)
 
-    def refresh_view(self):
-        if self.out_of_date:
-            if self.G.time_scale:
-                self.viewer.read_file_by_time(
-                    self.filename,
-                    duration=self.G.time_scale,
-                    time_start=self.time_start,
-                )
-            else:
-                self.viewer.read_file(self.filename)
+    def refresh_view(self, force=False):
+        if self.out_of_date or force:
+            self.viewer.read_file_by_time(
+                self.filename,
+                duration=self.time_scale,
+                time_start=self.time_start,
+            )
             self.viewer.render()
             self.out_of_date = False
+        self.decorate()
+
+    @property
+    def time_scale(self):
+        if self.G.time_scale:
+            return min(self.G.time_scale, self.duration)
+        elif self.duration > var.GUI_DEFAULT_MAX_DURATION:
+            return var.GUI_DEFAULT_MAX_DURATION
+        else:
+            return self.duration
+
+    @property
+    def time_step(self):
+        return self.time_scale * var.DEFAULT_TIME_STEP_FRAC
+
+    @property
+    def max_time_start(self):
+        return self.duration - self.time_scale
+
+    def time_left(self):
+        prev_time_start = self.time_start
+        self.time_start = max(0, self.time_start - self.time_step)
+        if self.time_start != prev_time_start:
+            self.refresh_view(force=True)
+
+    def time_right(self):
+        prev_time_start = self.time_start
+        self.time_start = min(self.max_time_start, self.time_start + self.time_step)
+        if self.time_start != prev_time_start:
+            self.refresh_view(force=True)
 
 
 def create_pad(
@@ -493,7 +603,7 @@ def create_pad(
     )
 
     full_cols = 1 + (n_panels - 1) // show_rows
-    pad_width = full_cols * panel_occupies[1] + panel_occupies[1]
+    pad_width = full_cols * panel_occupies[1] + show_cols * panel_occupies[1]
     pad_height = show_rows * panel_occupies[0]
 
     pad = curses.newpad(pad_height, pad_width)
@@ -501,6 +611,8 @@ def create_pad(
     coordinates = []
     for col in range(full_cols):
         for row in range(show_rows):
+            if len(coordinates) > n_panels:
+                break
             coordinates.append(
                 PanelCoord(
                     nlines=panel_occupies[0] - 2 * pady,
@@ -515,29 +627,17 @@ def create_pad(
     return pad, coordinates, page_size * show_cols
 
 
-def new_main(stdscr, rows, cols, files, cmap="greys", show_logs=False):
+def new_main(stdscr, rows, cols, files, cmap="greys"):
     """Main application loop
     """
     curses.use_default_colors()
     stdscr.refresh()
 
     n_panels = len(files)
-
-    G = GlobalState(
-        rows,
-        cols,
-        files,
-        load_cmap(cmap),
-    )
+    G = GlobalState(rows, cols, files, load_cmap(cmap))
 
     pageline = curses.newwin(1, curses.COLS - 1, curses.LINES - 2, 0)
     logline = curses.newwin(1, curses.COLS - 1, curses.LINES - 1, 0)
-
-    handler = CursesHandler()
-    handler.setLevel(logging.DEBUG)
-    if show_logs:
-        logger.addHandler(handler)
-        handler.set_screen(logline)
 
     padx = 0
     pady = 0
@@ -551,34 +651,27 @@ def new_main(stdscr, rows, cols, files, cmap="greys", show_logs=False):
         pady=pady
     )
 
-    def decorate_panel(view_state):
-        annotate_window(
-            view_state.window,
-            title=os.path.basename(view_state.filename),
-            subtitle="{:.2f}s".format(view_state.duration),
-            page="{}".format(view_state.idx),
-            border=(0, 0, 0, 0) if view_state.idx != G.current_selection else (1, 1, 1, 1,)
-        )
-
     def update_page():
         """Have all panels in the visible screen refresh their plots"""
+        pad.refresh(0, page_size * (G.current_page), pady, padx, curses.LINES - 1 - pady, curses.COLS - 1 - padx)
+
         for visible_idx in G.paginator.items_on_page(G.current_page):
             view_state = G.view_states[visible_idx]
             view_state.refresh_view()
 
         pad.refresh(0, page_size * (G.current_page), pady, padx, curses.LINES - 1 - pady, curses.COLS - 1 - padx)
-        pageline.addstr(0, 0, "{}/{}".format(G.current_page, G.paginator.n_pages), curses.A_BOLD)
+        pagestr = "p{}/{}".format(G.current_page + 1, G.paginator.n_pages)
+        pageline.addstr(0, pageline.getmaxyx()[1] - 1 - len(pagestr), pagestr, curses.A_BOLD)
         pageline.refresh()
-        stdscr.refresh()
 
     def move(move_direction):
         changed, curr, prev = getattr(G, move_direction)()
         if changed:
-            decorate_panel(G.view_states[prev])
-            decorate_panel(G.view_states[curr])
+            G.view_states[curr].decorate()
+            G.view_states[prev].decorate()
             update_page()
 
-    for i, coord in enumerate(coords):
+    for i, (filename, coord) in enumerate(zip(G.filenames, coords)):
         window = pad.subwin(*coord)
         inset_window = pad.subwin(
             coord[0] - 2,
@@ -591,12 +684,12 @@ def new_main(stdscr, rows, cols, files, cmap="greys", show_logs=False):
             G,
             window,
             CursesSpectrogramPlugin(inset_window),
-            G.filenames[i],
+            filename,
             i,
         )
         G.view_states.append(view_state)
         view_state.viewer.set_cmap(G.cmap)
-        decorate_panel(view_state)
+        view_state.decorate()
 
     update_page()
     last_size = stdscr.getmaxyx()
@@ -614,6 +707,12 @@ def new_main(stdscr, rows, cols, files, cmap="greys", show_logs=False):
                 stdscr.clear()
                 stdscr.refresh()
                 last_size = curr_size
+        elif ch == curses.KEY_SLEFT or ch == ord("H"):
+            G.current_view_state.time_left()
+            update_page()
+        elif ch == curses.KEY_SRIGHT or ch == ord("L"):
+            G.current_view_state.time_right()
+            update_page()
         elif ch == curses.KEY_LEFT or ch == ord("h"):
             move("left")
         elif ch == curses.KEY_RIGHT or ch == ord("l"):
@@ -632,7 +731,6 @@ def new_main(stdscr, rows, cols, files, cmap="greys", show_logs=False):
                 vs.viewer.set_cmap(cmap)
                 vs.out_of_date = True
             update_page()
-            update_page()  # Don't know why
         elif ch == ord("s"):
             resp = prompt(logline, "Set timescale (max {}, blank for default): ".format(var.MAX_TIMESCALE))
             if resp is None or not resp.strip():
@@ -646,10 +744,41 @@ def new_main(stdscr, rows, cols, files, cmap="greys", show_logs=False):
                     if var.MIN_TIMESCALE < scale <= var.MAX_TIMESCALE:
                         G.time_scale = scale
             for vs in G.view_states:
-                vs.viewer.set_cmap(cmap)
                 vs.out_of_date = True
             update_page()
-            update_page()  #  ???
+        elif ch == ord("t"):
+            resp = prompt(logline, "Jump to time: ")
+            if resp is None or not resp.strip():
+                pass
+            else:
+                try:
+                    time_start = float(resp)
+                except ValueError:
+                    pass
+                else:
+                    if 0 < time_start:
+                        G.current_view_state.time_start = min(
+                            G.current_view_state.max_time_start,
+                            time_start
+                        )
+                        G.current_view_state.refresh_view(force=True)
+            update_page()
+        elif ch == ord("-"):
+            if G.time_scale is not None:
+                G.time_scale = min(var.MAX_TIMESCALE, G.time_scale * 2)
+            for vs in G.view_states:
+                vs.out_of_date = True
+            update_page()
+
+        elif ch == ord("+"):
+            if G.time_scale is not None:
+                G.time_scale = max(var.MIN_TIMESCALE, G.time_scale / 2)
+            else:
+                G.time_scale = G.current_view_state.duration / 2
+            for vs in G.view_states:
+                vs.out_of_date = True
+            update_page()
+
 
 
 def main(stdscr, rows, cols, files, cmap="greys", show_logs=False):

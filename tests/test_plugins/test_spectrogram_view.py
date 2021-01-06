@@ -301,7 +301,10 @@ class TestCursesSpectrogramPlugin(unittest.TestCase):
     @mock.patch(
         "inspec.plugins.audio.spectrogram_view.CursesSpectrogramPlugin.to_ascii_array",
     )
-    def test_render(self, mock_to_ascii_array, mock_convert_audio, mock_color_pair, mock_init_pair):
+    @mock.patch(
+        "inspec.plugins.audio.spectrogram_view.CursesSpectrogramPlugin.get_channel",
+    )
+    def test_render(self, _, mock_to_ascii_array, mock_convert_audio, mock_color_pair, mock_init_pair):
         self.plugin.set_cmap(self.simple_cmap)
 
         charbins_to_render = np.empty((2, 2), dtype=object)

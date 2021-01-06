@@ -18,8 +18,7 @@ def cli():
 @click.option("-r", "--rows", help="Number of rows in layout", type=int, default=1)
 @click.option("-c", "--cols", help="Number of columns in layout", type=int, default=1)
 @click.option("--cmap", help="Choose colormap (see list-cmaps for options)", type=str, default="greys")
-@click.option("--show-logs", is_flag=True)
-def open_(filenames, rows, cols, cmap, show_logs):
+def open_(filenames, rows, cols, cmap):
     from . import gui
 
     if not len(filenames):
@@ -37,7 +36,7 @@ def open_(filenames, rows, cols, cmap, show_logs):
     if not len(files):
         click.echo("No files matching {} were found.".format(filenames))
     else:
-        curses.wrapper(gui.new_main, rows, cols, files, cmap=cmap, show_logs=show_logs)
+        curses.wrapper(gui.new_main, rows, cols, files, cmap=cmap)
 
 
 @click.command(help="Print visual representation of audio file in command line")
@@ -198,7 +197,8 @@ def test_pagination(rows, cols, n_panels):
 
 @click.command(help="Run unittests")
 @click.option("-d", "--dir", "_dir", type=str, default=".")
-def unittest(_dir):
+@click.option("-v", "--verbose", type=int, default=1)
+def unittest(_dir, verbose):
     import os
     import unittest
 
@@ -206,7 +206,7 @@ def unittest(_dir):
         testsuite = unittest.TestLoader().discover(".")
     else:
         testsuite = unittest.TestLoader().loadTestsFromName(_dir)
-    unittest.TextTestRunner(verbosity=2).run(testsuite)
+    unittest.TextTestRunner(verbosity=verbose).run(testsuite)
 
 
 cli.add_command(show)
