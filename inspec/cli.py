@@ -36,7 +36,7 @@ def open_(filenames, rows, cols, cmap):
     if not len(files):
         click.echo("No files matching {} were found.".format(filenames))
     else:
-        curses.wrapper(gui.new_main, rows, cols, files, cmap=cmap)
+        curses.wrapper(gui.main, rows, cols, files, cmap=cmap)
 
 
 @click.command(help="Print visual representation of audio file in command line")
