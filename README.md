@@ -13,6 +13,10 @@ source bin/activate
 pip install -r requirements.txt
 ```
 
+```
+pip install -e 
+```
+
 ## compatibility
 
 Definitely works on Ubuntu + Python3.8. Kind of works on Windows 10 + Python3.8 in Powershell but a little unstable, needs `pip install windows-curses` as well.
@@ -44,17 +48,12 @@ Usage: inspec open [OPTIONS] [FILENAMES]...
 Options:
   -r, --rows INTEGER  Number of rows in layout
   -c, --cols INTEGER  Number of columns in layout
+  -t, --time FLOAT    Jump to time in file
   --cmap TEXT         Choose colormap (see list-cmaps for options)
-  --show-logs
   --help              Show this message and exit.
 ```
 
 #### other important commands
-
-```
-inspec list-cmaps
-inspec dev view-cmap
-```
 
 Run unittests
 ```
@@ -79,36 +78,8 @@ plugin.render()
 
 ### file organization
 
-#### inspec/main.py
+#### inspec/gui
 * main application functions that implement curses
-* manage open files
-* keep a global view state and per-file view state in the GUI
-
-**State**
-
-```
-GlobalState
-
-  int rows
-  int cols
-  str[] filenames
-  Colormap cmap
-
-  int current_selection_idx
-  int current_page_idx
-  float time_scale
-  ViewState[] view_states
-
-ViewState
-
-  Plugin[] viewers
-  float time_start
-  str filename
-  dict file_metadata
-
-  bool is_visible
-```
-
 
 #### inspec/cli.py
 * defines commands as entrypoints to invoking programs in main.py
@@ -162,10 +133,9 @@ The formula for this is
 
 ## todo
 
-* Remove heavy dependencies if possible
-    * opencv for spectrogram resizing
-* Refactoring application state so that view state (time) is per file
-* Refactor visualization code into a swappable/toggleable plugin structure
-    * How to select and configure active plugins?
-* Create a module for live streaming data (integrate into plugin code?)
-    * Or create a new plugin group
+* Create a module for live streaming data?
+
+## bugs
+
+* Cant load folder with too many files (tries to create a curses pad that is too wide)
+* Reverse lookup of colors in colormap with repeated colors causes errors
