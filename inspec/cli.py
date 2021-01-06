@@ -17,9 +17,10 @@ def cli():
 @click.argument("filenames", nargs=-1, type=click.Path(exists=True))
 @click.option("-r", "--rows", help="Number of rows in layout", type=int, default=1)
 @click.option("-c", "--cols", help="Number of columns in layout", type=int, default=1)
+@click.option("-t", "--time", "_time", help="Jump to time in file", type=float, default=0.0)
 @click.option("--cmap", help="Choose colormap (see list-cmaps for options)", type=str, default="greys")
-def open_(filenames, rows, cols, cmap):
-    from . import gui
+def open_(filenames, rows, cols, cmap, _time):
+    from .gui.main import main
 
     if not len(filenames):
         filenames = ["."]
@@ -36,7 +37,7 @@ def open_(filenames, rows, cols, cmap):
     if not len(files):
         click.echo("No files matching {} were found.".format(filenames))
     else:
-        curses.wrapper(gui.main, rows, cols, files, cmap=cmap)
+        curses.wrapper(main, rows, cols, files, cmap=cmap, jump_to_time=_time)
 
 
 @click.command(help="Print visual representation of audio file in command line")

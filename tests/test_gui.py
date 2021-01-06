@@ -1,8 +1,8 @@
 import unittest
 
-from inspec.gui import (
-    HighlightBar,
-    Paginator,
+from inspec.gui.paginate import Paginator
+from inspec.gui.state import HighlightBar
+from inspec.gui.utils import (
     generate_progress_bar_string,
     progress_bar_fractions_to_character_positions
 )
