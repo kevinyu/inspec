@@ -3,62 +3,11 @@ import logging
 
 from . import const, var
 from ._logging import CursesHandler
-from .gui import PanelCoord, compute_layout, create_panel, create_window, annotate_window
+from .gui import PanelCoord, annotate_window
 
 
 logger = logging.getLogger(__name__)
 logger.propagate = False
-
-
-def test_windows(stdscr, rows, cols):
-    curses.use_default_colors()
-
-    # Border main window
-    stdscr.border(0)
-    stdscr.addstr(0, 1, "Main Window", curses.A_BOLD)
-
-    log_window = stdscr.subwin(
-        1,
-        curses.COLS - 2 * var.DEFAULT_BUFFER_CHARS,
-        curses.LINES - var.DEFAULT_BUFFER_CHARS - 1,
-        1,
-    )
-
-    coords = compute_layout(
-        curses.LINES - var.LOG_LINES,
-        curses.COLS,
-        panel_lines=rows,
-        panel_cols=cols,
-        padx=(var.DEFAULT_BUFFER_CHARS, var.DEFAULT_BUFFER_CHARS),
-        pady=(var.DEFAULT_BUFFER_CHARS, var.DEFAULT_BUFFER_CHARS)
-    )
-
-    for i, coord in enumerate(coords):
-        outer, inner = create_panel(*coord)
-
-        annotate_window(
-            outer,
-            title="Window {}".format(i),
-            subtitle="Subtitle",
-            page=i,
-            border=(0,)
-        )
-        annotate_window(
-            inner,
-            title="Inner Window {}".format(i),
-            subtitle="Subtitle",
-            page=i,
-            border=(0,)
-        )
-
-    stdscr.addstr(curses.LINES - 1, 1, "Press q to close:")
-
-    cont = True
-    while cont:
-        ch = stdscr.getch()
-        if ch == ord("q"):
-            cont = False
-            stdscr.clear()
 
 
 def create_pad(
@@ -146,14 +95,12 @@ def test_pagination(stdscr, rows, cols, n_panels, show_logs=True):
         annotate_window(
             window,
             title="Window {}".format(i),
-            subtitle="Subtitle",
             page=i,
             border=(0,)
         )
         annotate_window(
             inset_window,
             title="Inner Window {}".format(i),
-            subtitle="Subtitle",
             page=i,
             border=(0,)
         )

@@ -181,14 +181,6 @@ def view_cmap(cmap, num):
 @click.command(help="View window layout")
 @click.option("-r", "--rows", type=int, default=1)
 @click.option("-c", "--cols", type=int, default=1)
-def test_windows(rows, cols):
-    from . import debug
-    curses.wrapper(debug.test_windows, rows, cols)
-
-
-@click.command(help="View window layout")
-@click.option("-r", "--rows", type=int, default=1)
-@click.option("-c", "--cols", type=int, default=1)
 @click.option("-n", "--n-panels", type=int, default=10)
 def test_pagination(rows, cols, n_panels):
     from . import debug
@@ -213,7 +205,6 @@ cli.add_command(show)
 cli.add_command(open_)
 cli.add_command(list_cmaps)
 cli.add_command(dev)
-dev.add_command(test_windows)
 dev.add_command(test_pagination)
 dev.add_command(view_cmap)
 dev.add_command(benchmark_render)

@@ -150,11 +150,7 @@ class BaseAsciiSpectrogramPlugin(BaseAudioPlugin, SoundFileMixin):
         return "\u001b[38;5;{fg_color}m\u001b[48;5;{bg_color}m".format(fg_color=fg_color, bg_color=bg_color)
 
     def render(self, channel=0):
-        if self.data.ndim > 1:
-            data = self.data[:, channel]
-        else:
-            data = self.data
-
+        data = self.get_channel(0)
         t, f, spec = self.convert_audio(data, self.sampling_rate)
         chars = self.to_ascii_array(spec)
 

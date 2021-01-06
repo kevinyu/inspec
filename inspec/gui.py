@@ -106,22 +106,22 @@ def annotate_window(
     max_title_len = ncols - 2  # buffers on left and right
     max_page_len = 3  # no way we are opening over 999 files right?
 
-    position_string = "{:.2f}-{:.2f}/{:.2f}s".format(*progress_bar)
-    max_progress_bar_len = (
-        ncols
-        - 2   # buffers on left and right
-        - max_page_len
-        - 1   # Extra buffer before page len
-        - len(position_string)
-        - 1   # Buffer after position string
-    )
-
     if border is not None:
         window.border(*border)
     if title:
         title = title[:max_title_len]
         window.addstr(0, 1, title, curses.A_NORMAL)
     if progress_bar:
+        position_string = "{:.2f}-{:.2f}/{:.2f}s".format(*progress_bar)
+        max_progress_bar_len = (
+            ncols
+            - 2   # buffers on left and right
+            - max_page_len
+            - 1   # Extra buffer before page len
+            - len(position_string)
+            - 1   # Buffer after position string
+        )
+
         progress_bar_string = generate_progress_bar_string(
             progress_bar,
             max_progress_bar_len
