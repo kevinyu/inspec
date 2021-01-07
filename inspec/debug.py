@@ -1,14 +1,18 @@
+import asyncio
 import curses
 import logging
 
 from . import const, var
-from ._logging import CursesHandler
 from .gui.main import annotate_window
 from .gui.utils import PanelCoord
 
 
-logger = logging.getLogger(__name__)
-logger.propagate = False
+def add_breakpoint(stdscr):
+    curses.nocbreak()
+    stdscr.keypad(0)
+    curses.echo()
+    curses.endwin()
+    import pdb; pdb.set_trace()
 
 
 def create_pad(
@@ -51,18 +55,128 @@ def create_pad(
     return pad, coordinates, page_size
 
 
+async def _getchr(stdscr, poll_interval=0.01):
+    result = None
+    while result is None:
+        ch = stdscr.getch()
+        if ch == -1 or ch == None:
+            await asyncio.sleep(poll_interval)
+        else:
+            result = ch
+    return ch
+
+
+class AsyncScroller(object):
+    def __init__(self, stdscr, window, pady=0, padx=0):
+        """
+        Generate a pad of size (Y, X) and use it as a circular buffer
+
+        For a window size of 3
+
+        current_x  draw_at  input  [0, 1, 2, 3, 4, 5]
+        0          3               [ ,  ,  ,  ,  ,  ]
+                                   [      ]
+        1          4        A      [ ,  ,  ,  ,]
+        """
+        self.stdscr = stdscr
+        self.window = window
+        self.current_x = 0
+        self.height, self.width = self.window.getmaxyx()
+        self.padx = padx
+        self.pady = pady
+        self.pad = curses.newpad(self.height, self.width * 2)
+
+        self.next_character = None
+
+    @property
+    def draw_at(self):
+        return self.current_x + self.width - 1
+
+    @property
+    def duplicate_at(self):
+        return (self.current_x - 2) % (self.width * 2)
+
+    @property
+    def erase_at(self):
+        return (self.current_x - 1) % (self.width * 2)
+
+    def write_column(self, col, ch):
+        for row in range(self.height):
+            try:
+                self.pad.addstr(row, col, ch)
+            except curses.error:
+                pass
+
+    async def _cycle(self):
+        running = True
+        while running:
+            await asyncio.sleep(0.03)
+            self.current_x += 1
+            self.current_x = self.current_x % (self.width + 1)
+
+            write_chr = self.next_character or " "
+            self.write_column(self.draw_at, write_chr)
+            self.write_column(self.duplicate_at, write_chr)
+            self.write_column(self.erase_at, " ")
+
+            self.height, self.width = self.window.getmaxyx()
+            self.pad.refresh(0, self.current_x, self.pady, self.padx, self.height, self.width)
+            self.next_character = None
+
+    async def _keyboard(self):
+        running = True
+        while running:
+            ch = await _getchr(self.stdscr)
+            if chr(ch) == 'q':
+                running = False
+            else:
+                self.next_character = chr(ch)
+
+
+async def _test_async_scrolling(stdscr):
+    stdscr.nodelay(1)
+    curses.use_default_colors()
+    stdscr.refresh()
+
+    # Set up fun colors
+    i = 1
+    for color in range(255):
+        curses.init_pair(i, color + 1, color - 1)
+        i += 1
+
+    window_height = curses.LINES - 2
+    window_width = curses.COLS - 2
+
+    container_window = curses.newwin(
+        window_height,
+        window_width,
+        1,
+        1,
+    )
+
+    cycler = AsyncScroller(stdscr, container_window, pady=1, padx=1)
+
+    for i in range(window_height):
+        for j in range(window_width):
+            cycler.pad.addstr(i, j, " ", curses.color_pair(17 + (i + j) % 144 + 1))
+            if j < window_width - 1:
+                cycler.pad.addstr(i, j + window_width, " ", curses.color_pair( 17  + (i + j) % 144 + 1))
+
+    asyncio.create_task(cycler._cycle())
+    await cycler._keyboard()
+
+
+
+def test_async_scrolling(stdscr):
+    asyncio.run(_test_async_scrolling(stdscr))
+
+
 def test_pagination(stdscr, rows, cols, n_panels, show_logs=True):
     curses.use_default_colors()
     stdscr.refresh()
 
     pageline = curses.newwin(1, curses.COLS - 1, curses.LINES - 2, 0)
     logline = curses.newwin(1, curses.COLS - 1, curses.LINES - 1, 0)
-
-    handler = CursesHandler()
-    handler.setLevel(logging.DEBUG)
-    if show_logs:
-        logger.addHandler(handler)
-        handler.set_screen(logline)
 
     current_page = 1
     total_pages = 1 + (n_panels - 1) // (rows * cols)
@@ -83,7 +197,6 @@ def test_pagination(stdscr, rows, cols, n_panels, show_logs=True):
         pad.refresh(0, page_size * (current_page - 1), pady, padx, curses.LINES - 1 - pady, curses.COLS - 1 - padx)
         pageline.addstr(0, 0, "{}/{}".format(current_page, total_pages), curses.A_BOLD)
         pageline.refresh()
-        logger.warning("Moving to page {}".format(current_page))
 
     for i, coord in enumerate(coords):
         window = pad.subwin(*coord)

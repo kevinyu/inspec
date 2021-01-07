@@ -179,6 +179,12 @@ def view_cmap(cmap, num):
     curses.wrapper(debug.view_colormap, cmap, num)
 
 
+@click.command(help="Test asyncio integration")
+def test_async():
+    from . import debug
+    curses.wrapper(debug.test_async_scrolling)
+
+
 @click.command(help="View window layout")
 @click.option("-r", "--rows", type=int, default=1)
 @click.option("-c", "--cols", type=int, default=1)
@@ -207,6 +213,7 @@ cli.add_command(open_)
 cli.add_command(list_cmaps)
 cli.add_command(dev)
 dev.add_command(test_pagination)
+dev.add_command(test_async)
 dev.add_command(view_cmap)
 dev.add_command(benchmark_render)
 dev.add_command(benchmark_spectrogram)
