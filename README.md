@@ -111,3 +111,4 @@ Definitely works on Ubuntu + Python3.8. Kind of works on Windows 10 + Python3.8 
 * Create a module for live streaming data?
 * Simpler API to view data from data structures instead of reading from disk
 * Image viewing
+* Debouncing key inputs in gui (throttle holding arrow keys, scroll wheel, etc)
