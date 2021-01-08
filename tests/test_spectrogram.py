@@ -3,9 +3,9 @@ from unittest import mock
 
 import numpy as np
 
-from inspec.plugins.audio.spectrogram import (
+from inspec.transform import (
     _get_frequencies,
-    spectrogram,
+    compute_spectrogram,
     resize
 )
 
@@ -26,11 +26,11 @@ class TestSpectrogram(unittest.TestCase):
     def test_spectrogram(self):
         """Just testing that the function runs"""
         signal = np.random.random(48000,)
-        t, f, spec = spectrogram(signal, 48000, 1000, 50)
+        t, f, spec = compute_spectrogram(signal, 48000, 1000, 50)
         self.assertEqual(spec.shape, (459, 1000))
 
         signal = np.random.random(48000,)
-        t, f, spec = spectrogram(signal, 48000, 1000, 50, min_freq=1000, max_freq=10000)
+        t, f, spec = compute_spectrogram(signal, 48000, 1000, 50, min_freq=1000, max_freq=10000)
         self.assertTrue(f[0] > 1000)
         self.assertTrue(f[-1] < 10000)
 

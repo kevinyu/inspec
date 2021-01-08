@@ -9,7 +9,7 @@ class Paginator(object):
         return 1 + (self.total - 1) // (self.rows * self.cols)
 
     @property
-    def n_visible(self):
+    def items_per_page(self):
         return self.rows * self.cols
 
     def items_on_page(self, page_idx):
@@ -18,8 +18,8 @@ class Paginator(object):
         elif page_idx > self.n_pages - 1:
             raise ValueError("Page > {} out of range".format(self.n_pages - 1))
         return list(range(
-            page_idx * self.n_visible,
-            min((page_idx + 1) * self.n_visible, self.total)
+            page_idx * self.items_per_page,
+            min((page_idx + 1) * self.items_per_page, self.total)
         ))
 
     def item_to_page(self, item_idx):

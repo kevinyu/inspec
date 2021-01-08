@@ -10,6 +10,31 @@ class ColormapNotFound(Exception):
     pass
 
 
+class Colormap(object):
+
+    class Color256(int):
+        """Index representing one of the 256 terminal colors
+
+        Basically an int but stores an extra tidbit of information - the index
+        in the colormap that it belongs to.
+        """
+        MAX = 255
+        MIN = 0
+
+        def __new__(self, value, idx):
+            return int.__new__(self, value)
+
+        def __repr__(self):
+            return str(int(self))
+
+        def __init__(self, value, idx):
+            int.__init__(value)
+            self.idx = idx
+
+    class ColorBin(int):
+        pass
+
+
 class PairedColormap(object):
 
     def __init__(self, colors, bin_edges=None):
@@ -24,7 +49,7 @@ class PairedColormap(object):
             partition of the space [0, 1], e.g. [0.33, 0.66] for 3 colors.
             By default, gives each color an equal partition.
         """
-        self.colors = colors
+        self.colors = [Colormap.Color256(c, Colormap.ColorBin(idx)) for idx, c in enumerate(colors)]
         if bin_edges is None:
             self.bin_edges = self.default_bin_edges(self.colors)
         else:
@@ -46,7 +71,12 @@ class PairedColormap(object):
     def scale(self, frac):
         """Maps frac to a color bin
         """
-        return bisect.bisect_left(self.bin_edges, frac)
+        return Colormap.ColorBin(bisect.bisect_left(self.bin_edges, frac))
+
+    def scale_to_color(self, frac):
+        """Convert a fraction between 0 and 1 to the corresponding Color256
+        """
+        return self.colors[self.scale(frac)]
 
 
 class CursesColormapSingleton(object):
@@ -54,6 +84,10 @@ class CursesColormapSingleton(object):
 
     Assumes equally spaced color bins
     """
+
+    class ColorSlot(int):
+        pass
+
     _instance = None
 
     def __new__(cls):
@@ -71,39 +105,52 @@ class CursesColormapSingleton(object):
         except AttributeError:
             return getattr(self.cmap, attr)
 
-    def bins_to_color_slot(self, fg_bin, bg_bin):
-        """Map a fg and bg bin (0, ncolors) to a single color slot (0, 255)
-
-        Used with curses.init_pair and curses.color_pair
+    def _color_bins_to_slot(self, first_bin, second_bin):
+        """Map a pair of ColorBins to a ColorSlot
         """
-        if fg_bin <= bg_bin:
-            # TODO: I'd want this to be an error since our convention is fg_bin > bg_bin
-            # But there is a bug where if a colormap has a repeated color, this is going
-            # to break and can be equal.
-            # I need to fix the reverse_color_lookup to optionally (or always) hold lists (for multiples)
-            # and colors_to_color_slot can resolve this if it gets a double
-            raise ValueError("fg_bin should never be less than bg_bin")
-        if fg_bin <= 0 or fg_bin >= len(self.cmap.colors):
-            raise ValueError("fg_bin is out of range [1, NCOLORS)")
-        if bg_bin < 0 or bg_bin >= len(self.cmap.colors):
-            raise ValueError("bg_bin is out of range [0, NCOLORS)")
+        if first_bin < 0 or second_bin < 0 or first_bin >= len(self.cmap.colors) or second_bin >= len(self.cmap.colors):
+            raise ValueError("bins must be between 0 and len(colors) - 1")
+        if first_bin <= second_bin:
+            raise ValueError("Color order violates convention of foreground"
+                    " color bin always > background color bin")
 
-        return (
-            (bg_bin * (len(self.cmap.colors) - 1))
-            - ((bg_bin * (bg_bin - 1)) // 2)
-            + fg_bin
-            - bg_bin
+        return CursesColormapSingleton.ColorSlot(
+            (second_bin * (len(self.cmap.colors) - 1))
+            - ((second_bin * (second_bin - 1)) // 2)
+            + first_bin
+            - second_bin
         )
 
-    def colors_to_color_slot(self, fg_color, bg_color):
-        """Reverse lookup of the color slot (0, 255) from fg and bg terminal colors (0, 255)
+    def get_slot(self, fg_color, bg_color):
+        """Map a pair of foreground and background Color256s to a ColorSlot
 
-        The color slot is used with curses.init_pair and curses.color_pair
+        This function should generally be used after determining the
+        Color256 values for the foreground and background using Colormap.scale_to_color.
+
+        It is the responsibility of the calling function to invert their characters
+        depending on the output of this function
+
+        Params
+        ======
+        fg_color : Colormap.Color256
+            Requested foreground color
+        bg_color : Colormap.Color256
+            Requested background color
+
+        Return a ColorSlot pointing to the corresponding color slot and a
+        boolean flag of whether the foreground and background should be inverted
+        (True means the foreground and background of the character should be
+        inverted)
         """
-        return self.bins_to_color_slot(
-            self.reverse_color_lookup[fg_color],
-            self.reverse_color_lookup[bg_color]
-        )
+
+        if fg_color.idx == bg_color.idx == 0:
+            return self._color_bins_to_slot(self.colors[1].idx, bg_color.idx), False
+        elif fg_color.idx == bg_color.idx != 0:
+            return self._color_bins_to_slot(fg_color.idx, self.colors[bg_color.idx - 1].idx), False
+        elif fg_color.idx <= bg_color.idx:
+            return self._color_bins_to_slot(bg_color.idx, fg_color.idx), True
+        else:
+            return self._color_bins_to_slot(fg_color.idx, bg_color.idx), False
 
     def init_colormap(self, cmap):
         self.cmap = load_cmap(cmap)
@@ -111,18 +158,27 @@ class CursesColormapSingleton(object):
         if self.cmap is self._last_cmap:
             return
 
+        assigned = []
         # Assign fg and bg color pairs to terminal colors
-        self.reverse_color_lookup = {}
-        for fg_idx, fg_color in enumerate(self.cmap.colors):
-            self.reverse_color_lookup[fg_color] = fg_idx
-            for bg_idx, bg_color in enumerate(self.cmap.colors):
-                if fg_idx <= bg_idx:
+        for fg_color in self.cmap.colors:
+            for bg_color in self.cmap.colors:
+                if fg_color.idx <= bg_color.idx:
                     continue
+                slot, _ = self.get_slot(fg_color, bg_color)
                 curses.init_pair(
-                    self.bins_to_color_slot(fg_idx, bg_idx),
+                    slot,
                     fg_color,
                     bg_color
                 )
+                assigned.append(
+                    (
+                        slot,
+                        fg_color,
+                        bg_color
+                    )
+
+                )
+        # raise Exception(", ".join(map(str, sorted(assigned, key=lambda x: x[2]))))
 
         self._last_cmap = self.cmap
 
@@ -168,15 +224,18 @@ _registered_colormaps = {
 for key in list(_registered_colormaps.keys()):
     if isinstance(_registered_colormaps[key], PairedColormap):
         _registered_colormaps["{}_r".format(key)] = PairedColormap(
-        list(reversed(_registered_colormaps[key].colors))
-    )
+            list(reversed(_registered_colormaps[key].colors))
+        )
 
 
 VALID_CMAPS = list(sorted(_registered_colormaps.keys()))
 
 
-def load_cmap(cmap):
+def load_cmap(cmap=None):
     """Get a colormap by string or object"""
+    if cmap is None:
+        return _registered_colormaps[var.DEFAULT_CMAP]
+
     if isinstance(cmap, PairedColormap):
         return cmap
     elif isinstance(cmap, str):
