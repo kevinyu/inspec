@@ -44,7 +44,7 @@ def open_(filenames, rows, cols, cmap, spec, amp, debug):
 
 @click.command(help="View colormap choices")
 def list_cmaps():
-    from .plugins.colormap import VALID_CMAPS
+    from .colormap import VALID_CMAPS
     click.echo(VALID_CMAPS)
     click.echo("Default: {}".format(var.DEFAULT_CMAP))
 

@@ -11,8 +11,6 @@ setuptools.setup(
     packages = [
         "inspec",
         "inspec.gui",
-        "inspec.plugins",
-        "inspec.plugins.audio"
     ],
     include_package_data = True,
     description = "Printing and viewing spectrograms of audio files in command line",
