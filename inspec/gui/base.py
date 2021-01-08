@@ -220,6 +220,7 @@ class InspecCursesApp(object):
                 await asyncio.sleep(self._refresh_interval - _dt)
             else:
                 await asyncio.sleep(0)
+                self.debug("\nFramerate lower than defined refresh {:.1f}: {:.2f}".format(1/self._refresh_interval, 1/_dt))
 
     async def main(self, stdscr):
         """Initialize display and then run a refresh loop and keyboard listener simultaneously

@@ -19,7 +19,7 @@ class AudioReader(object):
             "offset": 0
         }
 
-        return data, sampling_rate, metadata
+        return data[:, 0], sampling_rate, metadata
 
     @staticmethod
     def read_file_by_time(filename, duration=None, time_start=None):
