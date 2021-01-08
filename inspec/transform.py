@@ -245,7 +245,7 @@ class AmplitudeEnvelopeTwoSidedTransform(AudioTransform):
         self.ymax = ymax
         self.gradient = gradient
 
-    def convert(self, data, sampling_rate, output_size):
+    def convert(self, data, sampling_rate, output_size, scale=1.0):
         """Convert 1D audio signal into a spectrogram
 
         Returns spectrogram and metadata dictionary
@@ -263,6 +263,8 @@ class AmplitudeEnvelopeTwoSidedTransform(AudioTransform):
             ymax = self.ymax
         else:
             ymax = np.max(ampenv)
+        if ymax == 0:
+            ymax = 1.0
 
         img = np.zeros(output_size)
         half_height = output_size[0] // 2
@@ -278,7 +280,7 @@ class AmplitudeEnvelopeTwoSidedTransform(AudioTransform):
             return _gradient_0 + ((i + 1) / half_height) * _gradient_span
 
         for col in range(len(ampenv)):
-            n_rows_to_fill = int(np.round(half_height * ampenv[col] / ymax))
+            n_rows_to_fill = int(np.round(scale * half_height * ampenv[col] / ymax))
             for i in range(n_rows_to_fill):
                 val = compute_color(i)
                 img[half_height + i, col] = val

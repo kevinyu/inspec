@@ -59,7 +59,7 @@ class CharMap(object):
         return (char_rows * cls.patch_dimensions[0], char_cols * cls.patch_dimensions[1])
 
     @classmethod
-    def to_char_array(cls, img):
+    def to_char_array(cls, img, floor=None, ceil=None):
         """Convert an image array into an array of tuples with character and color info
 
         Params
@@ -77,8 +77,10 @@ class CharMap(object):
 
         # img_min = np.min(img)
         # img_max = np.max(img)
-        floor = np.quantile(img, var.SPECTROGRAM_LOWER_QUANTILE)
-        ceil = np.quantile(img, var.SPECTROGRAM_UPPER_QUANTILE)
+        if floor is None:
+            floor = np.quantile(img, var.SPECTROGRAM_LOWER_QUANTILE)
+        if ceil is None:
+            ceil = np.quantile(img, var.SPECTROGRAM_UPPER_QUANTILE)
 
         output_shape = (
             img.shape[0] // cls.patch_dimensions[0],
@@ -88,8 +90,9 @@ class CharMap(object):
         char_array = np.empty(output_shape, dtype=object)
         for (row, col), patch in cls.iter_patches(img):
             if floor == ceil:
-                return cls.background_char
-            char_array[row, col] = cls.patch_to_char((patch - floor) / (ceil - floor))
+                char_array[row, col] = cls.background_char
+            else:
+                char_array[row, col] = cls.patch_to_char((patch - floor) / (ceil - floor))
 
         return char_array
 
