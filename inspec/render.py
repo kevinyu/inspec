@@ -7,6 +7,10 @@ from inspec.colormap import curses_cmap
 from inspec.maps import Char
 
 
+class CursesRenderError(Exception):
+    pass
+
+
 class BaseRenderer(object):
 
     @staticmethod
@@ -95,4 +99,4 @@ class CursesRenderer(BaseRenderer):
                     errored_on += 1
 
         if errored_on > 1:
-            raise Exception("Shouldn't error on more than the last element")
+            raise CursesRenderError("Shouldn't error on more than the last element")

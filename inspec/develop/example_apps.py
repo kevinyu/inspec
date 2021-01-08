@@ -1,8 +1,19 @@
+import asyncio
+import concurrent.futures
 import curses
+import sys
+from collections import defaultdict
 
+import numpy as np
+
+from inspec.colormap import load_cmap
 from inspec.paginate import Paginator
 from inspec.gui.base import InspecCursesApp, PanelCoord
+from inspec.gui.audio_viewer import InspecGridApp
 from inspec.gui.utils import pad_string
+from inspec.maps import QuarterCharMap
+from inspec.render import CursesRenderer, CursesRenderError
+from inspec.transform import AmplitudeEnvelopeTwoSidedTransform, SpectrogramTransform
 
 
 class ScrollingExampleApp(InspecCursesApp):
@@ -56,7 +67,7 @@ class ScrollingExampleApp(InspecCursesApp):
                 if j < main_coord.ncols - 1:
                     self.pad.addstr(i, j + main_coord.ncols, " ", curses.color_pair(17 + (i + j) % 144 + 1))
 
-    def refresh(self):
+    async def refresh(self):
         main_coord = self.panel_coords["main"]
         self.width = main_coord.ncols
         self.height = main_coord.nlines
@@ -78,7 +89,7 @@ class ScrollingExampleApp(InspecCursesApp):
             main_coord.nlines - 1 - main_coord.y,
             main_coord.ncols - 1 - main_coord.x,
         )
-        super().refresh()
+        await super().refresh()
 
     async def handle_key(self, ch):
         if ch == ord("q"):
@@ -164,8 +175,8 @@ class PaginationExample(InspecCursesApp):
         if direction == -1 and self.current_page > 0:
             self.current_page -= 1
 
-    def refresh(self):
-        super().refresh()
+    async def refresh(self):
+        await super().refresh()
         main_coord = self.panel_coords["main"]
         self.pad.refresh(
             0,
@@ -175,3 +186,185 @@ class PaginationExample(InspecCursesApp):
             main_coord.nlines - 1 - main_coord.y,
             main_coord.ncols - 1 - main_coord.x,
         )
+
+
+class ExampleLiveAudioApp(InspecCursesApp):
+    def __init__(
+            self,
+            device,
+            duration=1,
+            mode="spec",
+            cmap=None,
+            **kwargs,
+            ):
+        """App for streaming live audio data to terminal
+
+        Listens to the first channel of the specified device
+
+        This is very slow - calculating a spectrogram every loop
+        """
+        super().__init__(**kwargs)
+        self.device = device
+        self.duration = duration
+        self.data = None
+        self.mode = mode
+
+        if self.mode == "amp":
+            self.transform = AmplitudeEnvelopeTwoSidedTransform(gradient=(0.3, 0.7))
+        elif self.mode == "spec":
+            self.transform = SpectrogramTransform(
+                spec_sampling_rate=500,
+                spec_freq_spacing=100,
+                min_freq=250,
+                max_freq=8000
+            )
+        else:
+            raise ValueError("mode must be spec or amp")
+
+        self.cmap = load_cmap(cmap)
+        self.colorized_char_array = None
+
+    async def refresh(self):
+        await super().refresh()
+
+        window_size = self.window.getmaxyx()
+        desired_size = QuarterCharMap.max_img_shape(*window_size)
+        if self.mode == "amp":
+            img, metadata = self.transform.convert(self.data[:, 0], self.samplerate, output_size=desired_size, scale=0.5)
+        else:
+            img, metadata = self.transform.convert(self.data[:, 0], self.samplerate, output_size=desired_size)
+        char_array = QuarterCharMap.to_char_array(img)
+        colorized_char_array = CursesRenderer.apply_cmap_to_char_array(self.cmap, char_array)
+        CursesRenderer.render(self.window, colorized_char_array)
+
+        self.window.refresh()
+
+    def audio_callback(self, indata, frames, time, status):
+        """This is called (from a separate thread) for each audio block."""
+        if status:
+            print(status, file=sys.stdout)
+        # Fancy indexing with mapping creates a (necessary!) copy:
+        self.q.put_nowait(indata[:, [0]])
+
+    async def initialize_display(self):
+        await super().initialize_display()
+
+        self.window = curses.newwin(*self.panel_coords["main"])
+        self.window.border(0,)
+        self.window.refresh()
+
+    def post_display(self):
+        super().post_display()
+        import sounddevice as sd
+        self.q = asyncio.Queue()
+
+        self.samplerate = sd.query_devices(self.device, 'input')['default_samplerate']
+        self.data = np.zeros((int(self.samplerate * self.duration), 1))
+        self.stream = sd.InputStream(
+            device=self.device,
+            channels=1,
+            blocksize=1024,
+            dtype=np.int16,
+            samplerate=self.samplerate,
+            callback=self.audio_callback
+        )
+        self.stream.start()
+
+        asyncio.create_task(self.receive_data())
+
+    async def receive_data(self):
+        """This is called by matplotlib for each plot update.
+
+        Typically, audio callbacks happen more frequently than plot updates,
+        therefore the queue tends to contain multiple blocks of audio data.
+
+        """
+        while True:
+            data = await self.q.get()
+            shift = len(data)
+            self.data = np.roll(self.data, -shift, axis=0)
+            self.data[-shift:, :] = data
+
+
+class ExampleMultithreadedAudioApp(InspecGridApp):
+    def __init__(
+            self,
+            *args,
+            threads=4,
+            **kwargs,
+            ):
+        """App for streaming live audio data to terminal
+
+        Listens to the first channel of the specified device
+
+        This is very slow - calculating a spectrogram every loop
+        """
+        super().__init__(*args, **kwargs)
+        self._n_threads = threads
+        self._window_idx_to_tasks = defaultdict(list)
+        self.executor = concurrent.futures.ThreadPoolExecutor(
+            max_workers=self._n_threads,
+        )
+        self._canceled = 0
+
+    def compute_char_array(self, file_view, window_idx, data, sampling_rate):
+        char_array = super().compute_char_array(window_idx, data, sampling_rate)
+        self.q.put_nowait((char_array, file_view, window_idx, self.current_page))
+
+    def cleanup(self):
+        self.executor.shutdown(wait=True)
+
+    def refresh_window(self, file_view, window_idx):
+        loop = asyncio.get_event_loop()
+        if file_view.needs_redraw:
+            try:
+                data, sampling_rate, file_meta = self.reader.read_file_by_time(
+                    file_view.data["filename"],
+                    duration=file_view.time_scale,
+                    time_start=file_view.time_start,
+                )
+            except RuntimeError:
+                self.debug("File {} is not readable".format(file_view.data["filename"]))
+                task = None
+            else:
+                for prev_task in self._window_idx_to_tasks[window_idx]:
+                    prev_task.cancel()
+                self._window_idx_to_tasks[window_idx] = []
+                task = loop.run_in_executor(
+                    self.executor,
+                    self.compute_char_array,
+                    file_view,
+                    window_idx,
+                    data,
+                    sampling_rate
+                )
+                self._window_idx_to_tasks[window_idx].append(task)
+                file_view.needs_redraw = False
+
+    def start_tasks(self):
+        super().start_tasks()
+        asyncio.create_task(self.receive_data())
+
+    def post_display(self):
+        super().post_display()
+        self.q = asyncio.Queue()
+
+    async def receive_data(self):
+        """This is called by matplotlib for each plot update.
+
+        Typically, audio callbacks happen more frequently than plot updates,
+        therefore the queue tends to contain multiple blocks of audio data.
+
+        """
+        while True:
+            char_array, file_view, window_idx, current_page = await self.q.get()
+            # Make sure we havent changed pages since the task was launched
+            if current_page == self.current_page:
+                window = self.windows[window_idx]
+                try:
+                    CursesRenderer.render(window, char_array)
+                except CursesRenderError:
+                    self.debug("Renderer failed, possibly due to resize")
+                self.annotate_view(file_view, window)
+            else:
+                file_view.needs_redraw = True

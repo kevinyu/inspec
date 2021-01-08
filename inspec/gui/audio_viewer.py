@@ -195,7 +195,17 @@ class InspecGridApp(InspecCursesApp):
         for pad_page, page in zip(iter_pad_pages, iter_pages):
             self._assign_page_to_pad_page(page, pad_page)
 
-    def refresh_window(self, file_view, window):
+    def compute_char_array(self, window_idx, data, sampling_rate):
+        window = self.windows[window_idx]
+        desired_size = self.map.max_img_shape(*window.getmaxyx())
+        img, meta = self.transform.convert(data, sampling_rate, output_size=(desired_size[0], desired_size[1]))
+        char_array = self.map.to_char_array(img)
+        char_array = CursesRenderer.apply_cmap_to_char_array(self.cmap, char_array)
+        return char_array
+
+    def refresh_window(self, file_view, window_idx):
+        window = self.windows[window_idx]
+
         if file_view.needs_redraw:
             try:
                 data, sampling_rate, file_meta = self.reader.read_file_by_time(
@@ -206,15 +216,20 @@ class InspecGridApp(InspecCursesApp):
             except RuntimeError:
                 self.debug("File {} is not readable".format(file_view.data["filename"]))
             else:
-                desired_size = self.map.max_img_shape(*window.getmaxyx())
-                img, meta = self.transform.convert(data, sampling_rate, output_size=(desired_size[0], desired_size[1]))
-                char_array = self.map.to_char_array(img)
-                char_array = CursesRenderer.apply_cmap_to_char_array(self.cmap, char_array)
+                char_array = self.compute_char_array(window, data, sampling_rate)
                 CursesRenderer.render(window, char_array)
                 file_view.needs_redraw = False
 
+        self.annotate_view(file_view, window)
+
+    def annotate_view(self, file_view, window):
         # Annotate the view
         maxy, maxx = window.getmaxyx()
+        if file_view.idx == self.current_selection:
+            window.border(0,)
+        else:
+            window.border(1, 1, 1, 1)
+
         window.addstr(0, 1, os.path.basename(file_view.data["filename"]))
         idx_str = pad_string(str(file_view.idx), side="right", max_len=var.GUI_MAX_IDX_LEN)
         window.addstr(maxy - 1, maxx - 1 - len(idx_str), idx_str)
@@ -248,6 +263,22 @@ class InspecGridApp(InspecCursesApp):
             slider_string = ""
         window.addstr(maxy - 1, 1, position_string + " " + slider_string, curses.A_NORMAL)
 
+    async def check_size_reset(self):
+        curr_size = self.stdscr.getmaxyx()
+        if curr_size != self.last_size:
+            curses.resizeterm(*curr_size)
+            # self.stdscr.clear()
+            # self.stdscr.refresh()
+            self.pad.clear()
+            self.windows = []
+            await self.initialize_display()
+            self.last_size = curr_size
+            for view in self.views:
+                view.needs_redraw = True
+            # This is a hack to wait for the refresh loop to consume stuff
+            # Otherwise the next
+            await asyncio.sleep(self._refresh_interval * 2)
+
     async def handle_key(self, ch):
         """Handle key presses"""
         if ch == ord("q"):
@@ -261,20 +292,7 @@ class InspecGridApp(InspecCursesApp):
         elif ch == curses.KEY_DOWN or ch == ord("j"):
             self.down()
         elif ch == curses.KEY_RESIZE:
-            curr_size = self.stdscr.getmaxyx()
-            if curr_size != self.last_size:
-                # logger.debug("Debug: resizing terminal to {}".format(curr_size))
-                curses.resizeterm(*curr_size)
-                self.stdscr.clear()
-                self.stdscr.refresh()
-                self.pad.clear()
-                self.windows = []
-                await self.initialize_display()
-                for view in self.views:
-                    view.needs_redraw = True
-                # This is a hack to wait for the refresh loop to consume stuff
-                await asyncio.sleep(self._refresh_interval * 2)
-                self.last_size = curr_size
+            self.check_size_reset()
         elif ch == curses.KEY_SLEFT or ch == ord("H"):
             if self.current_view.time_left():
                 self.current_view.needs_redraw = True
@@ -374,7 +392,6 @@ class InspecGridApp(InspecCursesApp):
             return False, self.current_selection, self.current_selection
         else:
             self.current_selection -= 1
-            self.current_page = self.paginator.item_to_page(self.current_selection)
             if self.current_page != self.paginator.item_to_page(self.current_selection):
                 self.prev_page()
             return True, self.current_selection, self.current_selection + 1
@@ -422,6 +439,7 @@ class InspecGridApp(InspecCursesApp):
     def resolve_page_move(self):
         """Resolve issues when we have moved to an unloaded page and update pages -> files
         """
+        self.update_pad_position()
         if self._pad_page_to_page[self.current_pad_page] != self.current_page:
             self._assign_page_to_pad_page(self.current_page, self.current_pad_page)
             for view_idx in self.paginator.items_on_page(self.current_page):
@@ -456,12 +474,12 @@ class InspecGridApp(InspecCursesApp):
             panel_coords["main"].nlines,
             panel_coords["main"].ncols
         )
-
-    def refresh(self):
-        """Called each 1/refresh_rate, for updating the display"""
-        super().refresh()
-
         self.last_size = self.stdscr.getmaxyx()
+
+    async def refresh(self):
+        """Called each 1/refresh_rate, for updating the display"""
+        await self.check_size_reset()
+        await super().refresh()
 
         window_indexes = self.pad_paginator.items_on_page(self.current_pad_page)
         view_indexes = self.paginator.items_on_page(self.current_page)
@@ -472,24 +490,17 @@ class InspecGridApp(InspecCursesApp):
             window = self.windows[window_idx]
             if view_idx is not None:
                 file_view = self.views[view_idx]
-
-                if view_idx == self.current_selection:
-                    window.border(0,)
-                else:
-                    window.border(1, 1, 1, 1)
-
-                self.refresh_window(file_view, window)
+                self.annotate_view(file_view, window)
+                self.refresh_window(file_view, window_idx)
             else:
                 window.clear()
 
-        page_str = "p{}/{}".format(self.current_page + 1, self.paginator.n_pages)
-        self.status_window.addstr(
-            0,
-            self.panel_coords["status"].ncols - 1 - len(page_str),
-            page_str
-        )
-        self.status_window.refresh()
+        self.draw_page_number()
+        self.update_pad_position()
 
+    def update_pad_position(self):
+        """Move the visible portion of the curses pad to the correct section
+        """
         main_coord = self.panel_coords["main"]
         self.pad.refresh(
             0,
@@ -499,3 +510,15 @@ class InspecGridApp(InspecCursesApp):
             main_coord.nlines - 1 - main_coord.y,
             main_coord.ncols - 1 - main_coord.x,
         )
+
+    def draw_page_number(self):
+        page_str = "p{}/{}".format(self.current_page + 1, self.paginator.n_pages)
+        try:
+            self.status_window.addstr(
+                0,
+                self.panel_coords["status"].ncols - 1 - len(page_str),
+                page_str
+            )
+            self.status_window.refresh()
+        except curses.error:
+            pass

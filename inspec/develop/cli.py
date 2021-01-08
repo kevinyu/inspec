@@ -1,9 +1,6 @@
-import asyncio
-import curses
-
+"""
+"""
 import click
-
-from inspec import var
 
 
 @click.group(help="Functions for development and debugging")
@@ -58,8 +55,8 @@ def benchmark_render(height, width, repeat):
 @click.command(help="Benchmark a spectrogram function")
 @click.option("-s", "--signal-size", type=int, help="size in samples of test data", default=48000)
 @click.option("-r", "--rate", type=int, help="sampling rate of test data", default=48000)
-@click.option("--spec-sample-rate", type=int, help="sampling rate of output spectrogram", default=var.DEFAULT_SPECTROGRAM_SAMPLE_RATE)
-@click.option("--spec-freq-spacing", type=int, help="approx freq spacing of output spectrogram", default=var.DEFAULT_SPECTROGRAM_FREQ_SPACING)
+@click.option("--spec-sample-rate", type=int, help="sampling rate of output spectrogram", default=1000)
+@click.option("--spec-freq-spacing", type=int, help="approx freq spacing of output spectrogram", default=50)
 @click.option("--resize-x", type=int, help="resize to number of spec time bins", default=80)
 @click.option("--resize-y", type=int, help="resize to number of spec freq bins", default=40)
 @click.option("--repeat", type=int, help="iterations for timing", default=1)
@@ -94,11 +91,13 @@ def benchmark_spectrogram(signal_size, rate, spec_sample_rate, spec_freq_spacing
 @click.option("--cmap", type=str, help="Choose colormap (see list-cmaps for options). Leave blank to show all possible colors", default=None)
 @click.option("--num/--no-num", help="Display terminal color numbers, or just show colors", default=True)
 def view_cmap(cmap, num):
+    import curses
     from . import debug
     curses.wrapper(debug.view_colormap, cmap, num)
 
 
 def _test_async_scrolling(stdscr):
+    import asyncio
     from .example_apps import ScrollingExampleApp
     app = ScrollingExampleApp(padx=1, pady=1, refresh_rate=40, debug=True)
     asyncio.run(app.main(stdscr))
@@ -106,10 +105,76 @@ def _test_async_scrolling(stdscr):
 
 @click.command(help="Test asyncio integration")
 def test_async():
+    import curses
     curses.wrapper(_test_async_scrolling)
 
 
+def _test_loading_multithreaded(stdscr, filenames, rows, cols, threads):
+    import os
+    import glob
+    import asyncio
+    from .example_apps import ExampleMultithreadedAudioApp
+
+    from inspec.gui.audio_viewer import AudioFileView
+    from inspec.io import AudioReader
+    from inspec.maps import QuarterCharMap
+    from inspec.transform import SpectrogramTransform
+
+    if isinstance(filenames, str):
+        filenames = [filenames]
+
+    if not len(filenames):
+        filenames = ["."]
+
+    files = []
+    for filename in filenames:
+        if not os.path.isdir(filename):
+            files.append(filename)
+        else:
+            for _filename in glob.glob(os.path.join(filename, "*.wav")):
+                files.append(_filename)
+
+    transform = SpectrogramTransform(
+        spec_sampling_rate=1000,
+        spec_freq_spacing=50,
+        min_freq=250,
+        max_freq=8000
+    )
+
+    app = ExampleMultithreadedAudioApp(
+        rows,
+        cols,
+        files=files,
+        file_reader=AudioReader,
+        cmap="greys",
+        view_class=AudioFileView,
+        transform=transform,
+        map=QuarterCharMap,
+        threads=4,
+        refresh_rate=40,
+        debug=True
+    )
+    asyncio.run(app.main(stdscr))
+
+
+@click.command(help="test a multithreaded application")
+@click.argument("filenames", nargs=-1, type=click.Path(exists=True))
+@click.option("-r", "--rows", type=int, default=1)
+@click.option("-c", "--cols", type=int, default=1)
+@click.option("-t", "--threads", type=int, default=4)
+def test_multithreading(filenames, rows, cols, threads):
+    import curses
+    curses.wrapper(
+        _test_loading_multithreaded,
+        filenames=filenames,
+        rows=rows,
+        cols=cols,
+        threads=threads,
+    )
+
+
 def _test_pagination(stdscr, rows, cols, n_panels):
+    import asyncio
     from .example_apps import PaginationExample
     app = PaginationExample(rows, cols, n_panels, debug=True)
     asyncio.run(app.main(stdscr))
@@ -120,6 +185,7 @@ def _test_pagination(stdscr, rows, cols, n_panels):
 @click.option("-c", "--cols", type=int, default=1)
 @click.option("-n", "--n-panels", type=int, default=10)
 def test_pagination(rows, cols, n_panels):
+    import curses
     curses.wrapper(_test_pagination, rows, cols, n_panels)
 
 
@@ -145,6 +211,7 @@ def integration_tests():
 
 dev.add_command(test_pagination)
 dev.add_command(test_async)
+dev.add_command(test_multithreading)
 dev.add_command(view_cmap)
 dev.add_command(benchmark_render)
 dev.add_command(benchmark_spectrogram)

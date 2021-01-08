@@ -131,7 +131,7 @@ class InspecCursesApp(object):
         if self.debug_window:
             self.debug_window.clear()
 
-    def refresh(self):
+    async def refresh(self):
         """Called each 1/refresh_rate, for updating the display"""
         if self.debug_window:
             self.debug_window.refresh()
@@ -214,13 +214,22 @@ class InspecCursesApp(object):
     async def run(self):
         while self._running:
             _t = time.time()
-            self.refresh()
+            await self.refresh()
             _dt = time.time() - _t
             if self._refresh_interval > _dt:
                 await asyncio.sleep(self._refresh_interval - _dt)
             else:
                 await asyncio.sleep(0)
                 self.debug("\nFramerate lower than defined refresh {:.1f}: {:.2f}".format(1/self._refresh_interval, 1/_dt))
+
+    def start_tasks(self):
+        asyncio.create_task(self.run())
+
+    def pre_display(self):
+        pass
+
+    def post_display(self):
+        pass
 
     async def main(self, stdscr):
         """Initialize display and then run a refresh loop and keyboard listener simultaneously
@@ -233,7 +242,10 @@ class InspecCursesApp(object):
         curses.use_default_colors()
         self.stdscr.refresh()
 
+        self.pre_display()
         await self.initialize_display()
+        self.post_display()
+        self.start_tasks()
 
-        asyncio.create_task(self.run())
+        # Does it make sense for the lisnen to key inputs to be the main thing keeping the app running?
         await self.listen_to_key_inputs()
