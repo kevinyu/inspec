@@ -25,7 +25,7 @@ def cli():
 @click.option("--amp/--no-amp", help="Show amplitude", default=True)
 @click.option("--vertical/--horizontal", help="Vertical display", default=False)
 def show(filename, height, width, duration, time_, channel, cmap, spec, amp, vertical):
-    from .inspec import show
+    from .core import show
     show(filename, height, width, duration, time_, channel, cmap, spec, amp, vertical)
 
 
@@ -40,7 +40,7 @@ def show(filename, height, width, duration, time_, channel, cmap, spec, amp, ver
 @click.option("--amp/--no-amp", help="Show amplitude", default=True)
 @click.option("--debug", is_flag=True, help="Show debug messages")
 def open_(filenames, rows, cols, cmap, spec, amp, debug):
-    from .inspec import open_gui
+    from .core import open_gui
     open_gui(filenames, rows, cols, cmap, spec, amp, debug)
 
 
@@ -57,7 +57,7 @@ def open_(filenames, rows, cols, cmap, spec, amp, debug):
 @click.option("--debug", is_flag=True, help="Show debug messages")
 def listen(device, channels, chunk_size, step_chars, step_chunks, mode, cmap, min_freq, max_freq, debug):
     """Multithreaded version of test_listen"""
-    from .inspec import listen
+    from .core import listen
     try:
         device = int(device)
     except ValueError:
@@ -85,7 +85,7 @@ def list_cmaps():
 
 @click.command(help="List audio devices")
 def list_devices():
-    from .inspec import list_devices
+    from .core import list_devices
     devices = list_devices()
     click.echo(devices)
 

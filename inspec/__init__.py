@@ -1,4 +1,6 @@
-from .inspec import (
+from .core import (
+    list_devices,
+    listen,
     open_gui,
     show,
 )
