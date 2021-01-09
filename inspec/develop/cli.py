@@ -109,6 +109,51 @@ def test_async():
     curses.wrapper(_test_async_scrolling)
 
 
+def _test_live_audio(stdscr, device="default", duration=1, mode="spec", cmap="greys"):
+    import asyncio
+    from .example_apps import ExampleLiveAudioApp
+    app = ExampleLiveAudioApp(device=device, duration=duration, mode=mode, refresh_rate=8, cmap=cmap, debug=True)
+    asyncio.run(app.main(stdscr))
+
+
+@click.command(help="Test live audio display")
+@click.option("-d", "--device", type=str, default="default")
+@click.option("--duration", type=float, default=1.0)
+@click.option("-c", "--channels", type=int, default=1)
+@click.option("--mode", type=click.Choice(["spec", "amp"]), default="spec")
+@click.option("--cmap", type=str, help="Choose colormap", default=None)
+def test_listen(device, duration, channels, mode, cmap):
+    import curses
+    try:
+        device = int(device)
+    except ValueError:
+        pass
+    curses.wrapper(_test_live_audio, device=device, duration=duration, mode=mode, cmap=cmap)
+
+
+def _test_live_audio_mt(stdscr, device="default", duration=1, mode="spec", cmap="greys"):
+    import asyncio
+    from .example_apps import ExampleThreadedLiveAudioApp
+    app = ExampleThreadedLiveAudioApp(device=device, duration=duration, mode=mode, refresh_rate=20, cmap=cmap, debug=True)
+    asyncio.run(app.main(stdscr))
+
+
+@click.command(help="Test live audio display 2")
+@click.option("-d", "--device", type=str, default="default")
+@click.option("--duration", type=float, default=1.0)
+@click.option("-c", "--channels", type=int, default=1)
+@click.option("--mode", type=click.Choice(["spec", "amp"]), default="spec")
+@click.option("--cmap", type=str, help="Choose colormap", default=None)
+def test_listen_mt(device, duration, channels, mode, cmap):
+    """Multithreaded version of test_listen"""
+    import curses
+    try:
+        device = int(device)
+    except ValueError:
+        pass
+    curses.wrapper(_test_live_audio_mt, device=device, duration=duration, mode=mode, cmap=cmap)
+
+
 def _test_loading_multithreaded(stdscr, filenames, rows, cols, threads):
     import os
     import glob
@@ -212,6 +257,8 @@ def integration_tests():
 dev.add_command(test_pagination)
 dev.add_command(test_async)
 dev.add_command(test_multithreading)
+dev.add_command(test_listen)
+dev.add_command(test_listen_mt)
 dev.add_command(view_cmap)
 dev.add_command(benchmark_render)
 dev.add_command(benchmark_spectrogram)

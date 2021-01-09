@@ -221,6 +221,16 @@ class SpectrogramTransform(AudioTransform):
         return spec, metadata
 
 
+def resize_1d(signal, output_len):
+    t = np.linspace(0, len(signal), output_len)
+    resized = np.interp(
+        t,
+        np.linspace(0, len(signal), len(signal)),
+        signal
+    )
+    return resized
+
+
 def compute_ampenv(signal, sampling_rate):
     # TODO: this is just a quick implementation. replace with better later?
     return np.abs(signal)
