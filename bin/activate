@@ -14,3 +14,5 @@ if [ $# -eq 0 ]
 fi
 
 . $env/bin/activate
+
+eval "$(_INSPEC_COMPLETE=source_bash inspec)"

@@ -94,7 +94,7 @@ git clone git@github.com:kevinyu/inspec.git
 cd inspec
 python -m venv env
 source bin/activate
-pip install -r requirements.txt
+pip install -e .
 ```
 
 Run unittests
