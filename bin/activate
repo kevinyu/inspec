@@ -15,4 +15,4 @@ fi
 
 . $env/bin/activate
 
-eval "$(_INSPEC_COMPLETE=source_bash inspec)"
+# eval "$(_INSPEC_COMPLETE=source_bash inspec)"
