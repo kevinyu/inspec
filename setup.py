@@ -31,6 +31,7 @@ setuptools.setup(
         "Click",
         "SoundFile",
         "numpy",
+        "sounddevice",
         "wheel",
         "windows-curses;platform_system=='Windows'",
     ],
