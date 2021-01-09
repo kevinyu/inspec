@@ -158,6 +158,28 @@ cli.add_command(listen)
 cli.add_command(list_devices)
 cli.add_command(list_cmaps)
 
+@click.command("imshow", help="Print image in greyscale in command line.")
+@click.argument("filename", type=click.Path(exists=True))
+@click.option("-h", "--height", help="Height in characters, or fraction of screen if between 0.0 and 1.0", type=float, default=None)
+@click.option("-w", "--width", help="Width in characters, or fraction of screen if between 0.0 and 1.0", type=float, default=None)
+@click.option("--cmap", type=str, help="Choose colormap (see 'inspec list-cmaps')", default=None)
+@click.option(
+    "--characters", "--chars",
+    type=click.Choice(["quarter", "half", "full"]),
+    help="Choose character set ('quarter' gives highest resolution, 'full' lowest) (default quarter)",
+    default="quarter")
+@click.option("--vertical/--horizontal", help="Vertical display (default --horizontal)", default=False)
+def imshow(filename, height, width, cmap, characters, vertical):
+    from .core import imshow
+    imshow(
+        filename,
+        height=height,
+        width=width,
+        cmap=cmap,
+        characters=characters,
+        vertical=vertical,
+    )
+
 
 try:
     from inspec.develop.cli import dev
@@ -170,6 +192,7 @@ else:
     def new():
         pass
 
+    new.add_command(imshow)
     cli.add_command(new)
 
 

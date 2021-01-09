@@ -1,6 +1,10 @@
 from inspec import var
 # from inspec.maps import QuarterCharMap
-from inspec.transform import SpectrogramTransform, AmplitudeEnvelopeTwoSidedTransform
+from inspec.transform import (
+    SpectrogramTransform,
+    AmplitudeEnvelopeTwoSidedTransform,
+    ImageGreyscaleTransform,
+)
 
 
 DEFAULTS = {
@@ -12,6 +16,12 @@ DEFAULTS = {
             max_freq=var.DEFAULT_SPECTROGRAM_MAX_FREQ
         ),
         "amp_transform": AmplitudeEnvelopeTwoSidedTransform(gradient=(0.3, 0.7))
+    },
+    "image":{
+        "transform": ImageGreyscaleTransform(
+            keep_aspect_ratio=True,
+            character_aspect_ratio=var.TERM_CHAR_ASPECT_RATIO
+        )
     },
     "cmap": "greys"
 }

@@ -10,7 +10,7 @@ from inspec.colormap import load_cmap
 from inspec.defaults import DEFAULTS
 from inspec.gui.audio_viewer import InspecGridApp, AudioFileView
 from inspec.gui.live_audio_viewer import LiveAudioViewApp
-from inspec.io import AudioReader, gather_files
+from inspec.io import AudioReader, ImageReader, gather_files
 from inspec.maps import get_char_map
 from inspec.render import StdoutRenderer
 from inspec.transform import (
@@ -72,6 +72,51 @@ def _open_gui(
         debug=debug
     )
     asyncio.run(app.main(stdscr))
+
+
+def imshow(
+        filename,
+        height=None,
+        width=None,
+        cmap=None,
+        vertical=False,
+        characters="quarter",
+        ):
+    cmap = load_cmap(cmap or var.DEFAULT_CMAP)
+    termsize = os.get_terminal_size()
+
+    if height and isinstance(height, float) and 0 < height <= 1:
+        height = int(np.round(termsize.lines * height))
+    elif height:
+        height = int(height)
+    if width and isinstance(width, float) and 0 < width <= 1:
+        width = int(np.round(termsize.columns * width))
+    elif width:
+        width = int(width)
+
+    charmap = get_char_map(characters)
+
+    height = height or termsize.lines
+    width = width or termsize.columns
+    if vertical:
+        height, width = width, height
+
+    desired_size = charmap.max_img_shape(height, width)
+
+    data, _ = ImageReader.read_file(filename)
+
+    img, metadata = DEFAULTS["image"]["transform"].convert(
+        data,
+        output_size=desired_size,
+        size_multiple_of=charmap.patch_dimensions,
+        rotated=vertical,
+    )
+    if vertical:
+        img = img.T
+
+    char_array = charmap.to_char_array(img)
+    char_array = StdoutRenderer.apply_cmap_to_char_array(cmap, char_array)
+    StdoutRenderer.render(char_array)
 
 
 def show(

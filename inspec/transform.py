@@ -1,5 +1,7 @@
 import numpy as np
 
+from inspec import var
+
 
 def _get_frequencies(signal_length, sample_rate):
     freq = np.fft.fftfreq(signal_length, d=1.0 / sample_rate)
@@ -179,7 +181,12 @@ def compute_ampenv(signal, sampling_rate):
     return np.abs(signal)
 
 
-class AudioTransform(object):
+class InspecTransform(object):
+    def convert(self):
+        raise NotImplementedError
+
+
+class AudioTransform(InspecTransform):
 
     def convert(self, data, sampling_rate):
         """Convert 1D audio signal into a 2D image array
@@ -313,3 +320,57 @@ class AmplitudeEnvelopeTwoSidedTransform(AudioTransform):
         }
 
         return img, metadata
+
+
+class ImageGreyscaleTransform(InspecTransform):
+
+    def __init__(self, keep_aspect_ratio=True, character_aspect_ratio=var.TERM_CHAR_ASPECT_RATIO):
+        self.keep_aspect_ratio = keep_aspect_ratio
+        self.character_aspect_ratio = character_aspect_ratio
+
+    def convert(
+            self,
+            data,
+            output_size,
+            size_multiple_of=None,
+            rotated=False,
+        ):
+        """Convert an RGB image array into greyscale"""
+        import cv2
+
+        decolorized = cv2.cvtColor(data, cv2.COLOR_BGR2GRAY)
+        original_height, original_width = data.shape[:2]
+
+        # if both the width and height are None, then return the
+        # original image
+        if self.keep_aspect_ratio:
+            aspect_ratio = (
+                original_height
+                / original_width
+            )
+            if rotated:
+                pseudo_aspect_ratio = aspect_ratio * self.character_aspect_ratio
+            else:
+                pseudo_aspect_ratio = aspect_ratio / self.character_aspect_ratio
+
+            if size_multiple_of is not None:
+                pseudo_aspect_ratio = (
+                    (size_multiple_of[0] * pseudo_aspect_ratio)
+                    / size_multiple_of[1]
+                )
+
+            proposed_new_width = int(np.floor(output_size[0] / pseudo_aspect_ratio))
+            proposed_new_height = int(np.floor(pseudo_aspect_ratio * output_size[1]))
+
+            if size_multiple_of is not None:
+                proposed_new_width -= proposed_new_width % size_multiple_of[1]
+                proposed_new_height -= proposed_new_height % size_multiple_of[0]
+
+            if proposed_new_width > output_size[1]:
+                output_size = (proposed_new_height, output_size[1])
+            else:
+                output_size = (output_size[0], proposed_new_width)
+        else:
+            output_size = output_size
+
+        return resize(decolorized, output_size[0], output_size[1]), {}

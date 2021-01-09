@@ -81,3 +81,12 @@ def gather_files(paths, extension):
                 results.append(_filename)
 
     return results
+
+
+
+class ImageReader(object):
+
+    @staticmethod
+    def read_file(filename):
+        import cv2
+        return cv2.imread(filename)[::-1], {}
