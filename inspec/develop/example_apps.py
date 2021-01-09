@@ -1,19 +1,15 @@
 import asyncio
-import concurrent.futures
 import curses
-import sys
-from collections import defaultdict
 
 import numpy as np
 
 from inspec.colormap import load_cmap
 from inspec.paginate import Paginator
 from inspec.gui.base import InspecCursesApp, PanelCoord
-from inspec.gui.audio_viewer import InspecGridApp
 from inspec.gui.utils import pad_string
-from inspec.maps import HalfCharMap, QuarterCharMap
-from inspec.render import CursesRenderer, CursesRenderError
-from inspec.transform import AmplitudeEnvelopeTwoSidedTransform, SpectrogramTransform, resize_1d
+from inspec.maps import QuarterCharMap
+from inspec.render import CursesRenderer
+from inspec.transform import AmplitudeEnvelopeTwoSidedTransform, SpectrogramTransform
 
 
 class ScrollingExampleApp(InspecCursesApp):
@@ -241,8 +237,6 @@ class ExampleLiveAudioApp(InspecCursesApp):
 
     def audio_callback(self, indata, frames, time, status):
         """This is called (from a separate thread) for each audio block."""
-        if status:
-            print(status, file=sys.stdout)
         # Fancy indexing with mapping creates a (necessary!) copy:
         self.q.put_nowait(indata[:, [0]])
 

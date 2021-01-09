@@ -164,6 +164,21 @@ def cv2_resize(spec, target_height, target_width):
     )
 
 
+def resize_1d(signal, output_len):
+    t = np.linspace(0, len(signal), output_len)
+    resized = np.interp(
+        t,
+        np.linspace(0, len(signal), len(signal)),
+        signal
+    )
+    return resized
+
+
+def compute_ampenv(signal, sampling_rate):
+    # TODO: this is just a quick implementation. replace with better later?
+    return np.abs(signal)
+
+
 class AudioTransform(object):
 
     def convert(self, data, sampling_rate):
@@ -228,21 +243,6 @@ class SpectrogramTransform(AudioTransform):
         return spec, metadata
 
 
-def resize_1d(signal, output_len):
-    t = np.linspace(0, len(signal), output_len)
-    resized = np.interp(
-        t,
-        np.linspace(0, len(signal), len(signal)),
-        signal
-    )
-    return resized
-
-
-def compute_ampenv(signal, sampling_rate):
-    # TODO: this is just a quick implementation. replace with better later?
-    return np.abs(signal)
-
-
 class AmplitudeEnvelopeTwoSidedTransform(AudioTransform):
 
     def __init__(self, gradient=None, ymax=None):
@@ -275,11 +275,7 @@ class AmplitudeEnvelopeTwoSidedTransform(AudioTransform):
         ampenv = compute_ampenv(data, sampling_rate)
 
         t = np.linspace(0, len(data) / sampling_rate, output_size[1])
-        ampenv = np.interp(
-            t,
-            np.linspace(0, len(data) / sampling_rate, len(data)),
-            ampenv
-        )
+        ampenv = resize_1d(ampenv, output_size[1])
 
         if self.ymax is not None:
             ymax = self.ymax

@@ -32,6 +32,8 @@ class Colormap(object):
             self.idx = idx
 
     class ColorBin(int):
+        """An int that represents one of []
+        """
         pass
 
 
@@ -178,7 +180,6 @@ class CursesColormapSingleton(object):
                     )
 
                 )
-        # raise Exception(", ".join(map(str, sorted(assigned, key=lambda x: x[2]))))
 
         self._last_cmap = self.cmap
 

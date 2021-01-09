@@ -1,11 +1,10 @@
 from inspec import var
-from inspec.maps import QuarterCharMap
+# from inspec.maps import QuarterCharMap
 from inspec.transform import SpectrogramTransform, AmplitudeEnvelopeTwoSidedTransform
 
 
 DEFAULTS = {
     "audio": {
-        "map": QuarterCharMap,
         "spec_transform": SpectrogramTransform(
             spec_sampling_rate=var.DEFAULT_SPECTROGRAM_SAMPLE_RATE,
             spec_freq_spacing=var.DEFAULT_SPECTROGRAM_FREQ_SPACING,

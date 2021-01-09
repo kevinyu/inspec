@@ -1,5 +1,7 @@
 # inspec
-View spectrograms of audio data files in the terminal as unicode characters. Provides printing to stdout, a terminal gui built on curses, and importable functions. I made this so it would be easier to inspect audio files over ssh.
+View spectrograms of audio data files in the terminal as unicode characters. Provides printing to stdout, a terminal gui built on curses, and importable functions.
+
+Easy way to inspec audio files when accessing data files on a remote server through ssh or as sanity checks during a processing script.
 
 ![inspec open demo](demo/inspec_open_demo.gif)
 
@@ -23,8 +25,48 @@ Print a file to stdout, inferring type of file base on extension and contents
 inspec show FILENAME [-w WIDTH] [-h HEIGHT] [--cmap CMAP] [--horizontal OR --vertical]
 ```
 
+Show a live spectrogram or amplitude of an input device
+```shell
+inspec listen [-d DEVICE] [-c CHANNELS] [-m 'spec' OR 'amp'] [--cmap CMAP]
+```
+
+```shell
+inspec list-devices
+inspec list-cmaps
+```
 
 ![inspec show demo](demo/inspec_show_demo.gif)
+
+#### `inspec open` controls
+
+| Action                             |Key|
+|---|---|
+|  Close the program                 |[q]|
+|  Change selected file              |[arrow keys] or [h,j,k,l] |
+|  Zoom out/in in time               |[+]| and [-]|
+|  Prompt to set display rows        |[r]|
+|  Prompt to set display cols (int)  |[c]|
+|  Prompt to set timescale (float)   |[s]|
+|  Prompt to jump to page (int)      |[p]|
+|  Toggle spectrogram/amplitude view |[z]|
+
+| Action                             |Key|
+|---|---|
+|  Scroll file in time                    |[shift + arrow keys] or [H,L]|
+|  Prompt to jump to time (seconds)  |[t]|
+|  Switch to channel (0 indexed, max 9) |[number keys]|
+
+#### `inspec listen` controls
+
+| Action                             |Key|
+|---|---|
+|  Close the program                 |[q]|
+|  Increase gain                     |[up arrow] or [k] |
+|  Decrease gain                     |[down arrow] or [j]|
+|  Zoom in on y scale                |[+]|
+|  Zoom out on y scale               |[-]|
+|  Prompt to set gain (float in dB, defaults 0) |[g]|
+
 
 ### Python
 
@@ -32,10 +74,12 @@ Convenience methods mirroring the cli
 ```python
 import inspec
 
-# Open a terminal gui (like inspec open)
+# Open a terminal gui (inspec open)
 inspec.open_gui(FILENAMES, rows=2, cols=2, cmap="viridis")
-# Printing to stdout (like inspec show)
+# Printing to stdout (inspec show)
 inspec.show(FILENAME, width=0.5, height=0.5)
+# Open a gui displaying live spectrograms (inspec listen)
+inspec.listen(device=DEVICE, channels=1)
 ```
 
 For more fine-grained control, or to extend the visualizations to other data formats, you can add/modify/remove intermediate processing steps. These are
@@ -62,29 +106,19 @@ cmap = load_cmap("viridis")
 transform = SpectrogramTransform(1000, 50, min_freq=250, max_freq=10000)
 
 data, sampling_rate, _ = AudioReader.read_file("sample.wav")
+
+# Convert the data into a 2D image
 img, _ = transform.convert(data, sampling_rate, output_size=(80, 160))
+
+# Convert the image into tuples of unicode characters and colors to map (from 0. to 1.)
 char_img = QuarterCharMap.to_char_array(img)
+
+# Apply a colormap to the 0. to 1. colors into terminal color values (or curses colors)
 char_img_colorized = StdoutRenderer.apply_cmap_to_char_array(cmap, char_img)
 
+# Display the characters and colors to the screen
 StdoutRenderer.display(char_img_colorized)
 ```
-
-#### GUI
-
-The main GUI is built on **asyncio** and **curses**, though visualizations can be printed directly as well. The base class is in `inspec.gui.base`
-
-```python
-import curses
-from inspec.gui.base import InspecCursesApp
-
-def _run(stdscr):
-    app = InspecCursesApp(refresh_rate=40, debug=True)
-    asyncio.run(app.main(stdscr))
-
-curses.wrapper(_run)
-```
-
-The main methods that should be implemented in an app derived from `InspecCursesApp` are `refresh()`, `initialize_display()`, and `handle_key(ch)`. See examples in `inspec/develop/example_apps.py`.
 
 
 ## Development
@@ -102,6 +136,23 @@ Run unittests
 inspec dev unittests
 ```
 
+#### GUI
+
+The main GUI is built on **asyncio** and **curses**. The base class is in `inspec.gui.base`
+
+```python
+import curses
+from inspec.gui.base import InspecCursesApp
+
+def _run(stdscr):
+    app = InspecCursesApp(refresh_rate=40, debug=True)
+    asyncio.run(app.main(stdscr))
+
+curses.wrapper(_run)
+```
+
+The main methods that should be implemented in an app derived from `InspecCursesApp` are `refresh()`, `initialize_display()`, and `handle_key(ch)`. See examples in `inspec/develop/example_apps.py`.
+
 ## Compatibility
 
 Definitely works on Ubuntu + Python3.8. Kind of works on Windows 10 + Python3.8 in Powershell but a little unstable, needs `pip install windows-curses` as well.
@@ -115,6 +166,3 @@ Definitely works on Ubuntu + Python3.8. Kind of works on Windows 10 + Python3.8 
 * Cleaning up parameters for functions in inspec/inspec.py and their corresponding cli commands in inspec/cli.py
 * Better documentation
 * Error handling for unreadable files, non-audio files
-* Channel switching
-
-

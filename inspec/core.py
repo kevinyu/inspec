@@ -1,7 +1,6 @@
 import asyncio
 import click
 import curses
-import glob
 import os
 
 import numpy as np
@@ -12,9 +11,7 @@ from inspec.defaults import DEFAULTS
 from inspec.gui.audio_viewer import InspecGridApp, AudioFileView
 from inspec.gui.live_audio_viewer import LiveAudioViewApp
 from inspec.io import AudioReader, gather_files
-from inspec.maps import (
-    FullCharMap, HalfCharMap, QuarterCharMap,
-)
+from inspec.maps import get_char_map
 from inspec.render import StdoutRenderer
 from inspec.transform import (
     SpectrogramTransform,
@@ -22,38 +19,22 @@ from inspec.transform import (
 )
 
 
-def open_gui(
+def open_gui(*args, **kwargs):
+    """Launch a terminal gui to view one or more audio files
+    """
+    curses.wrapper(_open_gui, *args, **kwargs)
+
+
+def _open_gui(
+        stdscr,
         filenames,
         rows=1,
         cols=1,
         cmap=DEFAULTS["cmap"],
         spec=True,
         amp=True,
-        debug=False
-        ):
-    """Launch a terminal gui to view one or more audio files
-    """
-    curses.wrapper(
-        _open_gui,
-        filenames,
-        rows,
-        cols,
-        cmap,
-        spec,
-        amp,
-        debug
-    )
-
-
-def _open_gui(
-        stdscr,
-        filenames,
-        rows,
-        cols,
-        cmap,
-        spec,
-        amp,
-        debug,
+        characters="quarter",
+        debug=False,
         ):
     files = gather_files(filenames, "wav")
 
@@ -77,6 +58,8 @@ def _open_gui(
         click.echo("spec or amp (or both) must be selected")
         return
 
+    charmap = get_char_map(characters)
+
     app = InspecGridApp(
         rows,
         cols,
@@ -85,7 +68,7 @@ def _open_gui(
         cmap=cmap,
         view_class=AudioFileView,
         transform=transforms,
-        map=QuarterCharMap,
+        map=charmap,
         debug=debug
     )
     asyncio.run(app.main(stdscr))
@@ -102,6 +85,7 @@ def show(
         show_spec=True,
         show_amp=False,
         vertical=False,
+        characters="quarter",
         ):
     cmap = load_cmap(cmap or var.DEFAULT_CMAP)
     termsize = os.get_terminal_size()
@@ -116,8 +100,9 @@ def show(
         width = int(width)
 
     is_audio = True
-
     if is_audio:
+        charmap = get_char_map(characters)
+
         height = height or termsize.lines
         width = width or termsize.columns
         if show_spec and show_amp:
@@ -126,7 +111,7 @@ def show(
         if vertical:
             height, width = width, height
 
-        desired_size = DEFAULTS["audio"]["map"].max_img_shape(height, width)
+        desired_size = charmap.max_img_shape(height, width)
 
         if channel is None:
             channel = 0
@@ -146,7 +131,7 @@ def show(
             )
             if vertical:
                 img = img.T
-            char_array = DEFAULTS["audio"]["map"].to_char_array(img)
+            char_array = charmap.to_char_array(img)
             char_array = StdoutRenderer.apply_cmap_to_char_array(cmap, char_array)
             StdoutRenderer.render(char_array)
 
@@ -158,7 +143,7 @@ def show(
             )
             if vertical:
                 img = img.T
-            char_array = DEFAULTS["audio"]["map"].to_char_array(img)
+            char_array = charmap.to_char_array(img)
             char_array = StdoutRenderer.apply_cmap_to_char_array(cmap, char_array)
             StdoutRenderer.render(char_array)
 
@@ -180,11 +165,13 @@ def _listen(
         mode="amp",
         chunk_size=1024,
         step_chunks=2,
-        step_chars=2,
+        step_chars=None,
         channels=1,
+        duration=2.0,
         cmap=None,
         min_freq=250,
         max_freq=10000,
+        characters="quarter",
         debug=False,
         ):
 
@@ -204,11 +191,12 @@ def _listen(
         step_chunks=step_chunks,
         step_chars=step_chars,
         channels=channels,
+        duration=duration,
         transform=transform,
-        map=QuarterCharMap,
+        map=get_char_map(characters),
         cmap=cmap,
         debug=debug,
-        refresh_rate=10,
+        refresh_rate=30,
         padx=2,
         pady=2
     )

@@ -9,4 +9,6 @@ from .core import (
 __all__ = [
     "open_gui",
     "show",
+    "listen",
+    "list_devices"
 ]

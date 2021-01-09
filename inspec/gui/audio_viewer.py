@@ -514,8 +514,6 @@ class InspecGridApp(InspecCursesApp):
         window_indexes = self.pad_paginator.items_on_page(self.current_pad_page)
         view_indexes = self.paginator.items_on_page(self.current_page)
 
-        main_coord = self.panel_coords["main"]
-
         for window_idx, view_idx in itertools.zip_longest(window_indexes, view_indexes):
             window = self.windows[window_idx]
             if view_idx is not None:

@@ -1,23 +1,13 @@
 import asyncio
 import concurrent
 import curses
-# import curses.textpad
-import itertools
-import os
 
 import numpy as np
 
-from inspec import var
-from inspec.colormap import VALID_CMAPS, load_cmap
-from inspec.gui.base import DataView, InspecCursesApp, PanelCoord
-from inspec.gui.utils import (
-    PositionSlider,
-    generate_position_slider,
-    pad_string,
-    db_scale,
-)
-from inspec.paginate import Paginator
-from inspec.render import CursesRenderer, CursesRenderError
+from inspec.colormap import load_cmap
+from inspec.gui.base import InspecCursesApp, PanelCoord
+from inspec.gui.utils import db_scale
+from inspec.render import CursesRenderer
 
 
 class LiveAudioViewApp(InspecCursesApp):
@@ -26,7 +16,8 @@ class LiveAudioViewApp(InspecCursesApp):
             device,
             mode="amp",
             chunk_size=1024,
-            step_chars=2,       # number of character columns to render in one calculation
+            step_chars=2,       # number of character columns to render in one calculation (overrides duration)
+            duration=None,      #
             step_chunks=2,      # number of chunks in one calculation
             channels=1,         # define which channels to listen to
             transform=None,
@@ -37,7 +28,10 @@ class LiveAudioViewApp(InspecCursesApp):
         """App for streaming a single live audio data to terminal
         """
         super().__init__(**kwargs)
+        if duration is None and step_chars is None:
+            raise ValueError("Either duration or step_chars must be set")
         self.device = device
+        self.duration = duration
         self.step_chunks = step_chunks
         self.chunk_size = chunk_size
         self.step_chars = step_chars
@@ -112,8 +106,6 @@ class LiveAudioViewApp(InspecCursesApp):
 
     def audio_callback(self, indata, frames, time, status):
         """This is called (from a separate thread) for each audio block."""
-        if status:
-            print(status, file=sys.stdout)
         # Fancy indexing with mapping creates a (necessary!) copy:
         self.mic_queue.put_nowait(indata[:, :self.channels])
 
@@ -141,6 +133,14 @@ class LiveAudioViewApp(InspecCursesApp):
         device_info = sd.query_devices(self.device, "input")
         self.sampling_rate = device_info["default_samplerate"]
 
+        if self.step_chars is None:
+            # Now that we have the sampling rate, we can compute the
+            # number of characters each step advance if necessary
+            width = self.panel_coords["main"].ncols
+            time_per_char = self.duration / width
+            time_per_step = self.step_chunks * self.chunk_size / self.sampling_rate
+            self.step_chars = int(np.round(time_per_step / time_per_char))
+
         self.stream = sd.InputStream(
             device=self.device,
             channels=self.channels,
@@ -151,8 +151,6 @@ class LiveAudioViewApp(InspecCursesApp):
         )
         self.stream.start()
 
-        # calculate the width of the screen each chunk should take
-        width = self.panel_coords["main"].ncols
         asyncio.create_task(self.process_mic_input())
         asyncio.create_task(self.process_spec_output())
 
@@ -196,8 +194,8 @@ class LiveAudioViewApp(InspecCursesApp):
             self.state["current_x"] += colorized_char_arrays[0].shape[1]
             self.state["current_x"] = self.state["current_x"] % (self.width + 1)
 
-            # raise Exception(panel_coords)
             for channel, colorized_char_array in enumerate(colorized_char_arrays):
+                # colorized_char_array = colorized_char_array[:]
                 coord = panel_coords["channels"][channel]
 
                 CursesRenderer.render(
@@ -220,7 +218,7 @@ class LiveAudioViewApp(InspecCursesApp):
                         colorized_char_array,
                         start_col=self.duplicate_at - colorized_char_array.shape[1],
                         start_row=coord.y
-                )
+                    )
 
     def translate_to_characters(self, data):
         channel_coords = self.panel_coords["channels"]
@@ -229,8 +227,15 @@ class LiveAudioViewApp(InspecCursesApp):
         for channel in range(self.channels):
             channel_coord = channel_coords[channel]
 
+            # Determine if we need to realign our character array if we arent
+            # a multiple of the map's patch shape
+            if self.step_chars % self.map.patch_dimensions[1]:
+                alignment_needed = self.map.patch_dimensions[1] - (self.step_chars % self.map.patch_dimensions[1])
+            else:
+                alignment_needed = 0
+
             desired_rows, _ = self.map.max_img_shape(channel_coord.nlines - 1, channel_coord.ncols)
-            desired_cols = self.step_chars
+            desired_cols = self.step_chars + alignment_needed
             desired_size = (desired_rows, desired_cols)
 
             img, metadata = self.transform.convert(data[:, channel], self.sampling_rate, output_size=desired_size)
@@ -239,6 +244,9 @@ class LiveAudioViewApp(InspecCursesApp):
                 char_array = self.map.to_char_array(img, floor=0.0, ceil=10.0)
             elif self.mode == "amp":
                 char_array = self.map.to_char_array(img)
+
+            if alignment_needed:
+                char_array = char_array[:, alignment_needed//2:-(alignment_needed + 1)//2]
 
             colorized_char_array = CursesRenderer.apply_cmap_to_char_array(self.cmap, char_array)
             colorized_char_arrays.append(colorized_char_array)

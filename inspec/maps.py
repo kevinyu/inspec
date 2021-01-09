@@ -20,6 +20,10 @@ Char = namedtuple("Char", [
 ])
 
 
+class MapNotFound(Exception):
+    pass
+
+
 class CharMap(object):
     """Base class for translating 2D image data into 2D array of unicode characters
     """
@@ -185,3 +189,20 @@ class CharMapRGB(CharMap):
 
 class HalfCharMapRGB(HalfCharMap):
     patch_dimensions = (2, 1)
+
+
+_maps = {
+    "full": FullCharMap,
+    "half": HalfCharMap,
+    "quarter": QuarterCharMap,
+}
+
+
+def get_char_map(map_name, default=None):
+    if map_name is None:
+        return _maps[default or var.DEFAULT_CHAR_MAP]
+
+    if map_name in _maps:
+        return _maps[map_name]
+    else:
+        raise MapNotFound

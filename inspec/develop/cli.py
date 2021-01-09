@@ -159,8 +159,6 @@ def unittest(_dir, verbose, _coverage):
         from coverage import Coverage
         cov = Coverage()
         cov.start()
-        import inspec
-        import inspec.gui
 
     if os.path.isdir(_dir):
         testsuite = unittest.TestLoader().discover(".")
