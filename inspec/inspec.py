@@ -21,13 +21,40 @@ from inspec.transform import (
     AmplitudeEnvelopeTwoSidedTransform,
 )
 
-def open_gui(filenames, rows=1, cols=1, cmap=DEFAULTS["cmap"], spec=True, amp=False, debug=False):
+
+def open_gui(
+        filenames,
+        rows=1,
+        cols=1,
+        cmap=DEFAULTS["cmap"],
+        spec=True,
+        amp=False,
+        debug=False
+        ):
     """Launch a terminal gui to view one or more audio files
     """
-    curses.wrapper(_open_gui, filenames, rows, cols, cmap, spec, amp, debug)
+    curses.wrapper(
+        _open_gui,
+        filenames,
+        rows,
+        cols,
+        cmap,
+        spec,
+        amp,
+        debug
+    )
 
 
-def _open_gui(stdscr, filenames, rows, cols, cmap, spec, amp, debug):
+def _open_gui(
+        stdscr,
+        filenames,
+        rows,
+        cols,
+        cmap,
+        spec,
+        amp,
+        debug,
+        ):
     if isinstance(filenames, str):
         filenames = [filenames]
 
@@ -133,16 +160,16 @@ def list_devices():
 def listen(*args, **kwargs):
     """Show live display of audio input
     """
-    curses.wrapper(
-        _listen, *args, **kwargs)
+    curses.wrapper(_listen, *args, **kwargs)
 
 
 def _listen(
         stdscr,
         device,
-        duration=1,
         mode="amp",
         chunk_size=1024,
+        step_chunks=2,
+        step_chars=2,
         cmap=None,
         min_freq=250,
         max_freq=10000,
@@ -160,13 +187,16 @@ def _listen(
 
     app = LiveAudioViewApp(
         device=device,
-        duration=duration,
         mode=mode,
         chunk_size=chunk_size,
+        step_chunks=step_chunks,
+        step_chars=step_chars,
         transform=transform,
         map=QuarterCharMap,
         cmap=cmap,
         debug=debug,
         refresh_rate=10,
+        padx=4,
+        pady=4
     )
     asyncio.run(app.main(stdscr))

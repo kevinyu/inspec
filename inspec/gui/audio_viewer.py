@@ -1,8 +1,10 @@
 import asyncio
+import concurrent.futures
 import curses
 import curses.textpad
 import itertools
 import os
+from collections import defaultdict
 
 import numpy as np
 
@@ -15,7 +17,7 @@ from inspec.gui.utils import (
     pad_string,
 )
 from inspec.paginate import Paginator
-from inspec.render import CursesRenderer
+from inspec.render import CursesRenderer, CursesRenderError
 
 
 class AudioFileView(DataView):
@@ -195,8 +197,7 @@ class InspecGridApp(InspecCursesApp):
         for pad_page, page in zip(iter_pad_pages, iter_pages):
             self._assign_page_to_pad_page(page, pad_page)
 
-    def compute_char_array(self, window_idx, data, sampling_rate):
-        window = self.windows[window_idx]
+    def compute_char_array(self, window, data, sampling_rate):
         desired_size = self.map.max_img_shape(*window.getmaxyx())
         img, meta = self.transform.convert(data, sampling_rate, output_size=(desired_size[0], desired_size[1]))
         char_array = self.map.to_char_array(img)
@@ -205,7 +206,6 @@ class InspecGridApp(InspecCursesApp):
 
     def refresh_window(self, file_view, window_idx):
         window = self.windows[window_idx]
-
         if file_view.needs_redraw:
             try:
                 data, sampling_rate, file_meta = self.reader.read_file_by_time(
@@ -522,3 +522,79 @@ class InspecGridApp(InspecCursesApp):
             self.status_window.refresh()
         except curses.error:
             pass
+
+
+class InspecThreadedGridApp(InspecGridApp):
+    def __init__(
+            self,
+            *args,
+            threads=4,
+            **kwargs,
+            ):
+        """App for viewing audio files in a browser
+
+        Threaded so that files can load in parallel and show up asynchronously
+        """
+        super().__init__(*args, **kwargs)
+        self._n_threads = threads
+        self._window_idx_to_tasks = defaultdict(list)
+        self.executor = concurrent.futures.ThreadPoolExecutor(
+            max_workers=self._n_threads,
+        )
+        self._canceled = 0
+
+    def compute_char_array(self, file_view, window_idx, data, sampling_rate):
+        char_array = super().compute_char_array(window_idx, data, sampling_rate)
+        self.q.put_nowait((char_array, file_view, window_idx, self.current_page))
+
+    def cleanup(self):
+        self.executor.shutdown(wait=True)
+
+    def refresh_window(self, file_view, window_idx):
+        loop = asyncio.get_event_loop()
+        if file_view.needs_redraw:
+            try:
+                data, sampling_rate, file_meta = self.reader.read_file_by_time(
+                    file_view.data["filename"],
+                    duration=file_view.time_scale,
+                    time_start=file_view.time_start,
+                )
+            except RuntimeError:
+                self.debug("File {} is not readable".format(file_view.data["filename"]))
+                task = None
+            else:
+                for prev_task in self._window_idx_to_tasks[window_idx]:
+                    prev_task.cancel()
+                self._window_idx_to_tasks[window_idx] = []
+                task = loop.run_in_executor(
+                    self.executor,
+                    self.compute_char_array,
+                    file_view,
+                    window_idx,
+                    data,
+                    sampling_rate
+                )
+                self._window_idx_to_tasks[window_idx].append(task)
+                file_view.needs_redraw = False
+
+    def start_tasks(self):
+        super().start_tasks()
+        asyncio.create_task(self.receive_data())
+
+    def post_display(self):
+        super().post_display()
+        self.q = asyncio.Queue()
+
+    async def receive_data(self):
+        while True:
+            char_array, file_view, window_idx, current_page = await self.q.get()
+            # Make sure we havent changed pages since the task was launched
+            if current_page == self.current_page:
+                window = self.windows[window_idx]
+                try:
+                    CursesRenderer.render(window, char_array)
+                except CursesRenderError:
+                    self.debug("Renderer failed, possibly due to resize")
+                self.annotate_view(file_view, window)
+            else:
+                file_view.needs_redraw = True

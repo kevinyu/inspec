@@ -44,15 +44,16 @@ def open_(filenames, rows, cols, cmap, spec, amp, debug):
 
 @click.command(help="Live audo display as text")
 @click.option("-d", "--device", type=str, default="default")
-@click.option("--duration", type=int, default=1)
 @click.option("-c", "--channels", type=int, default=1)
-@click.option("-b", "--chunk-size", type=int, default=1024)
+@click.option("--chunk-size", type=int, default=1024)
+@click.option("--step-chars", type=int, help="How many new columns to display in each render step", default=2)
+@click.option("--step-chunks", type=int, help="How many chunks to use in each render step", default=2)
 @click.option("--mode", type=click.Choice(["spec", "amp"]), default="spec")
 @click.option("--cmap", type=str, help="Choose colormap", default=None)
 @click.option("--min-freq", type=float, default=250)
 @click.option("--max-freq", type=float, default=8000)
 @click.option("--debug", is_flag=True, help="Show debug messages")
-def listen(device, duration, channels, chunk_size, mode, cmap, min_freq, max_freq, debug):
+def listen(device, channels, chunk_size, step_chars, step_chunks, mode, cmap, min_freq, max_freq, debug):
     """Multithreaded version of test_listen"""
     from .inspec import listen
     try:
@@ -61,8 +62,9 @@ def listen(device, duration, channels, chunk_size, mode, cmap, min_freq, max_fre
         pass
     listen(
         device=device,
-        duration=duration,
         chunk_size=chunk_size,
+        step_chars=step_chars,
+        step_chunks=step_chunks,
         mode=mode,
         cmap=cmap,
         debug=debug,

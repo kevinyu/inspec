@@ -24,27 +24,22 @@ class LiveAudioViewApp(InspecCursesApp):
     def __init__(
             self,
             device,
-            duration=1,
             mode="amp",
             chunk_size=1024,
+            step_chars=2,       # number of character columns to render in one calculation
+            step_chunks=2,      # number of chunks in one calculation
             transform=None,
             cmap=None,
             map=None,
             **kwargs,
             ):
-        """App for streaming live audio data to terminal
-
-        Listens to the first channel of the specified device
-
-        This is very slow - calculating a spectrogram every loop
+        """App for streaming a single live audio data to terminal
         """
-        # if mode != "amp":
-        #     raise NotImplementedError("I've only impelemented an amp version of this")
-
         super().__init__(**kwargs)
         self.device = device
-        self.duration = duration
+        self.step_chunks = step_chunks
         self.chunk_size = chunk_size
+        self.step_chars = step_chars
         self.data = None
         self.mode = mode
         self.map = map
@@ -54,12 +49,13 @@ class LiveAudioViewApp(InspecCursesApp):
             "current_x": 0,
         }
         self.transform = transform
-        # if self.mode == "amp":
-        #     self.transform = transform
-        # else:
-        #     raise ValueError("mode must be spec or amp")
 
         self.cmap = load_cmap(cmap)
+
+        self.executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+
+    def cleanup(self):
+        self.executor.shutdown(wait=True)
 
     async def refresh(self):
         await super().refresh()
@@ -116,6 +112,7 @@ class LiveAudioViewApp(InspecCursesApp):
         # calculate the width of the screen each chunk should take
         width = self.panel_coords["main"].ncols
         asyncio.create_task(self.process_mic_input())
+        asyncio.create_task(self.process_spec_output())
 
     async def process_mic_input(self):
         """This is called by matplotlib for each plot update.
@@ -124,26 +121,33 @@ class LiveAudioViewApp(InspecCursesApp):
         therefore the queue tends to contain multiple blocks of audio data.
 
         """
+        loop = asyncio.get_event_loop()
+        chunk_counter = 0
+        self.buffer = np.zeros((self.step_chunks * self.chunk_size, 1))
         while True:
-            data = await self.mic_queue.get()
-            data = db_scale(data[:, [0]], dB=self.gain)
+            chunk = await self.mic_queue.get()
+            chunk = db_scale(chunk[:, [0]], dB=self.gain)
+
+            self.buffer[chunk_counter * self.chunk_size:(chunk_counter + 1) * self.chunk_size] = chunk
+
+            chunk_counter += 1
+            chunk_counter = chunk_counter % self.step_chunks
+
+            if chunk_counter % self.step_chunks == 0:
+                # launch task on self.buffer and clear self.buffer
+                loop.run_in_executor(
+                    self.executor,
+                    self.translate_to_characters,
+                    self.buffer[:, :],
+                )
+
+    async def process_spec_output(self):
+        while True:
+            colorized_char_array = await self.translation_queue.get()
 
             main_coord = self.panel_coords["main"]
             self.height = main_coord.nlines
             self.width = main_coord.ncols
-            desired_size = self.map.max_img_shape(main_coord.nlines, main_coord.ncols)
-
-            desired_cols = self.duration
-            if desired_cols < self.map.patch_dimensions[1]:
-                desired_cols = self.map.patch_dimensions[1]
-            desired_size = (desired_size[0], desired_cols)
-
-            img, metadata = self.transform.convert(data[:, 0], self.sampling_rate, output_size=desired_size)
-            if self.mode == "spec":
-                char_array = self.map.to_char_array(img, floor=0.0, ceil=10.)
-            elif self.mode == "amp":
-                char_array = self.map.to_char_array(img)
-            colorized_char_array = CursesRenderer.apply_cmap_to_char_array(self.cmap, char_array)
 
             self.state["current_x"] += colorized_char_array.shape[1]
             self.state["current_x"] = self.state["current_x"] % (self.width + 1)
@@ -166,6 +170,23 @@ class LiveAudioViewApp(InspecCursesApp):
                     colorized_char_array,
                     start_col=self.duplicate_at - colorized_char_array.shape[1],
                 )
+
+    def translate_to_characters(self, data):
+        main_coord = self.panel_coords["main"]
+        desired_rows, _ = self.map.max_img_shape(main_coord.nlines, main_coord.ncols)
+        desired_cols = self.step_chars
+        desired_size = (desired_rows, desired_cols)
+
+        img, metadata = self.transform.convert(data[:, 0], self.sampling_rate, output_size=desired_size)
+
+        if self.mode == "spec":
+            char_array = self.map.to_char_array(img, floor=0.0, ceil=10.0)
+        elif self.mode == "amp":
+            char_array = self.map.to_char_array(img)
+
+        colorized_char_array = CursesRenderer.apply_cmap_to_char_array(self.cmap, char_array)
+        self.translation_queue.put_nowait(colorized_char_array)
+
 
     async def handle_key(self, ch):
         """Handle key presses"""
