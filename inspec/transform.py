@@ -197,6 +197,11 @@ class SpectrogramTransform(AudioTransform):
 
         if output_size is None:
             output_size = spec.shape
+        elif output_size[1] == 1:
+            spec = resize(spec, output_size[0], 2)
+            spec = np.mean(spec, axis=1)[:, None]
+            t = np.linspace(t[0], t[-1], output_size[1])
+            f = np.linspace(f[0], f[-1], output_size[0])
         else:
             spec = resize(spec, output_size[0], output_size[1])
             t = np.linspace(t[0], t[-1], output_size[1])
@@ -281,7 +286,7 @@ class AmplitudeEnvelopeTwoSidedTransform(AudioTransform):
 
         for col in range(len(ampenv)):
             n_rows_to_fill = int(np.round(scale * half_height * ampenv[col] / ymax))
-            for i in range(n_rows_to_fill):
+            for i in range(min(n_rows_to_fill, img.shape[0] - half_height)):
                 val = compute_color(i)
                 img[half_height + i, col] = val
                 img[half_height - i - 1, col] = val

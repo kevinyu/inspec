@@ -68,3 +68,8 @@ def pad_string(string, side="right", max_len=3, fill_char=" "):
             return fill_char * (max_len - len(string)) + string
         else:
             return string[-max_len:]
+
+
+def db_scale(x, dB=None):
+    """Scale the channels of a signal (in dB) independently"""
+    return np.power(10.0, dB / 20.0) * x

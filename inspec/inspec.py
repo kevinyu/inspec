@@ -10,16 +10,16 @@ from inspec import var
 from inspec.colormap import load_cmap
 from inspec.defaults import DEFAULTS
 from inspec.gui.audio_viewer import InspecGridApp, AudioFileView
+from inspec.gui.live_audio_viewer import LiveAudioViewApp
 from inspec.io import AudioReader
 from inspec.maps import (
-    QuarterCharMap,
+    FullCharMap, HalfCharMap, QuarterCharMap,
 )
 from inspec.render import StdoutRenderer
 from inspec.transform import (
     SpectrogramTransform,
     AmplitudeEnvelopeTwoSidedTransform,
 )
-
 
 def open_gui(filenames, rows=1, cols=1, cmap=DEFAULTS["cmap"], spec=True, amp=False, debug=False):
     """Launch a terminal gui to view one or more audio files
@@ -123,3 +123,50 @@ def show(
             char_array = DEFAULTS["audio"]["map"].to_char_array(img)
             char_array = StdoutRenderer.apply_cmap_to_char_array(cmap, char_array)
             StdoutRenderer.render(char_array)
+
+
+def list_devices():
+    import sounddevice as sd
+    return sd.query_devices()
+
+
+def listen(*args, **kwargs):
+    """Show live display of audio input
+    """
+    curses.wrapper(
+        _listen, *args, **kwargs)
+
+
+def _listen(
+        stdscr,
+        device,
+        duration=1,
+        mode="amp",
+        chunk_size=1024,
+        cmap=None,
+        min_freq=250,
+        max_freq=10000,
+        debug=False,
+        ):
+
+    if mode == "amp":
+        transform = AmplitudeEnvelopeTwoSidedTransform(ymax=500.0, gradient=(0.1, 1.0))
+    elif mode == "spec":
+        transform = DEFAULTS["audio"]["spec_transform"]
+        if min_freq is not None:
+            transform.min_freq = min_freq
+        if max_freq is not None:
+            transform.max_freq = max_freq
+
+    app = LiveAudioViewApp(
+        device=device,
+        duration=duration,
+        mode=mode,
+        chunk_size=chunk_size,
+        transform=transform,
+        map=QuarterCharMap,
+        cmap=cmap,
+        debug=debug,
+        refresh_rate=10,
+    )
+    asyncio.run(app.main(stdscr))

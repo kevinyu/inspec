@@ -42,6 +42,35 @@ def open_(filenames, rows, cols, cmap, spec, amp, debug):
     open_gui(filenames, rows, cols, cmap, spec, amp, debug)
 
 
+@click.command(help="Live audo display as text")
+@click.option("-d", "--device", type=str, default="default")
+@click.option("--duration", type=int, default=1)
+@click.option("-c", "--channels", type=int, default=1)
+@click.option("-b", "--chunk-size", type=int, default=1024)
+@click.option("--mode", type=click.Choice(["spec", "amp"]), default="spec")
+@click.option("--cmap", type=str, help="Choose colormap", default=None)
+@click.option("--min-freq", type=float, default=250)
+@click.option("--max-freq", type=float, default=8000)
+@click.option("--debug", is_flag=True, help="Show debug messages")
+def listen(device, duration, channels, chunk_size, mode, cmap, min_freq, max_freq, debug):
+    """Multithreaded version of test_listen"""
+    from .inspec import listen
+    try:
+        device = int(device)
+    except ValueError:
+        pass
+    listen(
+        device=device,
+        duration=duration,
+        chunk_size=chunk_size,
+        mode=mode,
+        cmap=cmap,
+        debug=debug,
+        min_freq=min_freq,
+        max_freq=max_freq
+    )
+
+
 @click.command(help="View colormap choices")
 def list_cmaps():
     from .colormap import VALID_CMAPS
@@ -49,8 +78,17 @@ def list_cmaps():
     click.echo("Default: {}".format(var.DEFAULT_CMAP))
 
 
+@click.command(help="List audio devices")
+def list_devices():
+    from .inspec import list_devices
+    devices = list_devices()
+    click.echo(devices)
+
+
 cli.add_command(show)
 cli.add_command(open_)
+cli.add_command(listen)
+cli.add_command(list_devices)
 cli.add_command(list_cmaps)
 
 

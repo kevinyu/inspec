@@ -92,7 +92,11 @@ class CharMap(object):
             if floor == ceil:
                 char_array[row, col] = cls.background_char
             else:
-                char_array[row, col] = cls.patch_to_char((patch - floor) / (ceil - floor))
+                char_array[row, col] = cls.patch_to_char(np.clip(
+                    (patch - floor) / (ceil - floor),
+                    0,
+                    1
+                ))
 
         return char_array
 

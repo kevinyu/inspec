@@ -80,7 +80,7 @@ class CursesRenderer(BaseRenderer):
         return output_array
 
     @staticmethod
-    def render(window, char_array):
+    def render(window, char_array, start_row=0, start_col=0):
         """Render a array of unicode characters with color slots to window
         """
         errored_on = 0
@@ -90,8 +90,8 @@ class CursesRenderer(BaseRenderer):
                 color = curses.color_pair(slot)
                 try:
                     window.addstr(
-                        char_array.shape[0] - row - 1,
-                        col,
+                        start_row + char_array.shape[0] - row - 1,
+                        start_col + col,
                         char,
                         color
                     )
@@ -99,4 +99,4 @@ class CursesRenderer(BaseRenderer):
                     errored_on += 1
 
         if errored_on > 1:
-            raise CursesRenderError("Shouldn't error on more than the last element")
+            raise CursesRenderError("Could not write to more than just the last character in window")
