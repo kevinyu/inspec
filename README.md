@@ -114,3 +114,7 @@ Definitely works on Ubuntu + Python3.8. Kind of works on Windows 10 + Python3.8 
 * Debouncing key inputs in gui (throttle holding arrow keys, scroll wheel, etc)
 * Cleaning up parameters for functions in inspec/inspec.py and their corresponding cli commands in inspec/cli.py
 * Better documentation
+* Error handling for unreadable files, non-audio files
+* Channel switching
+
+
