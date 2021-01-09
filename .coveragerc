@@ -1,0 +1,4 @@
+[run]
+branch = True
+source = inspec/
+omit = env/*, tests/*, inspec/develop/*

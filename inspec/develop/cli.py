@@ -150,9 +150,17 @@ def test_pagination(rows, cols, n_panels):
 @click.command(help="Run unittests")
 @click.option("-d", "--dir", "_dir", type=str, default=".")
 @click.option("-v", "--verbose", type=int, default=1)
-def unittest(_dir, verbose):
+@click.option("-c", "--coverage", "_coverage", help="Save coverage report", is_flag=True)
+def unittest(_dir, verbose, _coverage):
     import os
     import unittest
+
+    if _coverage:
+        from coverage import Coverage
+        cov = Coverage()
+        cov.start()
+        import inspec
+        import inspec.gui
 
     if os.path.isdir(_dir):
         testsuite = unittest.TestLoader().discover(".")
@@ -160,11 +168,20 @@ def unittest(_dir, verbose):
         testsuite = unittest.TestLoader().loadTestsFromName(_dir)
     unittest.TextTestRunner(verbosity=verbose).run(testsuite)
 
+    if _coverage:
+        cov.stop()
+        cov.html_report(directory="coverage_html")
+        click.echo("Open coverage_html/index.html")
+
 
 @click.command(help="Run integration tests")
-def integration_tests():
+@click.argument("filenames", nargs=-1, type=click.Path(exists=True))
+def integration_tests(filenames):
+    from inspec.io import gather_files
     from tests.integration_tests.test_printing import run_all_tests
-    run_all_tests()
+
+    filename = gather_files(filenames, "wav")[0]
+    run_all_tests(filename)
 
 
 dev.add_command(test_pagination)

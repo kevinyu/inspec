@@ -17,10 +17,8 @@ from inspec.transform import (
 )
 
 
-def run_all_tests():
-    data, sampling_rate, metadata = AudioReader.read_file(
-        "/home/kevin/Projects/inspec/sample_files/BluWhi3230M_So_03.wav"
-    )
+def run_all_tests(sample_audio_file):
+    data, sampling_rate, metadata = AudioReader.read_file(sample_audio_file)
 
     renderer = StdoutRenderer
 
