@@ -18,6 +18,7 @@ from inspec.gui.utils import (
 )
 from inspec.paginate import Paginator
 from inspec.render import CursesRenderer, CursesRenderError
+from inspec.transform import AudioTransform
 
 
 class AudioFileView(DataView):
@@ -26,6 +27,7 @@ class AudioFileView(DataView):
         super().__init__(app, data, idx)
 
         self.needs_redraw = True
+        self.channel = 0
         self.time_start = 0.0
         self._file_metadata = {}
 
@@ -128,14 +130,27 @@ class InspecGridApp(InspecCursesApp):
         self.current_page_slot = 0
 
         self.cmap = load_cmap(cmap)
-        self.transform = transform
-        self.reader = file_reader
         self.map = map
+        self.reader = file_reader
+
+        if isinstance(transform, AudioTransform):
+            self._transforms = [transform]
+            self._selected_transform_idx = 0
+        elif isinstance(transform, list) and all([isinstance(t, AudioTransform) for t in transform]):
+            self._transforms = transform
+            self._selected_transform_idx = 0
+        else:
+            raise ValueError("transform parameter must be a AudioTransform or a list of AudioTransforms")
+
         self.views = [
             view_class(self, dict(filename=filename), idx)
             for idx, filename in enumerate(files)
         ]
         self.windows = []
+
+    @property
+    def transform(self):
+        return self._transforms[self._selected_transform_idx]
 
     @property
     def current_view(self):
@@ -212,6 +227,7 @@ class InspecGridApp(InspecCursesApp):
                     file_view.data["filename"],
                     duration=file_view.time_scale,
                     time_start=file_view.time_start,
+                    channel=file_view.channel
                 )
             except RuntimeError:
                 self.debug("File {} is not readable".format(file_view.data["filename"]))
@@ -231,6 +247,10 @@ class InspecGridApp(InspecCursesApp):
             window.border(1, 1, 1, 1)
 
         window.addstr(0, 1, os.path.basename(file_view.data["filename"]))
+
+        channel_number = "Ch{}".format(file_view.channel)
+        window.addstr(0, maxx - 1 - len(channel_number), channel_number)
+
         idx_str = pad_string(str(file_view.idx), side="right", max_len=var.GUI_MAX_IDX_LEN)
         window.addstr(maxy - 1, maxx - 1 - len(idx_str), idx_str)
 
@@ -312,7 +332,8 @@ class InspecGridApp(InspecCursesApp):
                 view.needs_redraw = True
         elif ch == ord("-"):
             if self.state["time_scale"] is not None:
-                self.state["time_scale"] = min(var.MAX_TIMESCALE, self.state["time_scale"] * 2)
+                max_timescale = min(var.MAX_TIMESCALE, self.current_view.duration)
+                self.state["time_scale"] = min(max_timescale, self.state["time_scale"] * 2)
             for view in self.views:
                 view.needs_redraw = True
         elif ch == ord("+"):
@@ -363,6 +384,15 @@ class InspecGridApp(InspecCursesApp):
             page = self.prompt("Jump to page: ", int)
             if page and 0 < page <= self.paginator.n_pages:
                 self.jump_to_page(page - 1)
+        elif ord("0") <= ch <= ord("9"):
+            channel = int(chr(ch))
+            if channel < self.current_view.file_metadata["n_channels"]:
+                self.current_view.channel = channel
+                self.current_view.needs_redraw = True
+        elif ch == ord("z"):
+            self._selected_transform_idx = (self._selected_transform_idx + 1) % len(self._transforms)
+            for view in self.views:
+                view.needs_redraw = True
 
     def left(self):
         """Return if the selection has changed, the current, and previous selections"""
@@ -558,6 +588,7 @@ class InspecThreadedGridApp(InspecGridApp):
                     file_view.data["filename"],
                     duration=file_view.time_scale,
                     time_start=file_view.time_start,
+                    channel=file_view.channel,
                 )
             except RuntimeError:
                 self.debug("File {} is not readable".format(file_view.data["filename"]))

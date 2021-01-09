@@ -131,93 +131,6 @@ def test_listen(device, duration, channels, mode, cmap):
     curses.wrapper(_test_live_audio, device=device, duration=duration, mode=mode, cmap=cmap)
 
 
-def _test_live_audio_mt(stdscr, device="default", duration=1, mode="spec", cmap="greys"):
-    import asyncio
-    from .example_apps import ExampleThreadedLiveAudioApp
-    app = ExampleThreadedLiveAudioApp(device=device, duration=duration, mode=mode, refresh_rate=20, cmap=cmap, debug=True)
-    asyncio.run(app.main(stdscr))
-
-
-@click.command(help="Test live audio display 2")
-@click.option("-d", "--device", type=str, default="default")
-@click.option("--duration", type=float, default=1.0)
-@click.option("-c", "--channels", type=int, default=1)
-@click.option("--mode", type=click.Choice(["spec", "amp"]), default="spec")
-@click.option("--cmap", type=str, help="Choose colormap", default=None)
-def test_listen_mt(device, duration, channels, mode, cmap):
-    """Multithreaded version of test_listen"""
-    import curses
-    try:
-        device = int(device)
-    except ValueError:
-        pass
-    curses.wrapper(_test_live_audio_mt, device=device, duration=duration, mode=mode, cmap=cmap)
-
-
-def _test_loading_multithreaded(stdscr, filenames, rows, cols, threads):
-    import os
-    import glob
-    import asyncio
-    from .example_apps import ExampleMultithreadedAudioApp
-
-    from inspec.gui.audio_viewer import AudioFileView
-    from inspec.io import AudioReader
-    from inspec.maps import QuarterCharMap
-    from inspec.transform import SpectrogramTransform
-
-    if isinstance(filenames, str):
-        filenames = [filenames]
-
-    if not len(filenames):
-        filenames = ["."]
-
-    files = []
-    for filename in filenames:
-        if not os.path.isdir(filename):
-            files.append(filename)
-        else:
-            for _filename in glob.glob(os.path.join(filename, "*.wav")):
-                files.append(_filename)
-
-    transform = SpectrogramTransform(
-        spec_sampling_rate=1000,
-        spec_freq_spacing=50,
-        min_freq=250,
-        max_freq=8000
-    )
-
-    app = ExampleMultithreadedAudioApp(
-        rows,
-        cols,
-        files=files,
-        file_reader=AudioReader,
-        cmap="greys",
-        view_class=AudioFileView,
-        transform=transform,
-        map=QuarterCharMap,
-        threads=4,
-        refresh_rate=40,
-        debug=True
-    )
-    asyncio.run(app.main(stdscr))
-
-
-@click.command(help="test a multithreaded application")
-@click.argument("filenames", nargs=-1, type=click.Path(exists=True))
-@click.option("-r", "--rows", type=int, default=1)
-@click.option("-c", "--cols", type=int, default=1)
-@click.option("-t", "--threads", type=int, default=4)
-def test_multithreading(filenames, rows, cols, threads):
-    import curses
-    curses.wrapper(
-        _test_loading_multithreaded,
-        filenames=filenames,
-        rows=rows,
-        cols=cols,
-        threads=threads,
-    )
-
-
 def _test_pagination(stdscr, rows, cols, n_panels):
     import asyncio
     from .example_apps import PaginationExample
@@ -256,9 +169,7 @@ def integration_tests():
 
 dev.add_command(test_pagination)
 dev.add_command(test_async)
-dev.add_command(test_multithreading)
 dev.add_command(test_listen)
-dev.add_command(test_listen_mt)
 dev.add_command(view_cmap)
 dev.add_command(benchmark_render)
 dev.add_command(benchmark_spectrogram)

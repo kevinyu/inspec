@@ -11,7 +11,7 @@ from inspec.colormap import load_cmap
 from inspec.defaults import DEFAULTS
 from inspec.gui.audio_viewer import InspecGridApp, AudioFileView
 from inspec.gui.live_audio_viewer import LiveAudioViewApp
-from inspec.io import AudioReader
+from inspec.io import AudioReader, gather_files
 from inspec.maps import (
     FullCharMap, HalfCharMap, QuarterCharMap,
 )
@@ -28,7 +28,7 @@ def open_gui(
         cols=1,
         cmap=DEFAULTS["cmap"],
         spec=True,
-        amp=False,
+        amp=True,
         debug=False
         ):
     """Launch a terminal gui to view one or more audio files
@@ -55,33 +55,27 @@ def _open_gui(
         amp,
         debug,
         ):
-    if isinstance(filenames, str):
-        filenames = [filenames]
-
-    if not len(filenames):
-        filenames = ["."]
-
-    files = []
-    for filename in filenames:
-        if not os.path.isdir(filename):
-            files.append(filename)
-        else:
-            for _filename in glob.glob(os.path.join(filename, "*.wav")):
-                files.append(_filename)
+    files = gather_files(filenames, "wav")
 
     if not len(files):
         click.echo("No files matching {} were found.".format(filenames))
         return
 
-    if amp:
-        transform = AmplitudeEnvelopeTwoSidedTransform(gradient=(0.3, 0.7))
-    else:
-        transform = SpectrogramTransform(
+    transforms = []
+    if spec:
+        transforms.append(SpectrogramTransform(
             spec_sampling_rate=1000,
             spec_freq_spacing=50,
             min_freq=250,
             max_freq=8000
+        ))
+    if amp:
+        transforms.append(
+            AmplitudeEnvelopeTwoSidedTransform(gradient=(0.3, 0.7))
         )
+    if not len(transforms):
+        click.echo("spec or amp (or both) must be selected")
+        return
 
     app = InspecGridApp(
         rows,
@@ -90,7 +84,7 @@ def _open_gui(
         file_reader=AudioReader,
         cmap=cmap,
         view_class=AudioFileView,
-        transform=transform,
+        transform=transforms,
         map=QuarterCharMap,
         debug=debug
     )
@@ -103,6 +97,7 @@ def show(
         width=None,
         duration=None,
         time_=None,
+        channel=None,
         cmap=None,
         show_spec=True,
         show_amp=False,
@@ -133,10 +128,22 @@ def show(
 
         desired_size = DEFAULTS["audio"]["map"].max_img_shape(height, width)
 
-        data, sampling_rate, _ = AudioReader.read_file_by_time(filename, duration=duration, time_start=time_)
+        if channel is None:
+            channel = 0
+
+        data, sampling_rate, _ = AudioReader.read_file_by_time(
+            filename,
+            duration=duration,
+            time_start=time_,
+            channel=channel
+        )
 
         if show_spec:
-            img, metadata = DEFAULTS["audio"]["spec_transform"].convert(data, sampling_rate, output_size=desired_size)
+            img, metadata = DEFAULTS["audio"]["spec_transform"].convert(
+                data,
+                sampling_rate,
+                output_size=desired_size
+            )
             if vertical:
                 img = img.T
             char_array = DEFAULTS["audio"]["map"].to_char_array(img)
@@ -144,7 +151,11 @@ def show(
             StdoutRenderer.render(char_array)
 
         if show_amp:
-            img, metadata = DEFAULTS["audio"]["amp_transform"].convert(data, sampling_rate, output_size=desired_size)
+            img, metadata = DEFAULTS["audio"]["amp_transform"].convert(
+                data,
+                sampling_rate,
+                output_size=desired_size
+            )
             if vertical:
                 img = img.T
             char_array = DEFAULTS["audio"]["map"].to_char_array(img)
@@ -170,6 +181,7 @@ def _listen(
         chunk_size=1024,
         step_chunks=2,
         step_chars=2,
+        channels=1,
         cmap=None,
         min_freq=250,
         max_freq=10000,
@@ -191,12 +203,13 @@ def _listen(
         chunk_size=chunk_size,
         step_chunks=step_chunks,
         step_chars=step_chars,
+        channels=channels,
         transform=transform,
         map=QuarterCharMap,
         cmap=cmap,
         debug=debug,
         refresh_rate=10,
-        padx=4,
-        pady=4
+        padx=2,
+        pady=2
     )
     asyncio.run(app.main(stdscr))

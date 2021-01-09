@@ -1,3 +1,6 @@
+import glob
+import os
+
 import numpy as np
 import soundfile
 
@@ -5,7 +8,10 @@ import soundfile
 class AudioReader(object):
 
     @staticmethod
-    def read_file(filename, read_samples=None, start_idx=None):
+    def read_file(filename, read_samples=None, start_idx=None, channel=None):
+        if channel is None:
+            channel = 0
+
         if read_samples is not None:
             data, sampling_rate = soundfile.read(filename, read_samples, start_idx)
         else:
@@ -20,12 +26,12 @@ class AudioReader(object):
         }
 
         if data.ndim > 1:
-            return data[:, 0], sampling_rate, metadata
+            return data[:, channel], sampling_rate, metadata
         else:
             return data, sampling_rate, metadata
 
     @staticmethod
-    def read_file_by_time(filename, duration=None, time_start=None):
+    def read_file_by_time(filename, duration=None, time_start=None, channel=None):
         if duration is None and time_start is None:
             return AudioReader.read_file(filename)
 
@@ -40,7 +46,10 @@ class AudioReader(object):
         else:
             start_idx = 0
 
-        return AudioReader.read_file(filename, read_samples=frames, start_idx=start_idx)
+        if channel >= metadata["n_channels"]:
+            raise IOError("Cannot read channel {} on a file with {} channels".format(channel, metadata["n_channels"]))
+
+        return AudioReader.read_file(filename, read_samples=frames, start_idx=start_idx, channel=channel)
 
     @staticmethod
     def read_file_metadata(filename):
@@ -51,3 +60,24 @@ class AudioReader(object):
                 "n_channels": f.channels,
                 "duration": f.frames / f.samplerate
             }
+
+
+def gather_files(paths, extension):
+    if extension.startswith("."):
+        extension = extension[1:]
+
+    if isinstance(paths, str):
+        paths = [paths]
+
+    if not len(paths):
+        paths = ["."]
+
+    results = []
+    for filename in paths:
+        if not os.path.isdir(filename):
+            results.append(filename)
+        else:
+            for _filename in glob.glob(os.path.join(filename, "*.{}".format(extension))):
+                results.append(_filename)
+
+    return results

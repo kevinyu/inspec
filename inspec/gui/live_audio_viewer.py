@@ -17,7 +17,7 @@ from inspec.gui.utils import (
     db_scale,
 )
 from inspec.paginate import Paginator
-from inspec.render import CursesRenderer
+from inspec.render import CursesRenderer, CursesRenderError
 
 
 class LiveAudioViewApp(InspecCursesApp):
@@ -28,6 +28,7 @@ class LiveAudioViewApp(InspecCursesApp):
             chunk_size=1024,
             step_chars=2,       # number of character columns to render in one calculation
             step_chunks=2,      # number of chunks in one calculation
+            channels=1,         # define which channels to listen to
             transform=None,
             cmap=None,
             map=None,
@@ -40,10 +41,13 @@ class LiveAudioViewApp(InspecCursesApp):
         self.step_chunks = step_chunks
         self.chunk_size = chunk_size
         self.step_chars = step_chars
+        self.channels = channels
         self.data = None
         self.mode = mode
         self.map = map
         self.gain = 0
+
+        self._padx = max(self._padx, 4)
 
         self.state = {
             "current_x": 0,
@@ -52,10 +56,38 @@ class LiveAudioViewApp(InspecCursesApp):
 
         self.cmap = load_cmap(cmap)
 
-        self.executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+        self.executor = concurrent.futures.ThreadPoolExecutor(max_workers=2)
 
     def cleanup(self):
         self.executor.shutdown(wait=True)
+
+    @property
+    def panel_coords(self):
+        """Define panel coordinates main panels, and
+        subpanels for each channel
+
+        For now, only show them vertically, but in the future the suggested
+        dimensions can be passed as a parameter
+        """
+        self._pad_channels = 1
+        coords = super().panel_coords
+        main_area = coords["main"]
+        height = main_area.nlines - (self.channels * self._pad_channels)
+
+        height_per_channel = height // self.channels
+
+        channels = {}
+        for channel in range(self.channels):
+            # The channel coords are relative to the pad! (i.e. within the main area)
+            channels[channel] = PanelCoord(
+                height_per_channel,
+                main_area.ncols,
+                (channel * (height_per_channel + self._pad_channels)),
+                0,
+            )
+
+        coords["channels"] = channels
+        return coords
 
     async def refresh(self):
         await super().refresh()
@@ -83,13 +115,21 @@ class LiveAudioViewApp(InspecCursesApp):
         if status:
             print(status, file=sys.stdout)
         # Fancy indexing with mapping creates a (necessary!) copy:
-        self.mic_queue.put_nowait(indata[:, [0]])
+        self.mic_queue.put_nowait(indata[:, :self.channels])
 
     async def initialize_display(self):
         await super().initialize_display()
         main_coord = self.panel_coords["main"]
         self.pad = curses.newpad(main_coord.nlines, main_coord.ncols * 2)
         self.colorized_char_array = np.empty((main_coord.nlines, main_coord.ncols))
+
+        for channel in range(self.channels):
+            coord = self.panel_coords["channels"][channel]
+            self.stdscr.addstr(
+                main_coord.y + coord.y,
+                0,
+                "Ch{}".format(channel)
+            )
 
     def start_tasks(self):
         import sounddevice as sd
@@ -98,10 +138,12 @@ class LiveAudioViewApp(InspecCursesApp):
         self.mic_queue = asyncio.Queue()
         self.translation_queue = asyncio.Queue()
 
-        self.sampling_rate = sd.query_devices(self.device, 'input')['default_samplerate']
+        device_info = sd.query_devices(self.device, "input")
+        self.sampling_rate = device_info["default_samplerate"]
+
         self.stream = sd.InputStream(
             device=self.device,
-            channels=1,
+            channels=self.channels,
             blocksize=self.chunk_size,
             dtype=np.int16,
             samplerate=self.sampling_rate,
@@ -123,10 +165,10 @@ class LiveAudioViewApp(InspecCursesApp):
         """
         loop = asyncio.get_event_loop()
         chunk_counter = 0
-        self.buffer = np.zeros((self.step_chunks * self.chunk_size, 1))
+        self.buffer = np.zeros((self.step_chunks * self.chunk_size, self.channels))
         while True:
             chunk = await self.mic_queue.get()
-            chunk = db_scale(chunk[:, [0]], dB=self.gain)
+            chunk = db_scale(chunk[:, :self.channels], dB=self.gain)
 
             self.buffer[chunk_counter * self.chunk_size:(chunk_counter + 1) * self.chunk_size] = chunk
 
@@ -138,55 +180,70 @@ class LiveAudioViewApp(InspecCursesApp):
                 loop.run_in_executor(
                     self.executor,
                     self.translate_to_characters,
-                    self.buffer[:, :],
+                    1 * self.buffer,  # Quick copy array
                 )
 
     async def process_spec_output(self):
         while True:
-            colorized_char_array = await self.translation_queue.get()
+            colorized_char_arrays = await self.translation_queue.get()
 
-            main_coord = self.panel_coords["main"]
+            panel_coords = self.panel_coords
+
+            main_coord = panel_coords["main"]
             self.height = main_coord.nlines
             self.width = main_coord.ncols
 
-            self.state["current_x"] += colorized_char_array.shape[1]
+            self.state["current_x"] += colorized_char_arrays[0].shape[1]
             self.state["current_x"] = self.state["current_x"] % (self.width + 1)
 
-            CursesRenderer.render(
-                self.pad,
-                colorized_char_array,
-                start_col=self.draw_at - colorized_char_array.shape[1],
-            )
-            if self.duplicate_at - colorized_char_array.shape[1] < 0:
-                render_section = colorized_char_array[:, -self.duplicate_at:]
-                CursesRenderer.render(
-                    self.pad,
-                    render_section,
-                )
-            else:
-                render_section = colorized_char_array[:, -self.duplicate_at:]
+            # raise Exception(panel_coords)
+            for channel, colorized_char_array in enumerate(colorized_char_arrays):
+                coord = panel_coords["channels"][channel]
+
                 CursesRenderer.render(
                     self.pad,
                     colorized_char_array,
-                    start_col=self.duplicate_at - colorized_char_array.shape[1],
+                    start_col=self.draw_at - colorized_char_array.shape[1],
+                    start_row=coord.y
+                )
+                if self.duplicate_at - colorized_char_array.shape[1] < 0:
+                    render_section = colorized_char_array[:, -self.duplicate_at:]
+                    CursesRenderer.render(
+                        self.pad,
+                        render_section,
+                        start_row=coord.y
+                    )
+                else:
+                    render_section = colorized_char_array[:, -self.duplicate_at:]
+                    CursesRenderer.render(
+                        self.pad,
+                        colorized_char_array,
+                        start_col=self.duplicate_at - colorized_char_array.shape[1],
+                        start_row=coord.y
                 )
 
     def translate_to_characters(self, data):
-        main_coord = self.panel_coords["main"]
-        desired_rows, _ = self.map.max_img_shape(main_coord.nlines, main_coord.ncols)
-        desired_cols = self.step_chars
-        desired_size = (desired_rows, desired_cols)
+        channel_coords = self.panel_coords["channels"]
 
-        img, metadata = self.transform.convert(data[:, 0], self.sampling_rate, output_size=desired_size)
+        colorized_char_arrays = []
+        for channel in range(self.channels):
+            channel_coord = channel_coords[channel]
 
-        if self.mode == "spec":
-            char_array = self.map.to_char_array(img, floor=0.0, ceil=10.0)
-        elif self.mode == "amp":
-            char_array = self.map.to_char_array(img)
+            desired_rows, _ = self.map.max_img_shape(channel_coord.nlines - 1, channel_coord.ncols)
+            desired_cols = self.step_chars
+            desired_size = (desired_rows, desired_cols)
 
-        colorized_char_array = CursesRenderer.apply_cmap_to_char_array(self.cmap, char_array)
-        self.translation_queue.put_nowait(colorized_char_array)
+            img, metadata = self.transform.convert(data[:, channel], self.sampling_rate, output_size=desired_size)
 
+            if self.mode == "spec":
+                char_array = self.map.to_char_array(img, floor=0.0, ceil=10.0)
+            elif self.mode == "amp":
+                char_array = self.map.to_char_array(img)
+
+            colorized_char_array = CursesRenderer.apply_cmap_to_char_array(self.cmap, char_array)
+            colorized_char_arrays.append(colorized_char_array)
+
+        self.translation_queue.put_nowait(colorized_char_arrays)
 
     async def handle_key(self, ch):
         """Handle key presses"""

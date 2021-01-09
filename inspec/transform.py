@@ -49,7 +49,14 @@ def compute_spectrogram(signal, sampling_rate, spec_sample_rate, freq_spacing, n
     if win_size % 2 == 0:
         win_size += 1
     half_win_size = win_size // 2
-    assert len(signal) > win_size, "len(s)=%d, win_size=%d" % (len(signal), win_size)
+
+    if len(signal) < win_size:
+        win_size = len(signal)
+        if win_size % 2 == 0:
+            win_size -= 1
+        half_win_size = win_size // 2
+
+    # assert len(signal) > win_size, "len(s)=%d, win_size=%d" % (len(signal), win_size)
 
     # Get the values for the frequency axis by estimating the spectrum of a dummy slice
     full_freq = _get_frequencies(win_size, sampling_rate)

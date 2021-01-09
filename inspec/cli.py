@@ -12,19 +12,21 @@ from . import var
 def cli():
     pass
 
+
 @click.command("show", help="Print visual representation of audio file in command line")
 @click.argument("filename", type=click.Path(exists=True))
 @click.option("-h", "--height", type=float, default=None)
 @click.option("-w", "--width", type=float, default=None)
 @click.option("-d", "--duration", type=float, default=None)
+@click.option("-c", "--channel", type=int, default=None)
 @click.option("-t", "--time", "time_", type=float, default=0.0)
 @click.option("--cmap", type=str, help="Choose colormap (see list-cmaps for options). Leave blank to show all possible colors", default=None)
 @click.option("--spec/--no-spec", help="Show spectrogram", default=True)
 @click.option("--amp/--no-amp", help="Show amplitude", default=True)
 @click.option("--vertical/--horizontal", help="Vertical display", default=False)
-def show(filename, height, width, duration, time_, cmap, spec, amp, vertical):
+def show(filename, height, width, duration, time_, channel, cmap, spec, amp, vertical):
     from .inspec import show
-    show(filename, height, width, duration, time_, cmap, spec, amp, vertical)
+    show(filename, height, width, duration, time_, channel, cmap, spec, amp, vertical)
 
 
 @click.command("open", help="Open interactive gui for viewing audio files in command line")
@@ -65,6 +67,7 @@ def listen(device, channels, chunk_size, step_chars, step_chunks, mode, cmap, mi
         chunk_size=chunk_size,
         step_chars=step_chars,
         step_chunks=step_chunks,
+        channels=channels,
         mode=mode,
         cmap=cmap,
         debug=debug,
