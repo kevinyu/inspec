@@ -54,7 +54,7 @@ def show(filename, height, width, duration, time_, channel, cmap, spec, amp, ver
 
 @click.command(
     "open",
-    help="Open an interactive gui for viewing audio files as a grid.")
+    help="Open an interactive gui for viewing audio files in a grid.")
 @click.argument("filenames", nargs=-1, type=click.Path(exists=True))
 @click.option("-r", "--rows", help="Rows of files per page (default 1)", type=int, default=1)
 @click.option("-c", "--cols", help="Columns of files per page (default 1)", type=int, default=1)
@@ -108,7 +108,7 @@ def imshow(filename, height, width, cmap, characters, vertical, thumbnail):
 
 @click.command(
     "imopen",
-    help="Open an interactive gui for viewing audio files as a grid.")
+    help="Open an interactive gui for viewing image files in a grid.")
 @click.argument("filenames", nargs=-1, type=click.Path(exists=True))
 @click.option("-r", "--rows", help="Rows of files per page (default 1)", type=int, default=1)
 @click.option("-c", "--cols", help="Columns of files per page (default 1)", type=int, default=1)
