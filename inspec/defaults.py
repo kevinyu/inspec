@@ -3,7 +3,7 @@ from inspec import var
 from inspec.transform import (
     SpectrogramTransform,
     AmplitudeEnvelopeTwoSidedTransform,
-    PILImageGreyscaleTransform,
+    PilImageGreyscaleTransform,
 )
 
 
@@ -18,7 +18,7 @@ DEFAULTS = {
         "amp_transform": AmplitudeEnvelopeTwoSidedTransform(gradient=(0.3, 0.7))
     },
     "image":{
-        "transform": PILImageGreyscaleTransform(
+        "transform": PilImageGreyscaleTransform(
             keep_aspect_ratio=True,
             character_aspect_ratio=var.TERM_CHAR_ASPECT_RATIO
         )
