@@ -41,12 +41,12 @@ def show(filename, height, width, duration, time_, channel, cmap, spec, amp, ver
         filename=filename,
         height=height,
         width=width,
-        diration=duration,
+        duration=duration,
         time_=time_,
         channel=channel,
         cmap=cmap,
-        spec=spec,
-        amp=amp,
+        show_spec=spec,
+        show_amp=amp,
         vertical=vertical,
         characters=characters
     )
@@ -76,6 +76,56 @@ def open_(filenames, rows, cols, cmap, spec, amp, characters, debug):
         cmap=cmap,
         spec=spec,
         amp=amp,
+        characters=characters,
+        debug=debug
+    )
+
+
+@click.command("imshow", help="Print image in greyscale in command line.")
+@click.argument("filename", type=click.Path(exists=True))
+@click.option("-h", "--height", help="Height in characters, or fraction of screen if between 0.0 and 1.0", type=float, default=None)
+@click.option("-w", "--width", help="Width in characters, or fraction of screen if between 0.0 and 1.0", type=float, default=None)
+@click.option("--cmap", type=str, help="Choose colormap (see 'inspec list-cmaps')", default=None)
+@click.option(
+    "--characters", "--chars",
+    type=click.Choice(["quarter", "half", "full"]),
+    help="Choose character set ('quarter' gives highest resolution, 'full' lowest) (default quarter)",
+    default="quarter")
+@click.option("--vertical/--horizontal", help="Vertical display (default --horizontal)", default=False)
+@click.option("--thumbnail", is_flag=True, help="Display image as thumbnail (lower res)")
+def imshow(filename, height, width, cmap, characters, vertical, thumbnail):
+    from .core import imshow
+    imshow(
+        filename,
+        height=height,
+        width=width,
+        cmap=cmap,
+        characters=characters,
+        vertical=vertical,
+        thumbnail=thumbnail,
+    )
+
+
+@click.command(
+    "imopen",
+    help="Open an interactive gui for viewing audio files as a grid.")
+@click.argument("filenames", nargs=-1, type=click.Path(exists=True))
+@click.option("-r", "--rows", help="Rows of files per page (default 1)", type=int, default=1)
+@click.option("-c", "--cols", help="Columns of files per page (default 1)", type=int, default=1)
+@click.option("--cmap", type=str, help="Choose colormap (see 'inspec list-cmaps')", default=None)
+@click.option(
+    "--characters", "--chars",
+    type=click.Choice(["quarter", "half", "full"]),
+    help="Choose character set ('quarter' gives highest resolution, 'full' lowest) (default quarter)",
+    default="quarter")
+@click.option("--debug", is_flag=True, help="Show debug messages (default False)")
+def imopen_(filenames, rows, cols, cmap, characters, debug):
+    from .core import open_image_gui
+    open_image_gui(
+        filenames,
+        rows=rows,
+        cols=cols,
+        cmap=cmap,
         characters=characters,
         debug=debug
     )
@@ -157,56 +207,8 @@ cli.add_command(open_)
 cli.add_command(listen)
 cli.add_command(list_devices)
 cli.add_command(list_cmaps)
-
-
-@click.command("imshow", help="Print image in greyscale in command line.")
-@click.argument("filename", type=click.Path(exists=True))
-@click.option("-h", "--height", help="Height in characters, or fraction of screen if between 0.0 and 1.0", type=float, default=None)
-@click.option("-w", "--width", help="Width in characters, or fraction of screen if between 0.0 and 1.0", type=float, default=None)
-@click.option("--cmap", type=str, help="Choose colormap (see 'inspec list-cmaps')", default=None)
-@click.option(
-    "--characters", "--chars",
-    type=click.Choice(["quarter", "half", "full"]),
-    help="Choose character set ('quarter' gives highest resolution, 'full' lowest) (default quarter)",
-    default="quarter")
-@click.option("--vertical/--horizontal", help="Vertical display (default --horizontal)", default=False)
-@click.option("--thumbnail", is_flag=True, help="Display image as thumbnail (lower res)")
-def imshow(filename, height, width, cmap, characters, vertical, thumbnail):
-    from .core import imshow
-    imshow(
-        filename,
-        height=height,
-        width=width,
-        cmap=cmap,
-        characters=characters,
-        vertical=vertical,
-        thumbnail=thumbnail,
-    )
-
-
-@click.command(
-    "imopen",
-    help="Open an interactive gui for viewing audio files as a grid.")
-@click.argument("filenames", nargs=-1, type=click.Path(exists=True))
-@click.option("-r", "--rows", help="Rows of files per page (default 1)", type=int, default=1)
-@click.option("-c", "--cols", help="Columns of files per page (default 1)", type=int, default=1)
-@click.option("--cmap", type=str, help="Choose colormap (see 'inspec list-cmaps')", default=None)
-@click.option(
-    "--characters", "--chars",
-    type=click.Choice(["quarter", "half", "full"]),
-    help="Choose character set ('quarter' gives highest resolution, 'full' lowest) (default quarter)",
-    default="quarter")
-@click.option("--debug", is_flag=True, help="Show debug messages (default False)")
-def imopen_(filenames, rows, cols, cmap, characters, debug):
-    from .core import open_image_gui
-    open_image_gui(
-        filenames,
-        rows=rows,
-        cols=cols,
-        cmap=cmap,
-        characters=characters,
-        debug=debug
-    )
+cli.add_command(imshow)
+cli.add_command(imopen_)
 
 
 try:
@@ -219,9 +221,6 @@ else:
     @click.group()
     def new():
         pass
-
-    new.add_command(imshow)
-    new.add_command(imopen_)
 
     cli.add_command(new)
 

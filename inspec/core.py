@@ -38,6 +38,7 @@ def _open_gui(
         characters="quarter",
         debug=False,
         ):
+    # files = gather_files(filenames, "wav", filter_with_readers=[AudioReader])
     files = gather_files(filenames, "wav")
 
     if not len(files):
@@ -91,19 +92,18 @@ def _open_image_gui(
         characters="quarter",
         debug=False,
         ):
-    files = gather_files(filenames, "*")
+    # Need to be careful if validating a large number of files is too slow
+    files = gather_files(filenames, "*", filter_with_readers=[PILImageReader])
+    # files = gather_files(filenames, "*")
 
     if not len(files):
         click.echo("No files matching {} were found.".format(filenames))
         return
 
-    transforms = []
-    transforms.append(
-        PilImageGreyscaleTransform(thumbnail=False)
-    )
-    transforms.append(
-        PilImageGreyscaleTransform(thumbnail=True)
-    )
+    transforms = [
+        PilImageGreyscaleTransform(thumbnail=False),
+        PilImageGreyscaleTransform(thumbnail=True),
+    ]
 
     charmap = get_char_map(characters)
 
@@ -157,7 +157,6 @@ def imshow(
         output_size=desired_size,
         size_multiple_of=charmap.patch_dimensions,
         rotated=vertical,
-        thumbnail=thumbnail,
     )
     if vertical:
         img = img.T

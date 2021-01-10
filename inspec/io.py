@@ -5,7 +5,22 @@ import numpy as np
 import soundfile
 
 
+class FileInvalidError(Exception):
+    pass
+
+
 class AudioReader(object):
+
+    @staticmethod
+    def check_file(filename):
+        """Raise FileInvalidError if it can't be read by this class
+        """
+        try:
+            AudioReader.read_file_metadata(filename)
+        except RuntimeError:
+            raise FileInvalidError
+        else:
+            return True
 
     @staticmethod
     def read_file(filename, read_samples=None, start_idx=None, channel=None):
@@ -62,7 +77,34 @@ class AudioReader(object):
             }
 
 
-def gather_files(paths, extension):
+class PILImageReader(object):
+    """Read in an image file as a PIL Image
+    """
+    @staticmethod
+    def check_file(filename):
+        """Raise FileInvalidError if it can't be read by this class
+        """
+        from PIL import Image, UnidentifiedImageError
+        try:
+            im = Image.open(filename)
+        except UnidentifiedImageError:
+            raise FileInvalidError
+        else:
+            return True
+
+    @staticmethod
+    def read_file(filename):
+        from PIL import Image
+        im = Image.open(filename)
+        metadata = {
+            "format": im.format,
+            "size": im.size,
+            "mode": im.mode,
+        }
+        return im, metadata
+
+
+def gather_files(paths, extension="*", filter_with_readers=None):
     if extension.startswith("."):
         extension = extension[1:]
 
@@ -78,22 +120,15 @@ def gather_files(paths, extension):
             results.append(filename)
         else:
             for _filename in glob.glob(os.path.join(filename, "*.{}".format(extension))):
-                results.append(_filename)
+                if filter_with_readers is not None:
+                    try:
+                        for reader in filter_with_readers:
+                            reader.check_file(_filename)
+                    except FileInvalidError:
+                        pass
+                    else:
+                        results.append(_filename)
+                else:
+                    results.append(_filename)
 
     return results
-
-
-class PILImageReader(object):
-    """Read in an image file as a PIL Image
-    """
-
-    @staticmethod
-    def read_file(filename):
-        from PIL import Image
-        im = Image.open(filename)
-        metadata = {
-            "format": im.format,
-            "size": im.size,
-            "mode": im.mode,
-        }
-        return im, metadata
