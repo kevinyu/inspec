@@ -84,9 +84,17 @@ def gather_files(paths, extension):
 
 
 
-class ImageReader(object):
+class PILImageReader(object):
+    """Read in an image file as a PIL Image
+    """
 
     @staticmethod
     def read_file(filename):
-        import cv2
-        return cv2.imread(filename)[::-1], {}
+        from PIL import Image
+        im = Image.open(filename)
+        metadata = {
+            "format": im.format,
+            "size": im.size,
+            "mode": im.mode,
+        }
+        return im, metadata

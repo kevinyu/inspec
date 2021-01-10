@@ -157,15 +157,6 @@ def resize(spec, target_height, target_width):
     return resized
 
 
-def cv2_resize(spec, target_height, target_width):
-    import cv2
-    return cv2.resize(
-        spec,
-        dsize=(target_width, target_height),
-        interpolation=cv2.INTER_CUBIC
-    )
-
-
 def resize_1d(signal, output_len):
     t = np.linspace(0, len(signal), output_len)
     resized = np.interp(
@@ -177,7 +168,6 @@ def resize_1d(signal, output_len):
 
 
 def compute_ampenv(signal, sampling_rate):
-    # TODO: this is just a quick implementation. replace with better later?
     return np.abs(signal)
 
 
@@ -322,7 +312,9 @@ class AmplitudeEnvelopeTwoSidedTransform(AudioTransform):
         return img, metadata
 
 
-class ImageGreyscaleTransform(InspecTransform):
+class PilImageTransform(InspecTransform):
+
+    pil_convert_mode = "L"
 
     def __init__(self, keep_aspect_ratio=True, character_aspect_ratio=var.TERM_CHAR_ASPECT_RATIO):
         self.keep_aspect_ratio = keep_aspect_ratio
@@ -334,15 +326,18 @@ class ImageGreyscaleTransform(InspecTransform):
             output_size,
             size_multiple_of=None,
             rotated=False,
+            thumbnail=False,
         ):
-        """Convert an RGB image array into greyscale"""
-        import cv2
+        """Convert an PIL array into greyscale"""
+        original_height, original_width = data.height, data.width
 
-        decolorized = cv2.cvtColor(data, cv2.COLOR_BGR2GRAY)
-        original_height, original_width = data.shape[:2]
-
-        # if both the width and height are None, then return the
-        # original image
+        # This is code to try to figure out what the output side shoule be that
+        # 1) closely approximates the original aspect ratio
+        # 2) is an even multiple of the size_multiple_of
+        # 3) is no larger than the requested output_size
+        # The thumbnail function does 3 automatically but does not necessarily satisfy
+        # the first two conditions. Also, it comes out a lower resolution than may
+        # be desired.
         if self.keep_aspect_ratio:
             aspect_ratio = (
                 original_height
@@ -373,4 +368,26 @@ class ImageGreyscaleTransform(InspecTransform):
         else:
             output_size = output_size
 
-        return resize(decolorized, output_size[0], output_size[1]), {}
+        if thumbnail:
+            resized = data.thumbnail((output_size[1], output_size[0]))
+        else:
+            resized = data.resize((output_size[1], output_size[0]))
+
+        result = data.convert(mode=self.pil_convert_mode)
+        result = np.asarray(result)[::-1]
+        return (
+            resize(result, output_size[0], output_size[1]),
+            {
+                "keep_aspect_ratio": self.keep_aspect_ratio,
+                "character_aspect_ratio": self.character_aspect_ratio,
+                "image_mode": self.pil_convert_mode
+            }
+        )
+
+
+class PilImageGreyscaleTransform(PilImageTransform):
+    pil_convert_mode = "L"
+
+
+class PilImageRGBTransform(PilImageTransform):
+    pil_convert_mode = "RGB"

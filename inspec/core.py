@@ -10,7 +10,7 @@ from inspec.colormap import load_cmap
 from inspec.defaults import DEFAULTS
 from inspec.gui.audio_viewer import InspecGridApp, AudioFileView
 from inspec.gui.live_audio_viewer import LiveAudioViewApp
-from inspec.io import AudioReader, ImageReader, gather_files
+from inspec.io import AudioReader, PILImageReader, gather_files
 from inspec.maps import get_char_map
 from inspec.render import StdoutRenderer
 from inspec.transform import (
@@ -81,6 +81,7 @@ def imshow(
         cmap=None,
         vertical=False,
         characters="quarter",
+        thumbnail=False
         ):
     cmap = load_cmap(cmap or var.DEFAULT_CMAP)
     termsize = os.get_terminal_size()
@@ -102,14 +103,14 @@ def imshow(
         height, width = width, height
 
     desired_size = charmap.max_img_shape(height, width)
-
-    data, _ = ImageReader.read_file(filename)
+    data, _ = PILImageReader.read_file(filename)
 
     img, metadata = DEFAULTS["image"]["transform"].convert(
         data,
         output_size=desired_size,
         size_multiple_of=charmap.patch_dimensions,
         rotated=vertical,
+        thumbnail=thumbnail,
     )
     if vertical:
         img = img.T

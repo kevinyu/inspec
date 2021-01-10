@@ -169,7 +169,8 @@ cli.add_command(list_cmaps)
     help="Choose character set ('quarter' gives highest resolution, 'full' lowest) (default quarter)",
     default="quarter")
 @click.option("--vertical/--horizontal", help="Vertical display (default --horizontal)", default=False)
-def imshow(filename, height, width, cmap, characters, vertical):
+@click.option("--thumbnail", is_flag=True, help="Display image as thumbnail (lower res)")
+def imshow(filename, height, width, cmap, characters, vertical, thumbnail):
     from .core import imshow
     imshow(
         filename,
@@ -178,6 +179,7 @@ def imshow(filename, height, width, cmap, characters, vertical):
         cmap=cmap,
         characters=characters,
         vertical=vertical,
+        thumbnail=thumbnail,
     )
 
 
