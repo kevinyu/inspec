@@ -1,8 +1,19 @@
 import asyncio
+import concurrent.futures
 import curses
 import curses.textpad
+import itertools
+import os
 import time
-from collections import namedtuple
+from collections import defaultdict, namedtuple
+
+import numpy as np
+
+from inspec import var
+from inspec.colormap import VALID_CMAPS, load_cmap
+from inspec.transform import InspecTransform
+from inspec.paginate import Paginator
+from inspec.render import CursesRenderer, CursesRenderError
 
 
 PanelCoord = namedtuple("PanelCoord", [
@@ -249,3 +260,423 @@ class InspecCursesApp(object):
 
         # Does it make sense for the lisnen to key inputs to be the main thing keeping the app running?
         await self.listen_to_key_inputs()
+
+
+class InspecGridApp(InspecCursesApp):
+    def __init__(
+            self,
+            rows,
+            cols,
+            files,
+            padx=0,
+            pady=0,
+            cmap=None,
+            file_reader=None,
+            view_class=None,
+            transform=None,
+            map=None,
+            threads=4,
+            **kwargs,
+            ):
+        """App for viewing files in a grid pattern
+        """
+        super().__init__(**kwargs)
+        self.rows = rows
+        self.cols = cols
+
+        self.state = {}
+
+        self._slot_to_page = {}
+        self._page_to_slot = {}
+
+        self.current_selection = 0
+        self.current_page = 0
+        self.current_page_slot = 0
+
+        self.cmap = load_cmap(cmap)
+        self.map = map
+        self.reader = file_reader
+
+        if isinstance(transform, InspecTransform):
+            self._transforms = [transform]
+            self._selected_transform_idx = 0
+        elif isinstance(transform, list) and all([isinstance(t, InspecTransform) for t in transform]):
+            self._transforms = transform
+            self._selected_transform_idx = 0
+        else:
+            raise ValueError("transform parameter must be a InspecTransform or a list of InspecTransforms")
+
+        self.views = []
+        idx = 0
+        for filename in files:
+            try:
+                self.views.append(view_class(self, dict(filename=filename), idx))
+            except:  # TODO better warning when files dont load right?
+                pass
+            else:
+                idx += 1
+        self.windows = []
+
+        self._n_threads = threads
+        self._window_idx_to_tasks = defaultdict(list)
+        self.executor = concurrent.futures.ThreadPoolExecutor(
+            max_workers=self._n_threads,
+        )
+
+    @property
+    def transform(self):
+        return self._transforms[self._selected_transform_idx]
+
+    @property
+    def current_view(self):
+        return self.views[self.current_selection]
+
+    def create_pad(self, screen_height, screen_width, window_pady=1, window_padx=1):
+        """Create a curses pad to represent panels we can page through horizontally
+        """
+        panel_occupies = (
+            screen_height // self.rows,
+            screen_width // self.cols
+        )
+
+        full_cols = self.pad_paginator.n_pages * self.cols
+
+        # Make the pad one extra long
+        pad_width = full_cols * panel_occupies[1] + self.cols * panel_occupies[1]
+        pad_height = self.rows * panel_occupies[0]
+
+        self.pad = curses.newpad(pad_height, pad_width)
+        self.page_width = panel_occupies[1] * self.cols
+
+        self.windows = []
+        for col in range(full_cols):
+            for row in range(self.rows):
+                coord = PanelCoord(
+                    nlines=panel_occupies[0] - 2 * window_pady,
+                    ncols=panel_occupies[1] - 2 * window_padx,
+                    y=panel_occupies[0] * row + window_pady,
+                    x=panel_occupies[1] * col + window_padx
+                )
+                self.windows.append(self.pad.subwin(*coord))
+
+        return self.pad
+
+    def _assign_page_to_pad_page(self, page, pad_page):
+        self._pad_page_to_page[pad_page] = page
+        self._page_to_pad_page[page] = pad_page
+
+    def setup_pad_page_mappings(self, selection_idx):
+        """Sets up pad pages and takes care of edge conditions
+        """
+        self._pad_page_to_page = {}
+        self._page_to_pad_page = {}
+
+        half_pad = self.pad_paginator.n_pages // 2
+        target_page = self.paginator.item_to_page(selection_idx)
+
+        iter_pad_pages = range(self.pad_paginator.n_pages)
+        if target_page <= half_pad:
+            iter_pages = range(self.paginator.n_pages)
+        elif half_pad < target_page < (self.paginator.n_pages - half_pad):
+            iter_pages = range(target_page - half_pad, target_page + half_pad)
+        else:
+            iter_pages = range(
+                self.paginator.n_pages - self.pad_paginator.n_pages,
+                self.paginator.n_pages,
+            )
+
+        for pad_page, page in zip(iter_pad_pages, iter_pages):
+            self._assign_page_to_pad_page(page, pad_page)
+
+    def compute_char_array(self, file_view, window_idx, *args):
+        window = self.windows[window_idx]
+        desired_size = self.map.max_img_shape(*window.getmaxyx())
+        img, meta = self.transform.convert(*args, output_size=(desired_size[0], desired_size[1]))
+        char_array = self.map.to_char_array(img)
+        char_array = CursesRenderer.apply_cmap_to_char_array(self.cmap, char_array)
+        self.q.put_nowait((char_array, file_view, window_idx, self.current_page))
+
+    def cleanup(self):
+        self.executor.shutdown(wait=True)
+
+    def refresh_window(self, file_view, window_idx):
+        loop = asyncio.get_event_loop()
+        if file_view.needs_redraw:
+            try:
+                data, _ = self.reader.read_file(file_view.data["filename"])
+            except RuntimeError:
+                self.debug("File {} is not readable".format(file_view.data["filename"]))
+                task = None
+            else:
+                for prev_task in self._window_idx_to_tasks[window_idx]:
+                    prev_task.cancel()
+                self._window_idx_to_tasks[window_idx] = []
+                task = loop.run_in_executor(
+                    self.executor,
+                    self.compute_char_array,
+                    file_view,
+                    window_idx,
+                    data
+                )
+                self._window_idx_to_tasks[window_idx].append(task)
+                file_view.needs_redraw = False
+
+    def annotate_view(self, file_view, window):
+        # Annotate the view
+        maxy, maxx = window.getmaxyx()
+        if file_view.idx == self.current_selection:
+            window.border(0,)
+        else:
+            window.border(1, 1, 1, 1)
+
+        window.addstr(0, 1, os.path.basename(file_view.data["filename"]))
+
+    async def check_size_reset(self):
+        curr_size = self.stdscr.getmaxyx()
+        if curr_size != self.last_size:
+            curses.resizeterm(*curr_size)
+            self.stdscr.clear()
+            self.stdscr.refresh()
+            self.pad.clear()
+            self.windows = []
+            await self.initialize_display()
+            self.last_size = curr_size
+            for view in self.views:
+                view.needs_redraw = True
+            # This is a hack to wait for the refresh loop to consume stuff
+            # Otherwise the next
+            await asyncio.sleep(self._refresh_interval * 2)
+
+    async def handle_key(self, ch):
+        """Handle key presses"""
+        if ch == ord("q"):
+            self.close()
+        elif ch == curses.KEY_LEFT or ch == ord("h"):
+            self.left()
+        elif ch == curses.KEY_RIGHT or ch == ord("l"):
+            self.right()
+        elif ch == curses.KEY_UP or ch == ord("k"):
+            self.up()
+        elif ch == curses.KEY_DOWN or ch == ord("j"):
+            self.down()
+        elif ch == curses.KEY_RESIZE:
+            self.check_size_reset()
+        elif ch == ord("r"):
+            rows = self.prompt("Set rows [0-9]: ", int)
+            if rows and 0 < rows <= 9:
+                self.stdscr.clear()
+                self.stdscr.refresh()
+                self.pad.clear()
+                self.windows = []
+                self.rows = rows
+                await self.initialize_display()
+                for view in self.views:
+                    view.needs_redraw = True
+                # This is a hack to wait for the refresh loop to consume stuff
+                await asyncio.sleep(self._refresh_interval * 2)
+        elif ch == ord("c"):
+            cols = self.prompt("Set cols [0-9]: ", int)
+            if cols and 0 < cols <= 9:
+                self.stdscr.clear()
+                self.stdscr.refresh()
+                self.pad.clear()
+                self.windows = []
+                self.cols = cols
+                await self.initialize_display()
+                for view in self.views:
+                    view.needs_redraw = True
+                # This is a hack to wait for the refresh loop to consume stuff
+                await asyncio.sleep(self._refresh_interval * 2)
+        elif ch == ord("m"):
+            resp = self.prompt("Choose colormap ['greys', 'viridis', 'plasma', ...]: ", str)
+            if resp in VALID_CMAPS:
+                self.cmap = load_cmap(resp)
+            for view in self.views:
+                view.needs_redraw = True
+        elif ch == ord("p"):
+            page = self.prompt("Jump to page: ", int)
+            if page and 0 < page <= self.paginator.n_pages:
+                self.jump_to_page(page - 1)
+        elif ch == ord("z"):
+            self._selected_transform_idx = (self._selected_transform_idx + 1) % len(self._transforms)
+            for view in self.views:
+                view.needs_redraw = True
+
+    def left(self):
+        """Return if the selection has changed, the current, and previous selections"""
+        if self.current_selection <= 0:
+            return False, self.current_selection, self.current_selection
+        else:
+            prev_selection = self.current_selection
+            self.current_selection = max(0, self.current_selection - self.rows)
+            if self.current_page != self.paginator.item_to_page(self.current_selection):
+                self.prev_page()
+            return True, self.current_selection, prev_selection
+
+    def right(self):
+        """Return if the selection has changed, the current, and previous selections"""
+        if self.current_selection >= len(self.views) - 1:
+            return False, self.current_selection, self.current_selection
+        else:
+            prev_selection = self.current_selection
+            self.current_selection = min(len(self.views) - 1, self.current_selection + self.rows)
+            if self.current_page != self.paginator.item_to_page(self.current_selection):
+                self.next_page()
+            return True, self.current_selection, prev_selection
+
+    def up(self):
+        """Return if the selection has changed, the current, and previous selections"""
+        if self.current_selection <= 0:
+            return False, self.current_selection, self.current_selection
+        else:
+            self.current_selection -= 1
+            if self.current_page != self.paginator.item_to_page(self.current_selection):
+                self.prev_page()
+            return True, self.current_selection, self.current_selection + 1
+
+    def down(self):
+        """Return if the selection has changed, the current, and previous selections"""
+        if self.current_selection >= len(self.views) - 1:
+            return False, self.current_selection, self.current_selection
+        else:
+            self.current_selection += 1
+            if self.current_page != self.paginator.item_to_page(self.current_selection):
+                self.next_page()
+            return True, self.current_selection, self.current_selection - 1
+
+    def next_page(self):
+        if self.current_page == self.paginator.n_pages - 1:
+            return
+
+        self.current_page += 1
+        self.current_pad_page = (self.current_pad_page + 1) % self.pad_paginator.n_pages
+        self.resolve_page_move()
+
+    def prev_page(self):
+        if self.current_page == 0:
+            return
+
+        self.current_page -= 1
+        self.current_pad_page = (self.current_pad_page - 1) % self.pad_paginator.n_pages
+        self.resolve_page_move()
+
+    def jump_to_page(self, new_page):
+        if new_page in self._page_to_pad_page:
+            self.current_pad_page = self._page_to_pad_page[new_page]
+            self.current_page = new_page
+        elif np.abs(new_page - self.current_page) < self.pad_paginator.n_pages:
+            move_n = new_page - self.current_page
+            self.current_pad_page = (self.current_pad_page + move_n) % self.pad_paginator.n_pages
+            self.current_page = new_page
+        else:
+            self.current_page = 0
+
+        self.current_selection = self.paginator.items_on_page(self.current_page)[0]
+        self.resolve_page_move()
+
+    def resolve_page_move(self):
+        """Resolve issues when we have moved to an unloaded page and update pages -> files
+        """
+        self.update_pad_position()
+        if self._pad_page_to_page[self.current_pad_page] != self.current_page:
+            self._assign_page_to_pad_page(self.current_page, self.current_pad_page)
+            for view_idx in self.paginator.items_on_page(self.current_page):
+                self.views[view_idx].needs_redraw = True
+
+    async def initialize_display(self):
+        await super().initialize_display()
+        panel_coords = self.panel_coords
+
+        # Set up rolling pad to keep recently loaded files loaded
+        self.paginator = Paginator(self.rows, self.cols, len(self.views))
+        self.pad_paginator = Paginator(
+            self.rows,
+            self.cols,
+            min(
+                (
+                    self.paginator.items_per_page
+                    * int(np.ceil(len(self.views) / self.paginator.items_per_page))
+                ),
+                (
+                    self.paginator.items_per_page
+                    * int(np.floor(var.MAX_CURSES_WINDOWS / self.paginator.items_per_page))
+                )
+            )
+        )
+
+        self.setup_pad_page_mappings(self.current_selection)
+        self.current_page = self.paginator.item_to_page(self.current_selection)
+        self.current_pad_page = self._page_to_pad_page[self.current_page]
+
+        self.create_pad(
+            panel_coords["main"].nlines,
+            panel_coords["main"].ncols
+        )
+        self.last_size = self.stdscr.getmaxyx()
+
+    async def refresh(self):
+        """Called each 1/refresh_rate, for updating the display"""
+        await self.check_size_reset()
+        await super().refresh()
+
+        window_indexes = self.pad_paginator.items_on_page(self.current_pad_page)
+        view_indexes = self.paginator.items_on_page(self.current_page)
+
+        for window_idx, view_idx in itertools.zip_longest(window_indexes, view_indexes):
+            window = self.windows[window_idx]
+            if view_idx is not None:
+                file_view = self.views[view_idx]
+                self.annotate_view(file_view, window)
+                self.refresh_window(file_view, window_idx)
+            else:
+                window.clear()
+
+        self.draw_page_number()
+        self.update_pad_position()
+
+    def start_tasks(self):
+        super().start_tasks()
+        asyncio.create_task(self.receive_data())
+
+    def post_display(self):
+        super().post_display()
+        self.q = asyncio.Queue()
+
+    async def receive_data(self):
+        while True:
+            char_array, file_view, window_idx, current_page = await self.q.get()
+            # Make sure we havent changed pages since the task was launched
+            if current_page == self.current_page:
+                window = self.windows[window_idx]
+                try:
+                    CursesRenderer.render(window, char_array)
+                except CursesRenderError:
+                    self.debug("Renderer failed, possibly due to resize")
+                self.annotate_view(file_view, window)
+            else:
+                file_view.needs_redraw = True
+
+    def update_pad_position(self):
+        """Move the visible portion of the curses pad to the correct section
+        """
+        main_coord = self.panel_coords["main"]
+        self.pad.refresh(
+            0,
+            self.page_width * self.current_pad_page,
+            main_coord.y,
+            main_coord.x,
+            main_coord.nlines - 1 - main_coord.y,
+            main_coord.ncols - 1 - main_coord.x,
+        )
+
+    def draw_page_number(self):
+        page_str = "p{}/{}".format(self.current_page + 1, self.paginator.n_pages)
+        try:
+            self.status_window.addstr(
+                0,
+                self.panel_coords["status"].ncols - 1 - len(page_str),
+                page_str
+            )
+            self.status_window.refresh()
+        except curses.error:
+            pass

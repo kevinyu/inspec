@@ -17,7 +17,7 @@ DEFAULTS = {
         ),
         "amp_transform": AmplitudeEnvelopeTwoSidedTransform(gradient=(0.3, 0.7))
     },
-    "image":{
+    "image": {
         "transform": PilImageGreyscaleTransform(
             keep_aspect_ratio=True,
             character_aspect_ratio=var.TERM_CHAR_ASPECT_RATIO

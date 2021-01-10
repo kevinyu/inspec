@@ -17,4 +17,4 @@ MAX_TIMESCALE = 10.0
 DEFAULT_TIME_STEP_FRAC = 0.25
 
 MAX_CURSES_WINDOWS = 200
-TERM_CHAR_ASPECT_RATIO = 2  # Ratio of height to width of a typical terminal character
+TERM_CHAR_ASPECT_RATIO = 2.5  # Ratio of height to width of a typical terminal character

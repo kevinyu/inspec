@@ -83,7 +83,6 @@ def gather_files(paths, extension):
     return results
 
 
-
 class PILImageReader(object):
     """Read in an image file as a PIL Image
     """

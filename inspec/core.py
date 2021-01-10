@@ -8,14 +8,16 @@ import numpy as np
 from inspec import var
 from inspec.colormap import load_cmap
 from inspec.defaults import DEFAULTS
-from inspec.gui.audio_viewer import InspecGridApp, AudioFileView
+from inspec.gui.audio_viewer import AudioFileView, InspecAudioApp
+from inspec.gui.image_viewer import InspecImageApp, ImageFileView
 from inspec.gui.live_audio_viewer import LiveAudioViewApp
 from inspec.io import AudioReader, PILImageReader, gather_files
 from inspec.maps import get_char_map
 from inspec.render import StdoutRenderer
 from inspec.transform import (
-    SpectrogramTransform,
     AmplitudeEnvelopeTwoSidedTransform,
+    PilImageGreyscaleTransform,
+    SpectrogramTransform,
 )
 
 
@@ -60,13 +62,58 @@ def _open_gui(
 
     charmap = get_char_map(characters)
 
-    app = InspecGridApp(
+    app = InspecAudioApp(
         rows,
         cols,
         files=files,
         file_reader=AudioReader,
         cmap=cmap,
         view_class=AudioFileView,
+        transform=transforms,
+        map=charmap,
+        debug=debug
+    )
+    asyncio.run(app.main(stdscr))
+
+
+def open_image_gui(*args, **kwargs):
+    """Launch a terminal gui to view one or more audio files
+    """
+    curses.wrapper(_open_image_gui, *args, **kwargs)
+
+
+def _open_image_gui(
+        stdscr,
+        filenames,
+        rows=1,
+        cols=1,
+        cmap=DEFAULTS["cmap"],
+        characters="quarter",
+        debug=False,
+        ):
+    files = gather_files(filenames, "*")
+
+    if not len(files):
+        click.echo("No files matching {} were found.".format(filenames))
+        return
+
+    transforms = []
+    transforms.append(
+        PilImageGreyscaleTransform(thumbnail=False)
+    )
+    transforms.append(
+        PilImageGreyscaleTransform(thumbnail=True)
+    )
+
+    charmap = get_char_map(characters)
+
+    app = InspecImageApp(
+        rows,
+        cols,
+        files=files,
+        file_reader=PILImageReader,
+        cmap=cmap,
+        view_class=ImageFileView,
         transform=transforms,
         map=charmap,
         debug=debug

@@ -316,9 +316,15 @@ class PilImageTransform(InspecTransform):
 
     pil_convert_mode = "L"
 
-    def __init__(self, keep_aspect_ratio=True, character_aspect_ratio=var.TERM_CHAR_ASPECT_RATIO):
+    def __init__(
+            self,
+            keep_aspect_ratio=True,
+            character_aspect_ratio=var.TERM_CHAR_ASPECT_RATIO,
+            thumbnail=False,
+            ):
         self.keep_aspect_ratio = keep_aspect_ratio
         self.character_aspect_ratio = character_aspect_ratio
+        self.thumbnail = thumbnail
 
     def convert(
             self,
@@ -326,8 +332,7 @@ class PilImageTransform(InspecTransform):
             output_size,
             size_multiple_of=None,
             rotated=False,
-            thumbnail=False,
-        ):
+            ):
         """Convert an PIL array into greyscale"""
         original_height, original_width = data.height, data.width
 
@@ -368,15 +373,18 @@ class PilImageTransform(InspecTransform):
         else:
             output_size = output_size
 
-        if thumbnail:
-            resized = data.thumbnail((output_size[1], output_size[0]))
+        if self.thumbnail:
+            data.thumbnail((output_size[1], output_size[0]))  # Thumbnail edits in place
+            result = data.convert(mode=self.pil_convert_mode)
+            result = np.asarray(result)[::-1]
+            resized = resize(result, output_size[0], output_size[1])
         else:
             resized = data.resize((output_size[1], output_size[0]))
+            resized = resized.convert(mode=self.pil_convert_mode)
+            resized = np.asarray(resized)[::-1]
 
-        result = data.convert(mode=self.pil_convert_mode)
-        result = np.asarray(result)[::-1]
         return (
-            resize(result, output_size[0], output_size[1]),
+            resized,
             {
                 "keep_aspect_ratio": self.keep_aspect_ratio,
                 "character_aspect_ratio": self.character_aspect_ratio,
