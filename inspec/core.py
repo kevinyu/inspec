@@ -81,9 +81,9 @@ def imshow(
         cmap=None,
         vertical=False,
         characters="quarter",
-        thumbnail=False
+        thumbnail=False,
+        colormode="rgb",  # or greyscale
         ):
-    cmap = load_cmap(cmap or var.DEFAULT_CMAP)
     termsize = os.get_terminal_size()
 
     if height and isinstance(height, float) and 0 < height <= 1:
@@ -95,7 +95,16 @@ def imshow(
     elif width:
         width = int(width)
 
-    charmap = get_char_map(characters)
+    if colormode == "greyscale":
+        charmap = get_char_map(characters)
+        cmap = load_cmap(cmap or var.DEFAULT_CMAP)
+    elif colormode == "rgb":
+        from inspec.maps import HalfCharMapRGB
+        from inspec.colormap import RGBColormap
+        charmap = HalfCharMapRGB
+        cmap = RGBColormap()
+    else:
+        raise Exception
 
     height = height or termsize.lines
     width = width or termsize.columns
@@ -105,19 +114,39 @@ def imshow(
     desired_size = charmap.max_img_shape(height, width)
     data, _ = PILImageReader.read_file(filename)
 
-    img, metadata = DEFAULTS["image"]["transform"].convert(
-        data,
-        output_size=desired_size,
-        size_multiple_of=charmap.patch_dimensions,
-        rotated=vertical,
-        thumbnail=thumbnail,
-    )
+    if colormode == "greyscale":
+        img, metadata = DEFAULTS["image"]["transform"].convert(
+            data,
+            output_size=desired_size,
+            size_multiple_of=charmap.patch_dimensions,
+            rotated=vertical,
+            thumbnail=thumbnail,
+        )
+
+    elif colormode == "rgb":
+        from inspec.transform import PILImageRGBTransform
+        transform = PILImageRGBTransform(keep_aspect_ratio=True)
+        img, _ = transform.convert(
+            data,
+            output_size=desired_size,
+            size_multiple_of=charmap.patch_dimensions,
+            rotated=vertical,
+            thumbnail=False,  # Cannot use thumbnail for rgb... I don't know how to resize them
+        )
+
     if vertical:
         img = img.T
 
-    char_array = charmap.to_char_array(img)
-    char_array = StdoutRenderer.apply_cmap_to_char_array(cmap, char_array)
-    StdoutRenderer.render(char_array)
+    if colormode == "greyscale":
+        char_array = charmap.to_char_array(img)
+        char_array = StdoutRenderer.apply_cmap_to_char_array(cmap, char_array)
+        StdoutRenderer.render(char_array)
+    elif colormode == "rgb":
+        from inspec.render import StdoutRGBRenderer
+        char_array = charmap.to_char_array(img)
+        char_array = StdoutRGBRenderer.apply_cmap_to_char_array(cmap, char_array)
+
+        StdoutRGBRenderer.render(char_array)
 
 
 def show(

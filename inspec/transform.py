@@ -312,7 +312,7 @@ class AmplitudeEnvelopeTwoSidedTransform(AudioTransform):
         return img, metadata
 
 
-class PilImageTransform(InspecTransform):
+class PILImageTransform(InspecTransform):
 
     pil_convert_mode = "L"
 
@@ -369,14 +369,17 @@ class PilImageTransform(InspecTransform):
             output_size = output_size
 
         if thumbnail:
-            resized = data.thumbnail((output_size[1], output_size[0]))
+            data.thumbnail((output_size[1], output_size[0]))
+            result = data.convert(mode=self.pil_convert_mode)
+            result = np.asarray(result)[::-1]
+            resized = resize(result, output_size[0], output_size[1])
         else:
             resized = data.resize((output_size[1], output_size[0]))
+            resized = resized.convert(mode=self.pil_convert_mode)
+            resized = np.asarray(resized)[::-1]
 
-        result = data.convert(mode=self.pil_convert_mode)
-        result = np.asarray(result)[::-1]
         return (
-            resize(result, output_size[0], output_size[1]),
+            resized,
             {
                 "keep_aspect_ratio": self.keep_aspect_ratio,
                 "character_aspect_ratio": self.character_aspect_ratio,
@@ -385,9 +388,9 @@ class PilImageTransform(InspecTransform):
         )
 
 
-class PilImageGreyscaleTransform(PilImageTransform):
+class PILImageGreyscaleTransform(PILImageTransform):
     pil_convert_mode = "L"
 
 
-class PilImageRGBTransform(PilImageTransform):
+class PILImageRGBTransform(PILImageTransform):
     pil_convert_mode = "RGB"

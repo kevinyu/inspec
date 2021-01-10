@@ -48,7 +48,7 @@ class CharMap(object):
         if img.shape[0] % cls.patch_dimensions[0] or img.shape[1] % cls.patch_dimensions[1]:
             raise ValueError("Image to convert to characters must be a even multiple of patch size")
 
-        rows, cols = img.shape
+        rows, cols = img.shape[:2]
         for row_idx, row in enumerate(range(rows)[::cls.patch_dimensions[0]]):
             for col_idx, col in enumerate(range(cols)[::cls.patch_dimensions[1]]):
                 yield (row_idx, col_idx), img[
@@ -186,9 +186,53 @@ class CharMapRGB(CharMap):
     def to_char_array(cls, img):
         raise NotImplementedError
 
+    @classmethod
+    def to_char_array(cls, img, floor=None, ceil=None):
+        """Convert an image array into an array of tuples with character and color info
 
-class HalfCharMapRGB(HalfCharMap):
+        Params
+        ======
+        img : np.ndarray
+            shape (H, W)
+
+        Returns a 2D object array of size (H // patch_dimensions[0], W // patch_dimensions[1]),
+        where each object is a Char tuple (character : str, fg_color : Frac, bg_color : Frac).
+        The foreground and background colors are represented as Fracs so as to not be
+        specific to a single colormap.
+        """
+        if img.shape[0] % cls.patch_dimensions[0] or img.shape[1] % cls.patch_dimensions[1]:
+            raise ValueError("Image to convert to characters must be a even multiple of patch size")
+        if img.shape[2] != 3:
+            raise ValueError("Your 'RGB' image doesnt have 3 color channels. What are you doing?")
+
+        output_shape = (
+            img.shape[0] // cls.patch_dimensions[0],
+            img.shape[1] // cls.patch_dimensions[1],
+        )
+
+        char_array = np.empty(output_shape, dtype=object)
+        for (row, col), patch in cls.iter_patches(img):
+            char_array[row, col] = cls.patch_to_char(patch)
+
+        return char_array
+
+
+class HalfCharMapRGB(CharMapRGB):
     patch_dimensions = (2, 1)
+    background_char = Char(char=const.FULL_0, fg=0, bg=0)
+
+    @classmethod
+    def patch_to_char(cls, patch):
+        return Char(char=const.HALF_10, fg=patch[0, 0], bg=patch[1, 0])
+
+
+class QuarterCharMapRGB(CharMapRGB):
+    patch_dimensions = (2, 2)
+    background_char = Char(char=const.FULL_0, fg=0, bg=0)
+
+    @classmethod
+    def patch_to_char(cls, patch):
+        return Char(char=const.HALF_10, fg=patch[0, 0], bg=patch[1, 0])
 
 
 _maps = {
