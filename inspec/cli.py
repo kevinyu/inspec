@@ -29,13 +29,15 @@ def help(command):
 @click.option("--cmap", type=str, help="Choose colormap (see 'inspec list-cmaps')", default=None)
 @click.option("--spec/--no-spec", help="Show spectrogram (default --spec)", default=True)
 @click.option("--amp/--no-amp", help="Show amplitude (default --amp)", default=True)
+@click.option("--min-freq", type=float, help="Min frequency of spectrogram", default=var.DEFAULT_SPECTROGRAM_MIN_FREQ)
+@click.option("--max-freq", type=float, help="Max frequency of spectrogram", default=var.DEFAULT_SPECTROGRAM_MAX_FREQ)
 @click.option("--vertical/--horizontal", help="Vertical display (default --horizontal)", default=False)
 @click.option(
     "--characters", "--chars",
     type=click.Choice(["quarter", "half", "full"]),
     help="Choose character set ('quarter' gives highest resolution, 'full' lowest) (default quarter)",
     default="quarter")
-def show(filename, height, width, duration, time_, channel, cmap, spec, amp, vertical, characters):
+def show(filename, height, width, duration, time_, channel, cmap, spec, amp, min_freq, max_freq, vertical, characters):
     from .core import show
     show(
         filename=filename,
@@ -47,6 +49,8 @@ def show(filename, height, width, duration, time_, channel, cmap, spec, amp, ver
         cmap=cmap,
         show_spec=spec,
         show_amp=amp,
+        min_freq=min_freq,
+        max_freq=max_freq,
         vertical=vertical,
         characters=characters
     )
@@ -61,13 +65,15 @@ def show(filename, height, width, duration, time_, channel, cmap, spec, amp, ver
 @click.option("--cmap", type=str, help="Choose colormap (see 'inspec list-cmaps')", default=None)
 @click.option("--spec/--no-spec", help="Include spetrogram as a view mode (default True)", default=True)
 @click.option("--amp/--no-amp", help="Include amplitude as a view mode (default True)", default=True)
+@click.option("--min-freq", type=float, help="Min frequency of spectrogram", default=var.DEFAULT_SPECTROGRAM_MIN_FREQ)
+@click.option("--max-freq", type=float, help="Max frequency of spectrogram", default=var.DEFAULT_SPECTROGRAM_MAX_FREQ)
 @click.option(
     "--characters", "--chars",
     type=click.Choice(["quarter", "half", "full"]),
     help="Choose character set ('quarter' gives highest resolution, 'full' lowest) (default quarter)",
     default="quarter")
 @click.option("--debug", is_flag=True, help="Show debug messages (default False)")
-def open_(filenames, rows, cols, cmap, spec, amp, characters, debug):
+def open_(filenames, rows, cols, cmap, spec, amp, min_freq, max_freq, characters, debug):
     from .core import open_gui
     open_gui(
         filenames,
@@ -76,6 +82,8 @@ def open_(filenames, rows, cols, cmap, spec, amp, characters, debug):
         cmap=cmap,
         spec=spec,
         amp=amp,
+        min_freq=min_freq,
+        max_freq=max_freq,
         characters=characters,
         debug=debug
     )

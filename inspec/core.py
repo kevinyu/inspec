@@ -35,6 +35,8 @@ def _open_gui(
         cmap=DEFAULTS["cmap"],
         spec=True,
         amp=True,
+        min_freq=var.DEFAULT_SPECTROGRAM_MIN_FREQ,
+        max_freq=var.DEFAULT_SPECTROGRAM_MAX_FREQ,
         characters="quarter",
         debug=False,
         ):
@@ -47,16 +49,13 @@ def _open_gui(
 
     transforms = []
     if spec:
-        transforms.append(SpectrogramTransform(
-            spec_sampling_rate=1000,
-            spec_freq_spacing=50,
-            min_freq=250,
-            max_freq=8000
-        ))
+        transform = DEFAULTS["audio"]["spec_transform"]
+        transform.min_freq = min_freq
+        transform.max_freq = max_freq
+        transforms.append(transform)
     if amp:
-        transforms.append(
-            AmplitudeEnvelopeTwoSidedTransform(gradient=(0.3, 0.7))
-        )
+        transforms.append(DEFAULTS["audio"]["amp_transform"])
+
     if not len(transforms):
         click.echo("spec or amp (or both) must be selected")
         return
@@ -176,6 +175,8 @@ def show(
         cmap=None,
         show_spec=True,
         show_amp=False,
+        min_freq=var.DEFAULT_SPECTROGRAM_MIN_FREQ,
+        max_freq=var.DEFAULT_SPECTROGRAM_MAX_FREQ,
         vertical=False,
         characters="quarter",
         ):
@@ -216,6 +217,9 @@ def show(
         )
 
         if show_spec:
+            transform = DEFAULTS["audio"]["spec_transform"]
+            transform.min_freq = min_freq
+            transform.max_freq = max_freq
             img, metadata = DEFAULTS["audio"]["spec_transform"].convert(
                 data,
                 sampling_rate,
@@ -261,8 +265,8 @@ def _listen(
         channels=1,
         duration=2.0,
         cmap=None,
-        min_freq=250,
-        max_freq=10000,
+        min_freq=var.DEFAULT_SPECTROGRAM_MIN_FREQ,
+        max_freq=var.DEFAULT_SPECTROGRAM_MAX_FREQ,
         characters="quarter",
         debug=False,
         ):
