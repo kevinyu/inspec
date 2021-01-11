@@ -6,7 +6,7 @@ import click
 @click.group(help="Functions for development and debugging")
 def dev():
     pass
-
+    
 
 @click.command(help="Benchmark a render function")
 @click.option("-h", "--height", help="Height of array to render", default=20)

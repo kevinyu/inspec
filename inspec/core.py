@@ -6,7 +6,8 @@ import os
 import numpy as np
 
 from inspec import var
-from inspec.colormap import load_cmap
+from inspec.colormap import load_cmap, RGBColormap
+
 from inspec.defaults import DEFAULTS
 from inspec.gui.audio_viewer import AudioFileView, InspecAudioApp
 from inspec.gui.image_viewer import InspecImageApp, ImageFileView
@@ -16,7 +17,7 @@ from inspec.maps import get_char_map
 from inspec.render import StdoutRenderer
 from inspec.transform import (
     AmplitudeEnvelopeTwoSidedTransform,
-    PilImageGreyscaleTransform,
+    PILImageGreyscaleTransform,
     SpectrogramTransform,
 )
 
@@ -101,8 +102,8 @@ def _open_image_gui(
         return
 
     transforms = [
-        PilImageGreyscaleTransform(thumbnail=False),
-        PilImageGreyscaleTransform(thumbnail=True),
+        PILImageGreyscaleTransform(thumbnail=False),
+        PILImageGreyscaleTransform(thumbnail=True),
     ]
 
     charmap = get_char_map(characters)
@@ -128,9 +129,9 @@ def imshow(
         cmap=None,
         vertical=False,
         characters="quarter",
-        thumbnail=False
+        thumbnail=False,
+        mode="greyscale",  # or greyscale
         ):
-    cmap = load_cmap(cmap or var.DEFAULT_CMAP)
     termsize = os.get_terminal_size()
 
     if height and isinstance(height, float) and 0 < height <= 1:
@@ -142,28 +143,39 @@ def imshow(
     elif width:
         width = int(width)
 
-    charmap = get_char_map(characters)
+    if mode not in ["greyscale", "rgb"]:
+        raise ValueError("mode must be greyscale or rgb")
+    elif mode == "greyscale":
+        cmap = load_cmap(cmap or var.DEFAULT_CMAP)
+    elif mode == "rgb":
+        cmap = RGBColormap()
+    else:
+        raise Exception
+
+    CharMap = DEFAULTS["image"]["map"][mode]
 
     height = height or termsize.lines
     width = width or termsize.columns
     if vertical:
         height, width = width, height
 
-    desired_size = charmap.max_img_shape(height, width)
+    desired_size = CharMap.max_img_shape(height, width)
     data, _ = PILImageReader.read_file(filename)
 
-    img, metadata = DEFAULTS["image"]["transform"].convert(
+    img, metadata = DEFAULTS["image"]["transform"][mode].convert(
         data,
         output_size=desired_size,
-        size_multiple_of=charmap.patch_dimensions,
+        size_multiple_of=CharMap.patch_dimensions,
         rotated=vertical,
     )
+
     if vertical:
         img = img.T
 
-    char_array = charmap.to_char_array(img)
-    char_array = StdoutRenderer.apply_cmap_to_char_array(cmap, char_array)
-    StdoutRenderer.render(char_array)
+    Renderer = DEFAULTS["image"]["transform"][mode]
+    char_array = CharMap.to_char_array(img)
+    char_array = Renderer.apply_cmap_to_char_array(cmap, char_array)
+    Renderer.render(char_array)
 
 
 def show(

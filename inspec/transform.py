@@ -312,7 +312,7 @@ class AmplitudeEnvelopeTwoSidedTransform(AudioTransform):
         return img, metadata
 
 
-class PilImageTransform(InspecTransform):
+class PILImageTransform(InspecTransform):
 
     pil_convert_mode = "L"
 
@@ -393,9 +393,9 @@ class PilImageTransform(InspecTransform):
         )
 
 
-class PilImageGreyscaleTransform(PilImageTransform):
+class PILImageGreyscaleTransform(PILImageTransform):
     pil_convert_mode = "L"
 
 
-class PilImageRGBTransform(PilImageTransform):
+class PILImageRGBTransform(PILImageTransform):
     pil_convert_mode = "RGB"

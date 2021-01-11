@@ -3,7 +3,17 @@ from inspec import var
 from inspec.transform import (
     SpectrogramTransform,
     AmplitudeEnvelopeTwoSidedTransform,
-    PilImageGreyscaleTransform,
+    PILImageGreyscaleTransform,
+    PILImageRGBTransform,
+)
+from inspec.render import (StdoutRenderer, StdoutRGBRenderer)
+from inspec.maps import (
+    FullCharMap,
+    HalfCharMap,
+    QuarterCharMap,
+    FullCharMapRGB,
+    HalfCharMapRGB,
+    QuarterCharMapRGB,
 )
 
 
@@ -18,10 +28,33 @@ DEFAULTS = {
         "amp_transform": AmplitudeEnvelopeTwoSidedTransform(gradient=(0.3, 0.7))
     },
     "image": {
-        "transform": PilImageGreyscaleTransform(
-            keep_aspect_ratio=True,
-            character_aspect_ratio=var.TERM_CHAR_ASPECT_RATIO
-        )
+        "transform": {
+            "greyscale": PILImageGreyscaleTransform(
+                keep_aspect_ratio=True,
+                character_aspect_ratio=var.TERM_CHAR_ASPECT_RATIO
+            ),
+            "rgb": PILImageRGBTransform(
+                keep_aspect_ratio=True,
+                thumbnail=False,
+                character_aspect_ratio=var.TERM_CHAR_ASPECT_RATIO,
+            )
+        },
+        "render": {
+            "greyscale": StdoutRenderer,
+            "rgb": StdoutRGBRenderer,
+        },
+        "map": {
+            "greyscale": {
+                "full": FullCharMap,
+                "half": HalfCharMap,
+                "quarter": QuarterCharMap,
+            },
+            "rgb": {
+                "full": FullCharMapRGB,
+                "half": HalfCharMapRGB,
+                "quarter": QuarterCharMapRGB,
+            }
+        },
     },
     "cmap": "greys"
 }

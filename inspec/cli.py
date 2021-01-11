@@ -93,7 +93,8 @@ def open_(filenames, rows, cols, cmap, spec, amp, characters, debug):
     default="quarter")
 @click.option("--vertical/--horizontal", help="Vertical display (default --horizontal)", default=False)
 @click.option("--thumbnail", is_flag=True, help="Display image as thumbnail (lower res)")
-def imshow(filename, height, width, cmap, characters, vertical, thumbnail):
+@click.option("--mode", type=click.Choice(["greyscale", "rgb"]), default="greyscale")
+def imshow(filename, height, width, cmap, characters, vertical, thumbnail, mode):
     from .core import imshow
     imshow(
         filename,
@@ -103,6 +104,7 @@ def imshow(filename, height, width, cmap, characters, vertical, thumbnail):
         characters=characters,
         vertical=vertical,
         thumbnail=thumbnail,
+        mode=mode,
     )
 
 

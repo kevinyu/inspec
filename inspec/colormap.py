@@ -81,6 +81,18 @@ class PairedColormap(object):
         return self.colors[self.scale(frac)]
 
 
+class RGBColormap(Colormap):
+
+    def __init__(self):
+        """An RGB (3 x 8 bit) colormap"""
+        pass
+
+    def scale_to_color(self, frac):
+        """Convert a fraction between 0 and 1 to the corresponding Color256
+        """
+        return frac
+
+
 class CursesColormapSingleton(object):
     """The currently available colormap for curses in-terminal text output
 

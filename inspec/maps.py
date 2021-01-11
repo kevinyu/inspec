@@ -48,7 +48,7 @@ class CharMap(object):
         if img.shape[0] % cls.patch_dimensions[0] or img.shape[1] % cls.patch_dimensions[1]:
             raise ValueError("Image to convert to characters must be a even multiple of patch size")
 
-        rows, cols = img.shape
+        rows, cols = img.shape[:2]
         for row_idx, row in enumerate(range(rows)[::cls.patch_dimensions[0]]):
             for col_idx, col in enumerate(range(cols)[::cls.patch_dimensions[1]]):
                 yield (row_idx, col_idx), img[
@@ -182,13 +182,81 @@ class QuarterCharMap(CharMap):
 
 class CharMapRGB(CharMap):
 
+    rgb_weights = [0.2989, 0.5870, 0.1140]
+
     @classmethod
-    def to_char_array(cls, img):
-        raise NotImplementedError
+    def to_char_array(cls, img, floor=None, ceil=None):
+        """Like Charmap but instead passes through RGB tuples as the colors instaed of as float fractions
+        """
+        if img.shape[0] % cls.patch_dimensions[0] or img.shape[1] % cls.patch_dimensions[1]:
+            raise ValueError("Image to convert to characters must be a even multiple of patch size")
+        if img.shape[2] != 3:
+            raise ValueError("Your 'RGB' image doesnt have 3 color channels. What are you doing?")
+
+        output_shape = (
+            img.shape[0] // cls.patch_dimensions[0],
+            img.shape[1] // cls.patch_dimensions[1],
+        )
+
+        char_array = np.empty(output_shape, dtype=object)
+        for (row, col), patch in cls.iter_patches(img):
+            char_array[row, col] = cls.patch_to_char(patch)
+
+        return char_array
 
 
-class HalfCharMapRGB(HalfCharMap):
+class FullCharMapRGB(CharMapRGB):
+    patch_dimensions = (1, 1)
+    background_char = Char(char=const.FULL_0, fg=(0, 0, 0), bg=(0, 0, 0))
+
+    @classmethod
+    def patch_to_char(cls, patch):
+        return Char(char=const.FULL_0, fg=patch[0, 0], bg=patch[0, 0])
+
+
+class HalfCharMapRGB(CharMapRGB):
     patch_dimensions = (2, 1)
+    background_char = Char(char=const.FULL_0, fg=(0, 0, 0), bg=(0, 0, 0))
+
+    @classmethod
+    def patch_to_char(cls, patch):
+        return Char(char=const.HALF_10, fg=patch[0, 0], bg=patch[1, 0])
+
+
+class QuarterCharMapRGB(CharMapRGB):
+    patch_dimensions = (2, 2)
+    background_char = Char(char=const.FULL_0, fg=(0, 0, 0), bg=(0, 0, 0))
+
+    @classmethod
+    def patch_to_char(cls, patch):
+        """Converts a patch of RGB values to qtr characters"""
+        greyscale_patch = np.dot(patch, cls.rgb_weights)
+        patch_mean = np.mean(greyscale_patch)
+
+        flat_patch = patch[0, 0], patch[0, 1], patch[1, 0], patch[1, 1]
+        flat_patch_grey = greyscale_patch[0, 0], greyscale_patch[0, 1], greyscale_patch[1, 0], greyscale_patch[1, 1]
+        patch_mean = sum(flat_patch_grey) / 4
+        mask = [p > patch_mean for p in flat_patch_grey]
+        char = getattr(const, "QTR_{0}{2}{1}{3}".format(*map(int, mask)))
+
+        brighter = []
+        darker = []
+        for i in range(len(flat_patch)):
+            if mask[i]:
+                brighter.append(flat_patch[i])
+            else:
+                darker.append(flat_patch[i])
+
+        if len(brighter) == 0 and patch_mean == 0:
+            return cls.background_char
+
+        brighter_mean = np.round(np.mean(brighter, axis=0)).astype(np.int)
+        darker_mean = np.round(np.mean(darker, axis=0)).astype(np.int)
+
+        if len(brighter) == 0:
+            return Char(char=const.FULL_1, fg=darker_mean, bg=darker_mean)
+
+        return Char(char=char, fg=brighter_mean, bg=darker_mean)
 
 
 _maps = {

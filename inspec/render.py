@@ -20,7 +20,6 @@ class BaseRenderer(object):
         for i in range(output_array.shape[0]):
             for j in range(output_array.shape[1]):
                 char = char_array[i, j]
-
                 output_array[i, j] = Char(
                     char=char.char,
                     fg=cmap.scale_to_color(char.fg),
@@ -50,6 +49,26 @@ class StdoutRenderer(BaseRenderer):
             for char, fg_color, bg_color in row:
                 row_output += StdoutRenderer._ansi(fg_color, bg_color) + char
             row_output += StdoutRenderer._ansi(reset=True)
+            print(row_output)
+
+
+class StdoutRGBRenderer(StdoutRenderer):
+
+    @staticmethod
+    def _ansi(fg_color=(0, 0, 0), bg_color=(0, 0, 0), reset=False):
+        if reset:
+            return "\u001b[0m"
+        return ("\u001b[38;2;{fg_color[0]};{fg_color[1]};{fg_color[2]}m"
+            "\u001b[48;2;{bg_color[0]};{bg_color[1]};{bg_color[2]}m".format(fg_color=fg_color, bg_color=bg_color))
+
+    @staticmethod
+    def render(char_array):
+        print()
+        for row in char_array[::-1]:
+            row_output = ""
+            for char, fg_color, bg_color in row:
+                row_output += StdoutRGBRenderer._ansi(fg_color, bg_color) + char
+            row_output += StdoutRGBRenderer._ansi(reset=True)
             print(row_output)
 
 
