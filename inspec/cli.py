@@ -196,8 +196,8 @@ def listen(device, channels, chunk_size, step_chars, step_chunks, mode, cmap, du
 
 @click.command(help="View colormap choices")
 def list_cmaps():
-    from .colormap import VALID_CMAPS
-    for cmap in VALID_CMAPS:
+    from .colormap import list_cmap_names
+    for cmap in list_cmap_names():
         click.echo("  {}".format(cmap))
     click.echo("Default: {}".format(var.DEFAULT_CMAP))
 

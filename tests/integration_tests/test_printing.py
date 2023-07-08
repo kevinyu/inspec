@@ -2,7 +2,7 @@ import os
 
 import numpy as np
 
-from inspec.colormap import VALID_CMAPS, load_cmap
+from inspec.colormap import list_cmap_names, load_cmap
 from inspec.io import AudioReader
 from inspec.maps import (
     Char,
@@ -33,7 +33,7 @@ def run_all_tests(sample_audio_file):
         AmplitudeEnvelopeTwoSidedTransform(gradient=(0.2, 0.8)),
     ]
 
-    cmap_names = VALID_CMAPS
+    cmap_names = list_cmap_names()
 
     for Map in all_maps:
         for transform in all_transforms:

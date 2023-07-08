@@ -12,7 +12,7 @@ from inspec import const, var
 _CURRENT_COLORMAP: Optional[PairedColormap] = None
 
 
-def _get_curses_cmap() -> PairedColormap:
+def get_curses_cmap() -> PairedColormap:
     """Get the last colormap to be set with set_curses_cmap"""
     if _CURRENT_COLORMAP is None:
         raise RuntimeError("Curses colormap not initialized; never called set_curses_cmap(cmap)")
@@ -131,7 +131,7 @@ def set_curses_cmap(cmap: Union[str, PairedColormap]) -> None:
         for bg_color in loaded_cmap.colors:
             if fg_color.idx <= bg_color.idx:
                 continue
-            slot, _ = get_slot(fg_color, bg_color)
+            slot, _ = _get_slot_from_cmap(loaded_cmap, fg_color, bg_color)
             curses.init_pair(
                 slot,
                 fg_color,
@@ -172,6 +172,21 @@ def _color_bins_to_slot(
 
 
 # TODO: make this return Callable[[InvertibleChar], tuple[ColorSlot, str]]
+def _get_slot_from_cmap(cmap: PairedColormap, fg_color: Colormap.Color256, bg_color: Colormap.Color256) -> tuple[ColorSlot, bool]:
+    """
+    See docstring for get_slot.
+    """
+    # TODO: make a type that is (colormap, fg_color, bg_color), since they don't truly exist independently.
+    if fg_color.idx == bg_color.idx == 0:
+        return _color_bins_to_slot(cmap, cmap.colors[1].idx, bg_color.idx), False
+    elif fg_color.idx == bg_color.idx != 0:
+        return _color_bins_to_slot(cmap, fg_color.idx, cmap.colors[bg_color.idx - 1].idx), False
+    elif fg_color.idx <= bg_color.idx:
+        return _color_bins_to_slot(cmap, bg_color.idx, fg_color.idx), True
+    else:
+        return _color_bins_to_slot(cmap, fg_color.idx, bg_color.idx), False
+
+
 def get_slot(fg_color: Colormap.Color256, bg_color: Colormap.Color256) -> tuple[ColorSlot, bool]:
     """Map a pair of foreground and background Color256s to a ColorSlot
 
@@ -223,16 +238,8 @@ def get_slot(fg_color: Colormap.Color256, bg_color: Colormap.Color256) -> tuple[
     ... else:
     ...     curses.addstr("▜", curses.color_pair(slot))
     """
-    cmap = _get_curses_cmap()
-    # TODO: make a type that is (colormap, fg_color, bg_color), since they don't truly exist independently.
-    if fg_color.idx == bg_color.idx == 0:
-        return _color_bins_to_slot(cmap, cmap.colors[1].idx, bg_color.idx), False
-    elif fg_color.idx == bg_color.idx != 0:
-        return _color_bins_to_slot(cmap, fg_color.idx, cmap.colors[bg_color.idx - 1].idx), False
-    elif fg_color.idx <= bg_color.idx:
-        return _color_bins_to_slot(cmap, bg_color.idx, fg_color.idx), True
-    else:
-        return _color_bins_to_slot(cmap, fg_color.idx, bg_color.idx), False
+    cmap = get_curses_cmap()
+    return _get_slot_from_cmap(cmap, fg_color, bg_color)
 
 
 def list_cmap_names() -> list[str]:
@@ -301,6 +308,7 @@ for key in list(_registered_colormaps.keys()):
 __all__ = [
     "list_cmap_names",
     "load_cmap",
+    "get_curses_cmap",
     "set_curses_cmap",
     "get_slot",
     "ColormapNotFound",

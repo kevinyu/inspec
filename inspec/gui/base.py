@@ -10,7 +10,7 @@ from collections import defaultdict, namedtuple
 import numpy as np
 
 from inspec import var
-from inspec.colormap import VALID_CMAPS, load_cmap
+from inspec.colormap import list_cmap_names, load_cmap
 from inspec.transform import InspecTransform
 from inspec.paginate import Paginator
 from inspec.render import CursesRenderer, CursesRenderError
@@ -489,7 +489,7 @@ class InspecGridApp(InspecCursesApp):
                 await asyncio.sleep(self._refresh_interval * 2)
         elif ch == ord("m"):
             resp = self.prompt("Choose colormap ['greys', 'viridis', 'plasma', ...]: ", str)
-            if resp in VALID_CMAPS:
+            if resp in list_cmap_names():
                 self.cmap = load_cmap(resp)
             for view in self.views:
                 view.needs_redraw = True
