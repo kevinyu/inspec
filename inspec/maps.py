@@ -1,6 +1,5 @@
 from dataclasses import dataclass
 import sys
-from collections import namedtuple
 from typing import Iterator
 
 import numpy as np
