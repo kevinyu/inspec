@@ -2,7 +2,7 @@ from collections import namedtuple
 
 import numpy as np
 
-from inspec import const
+from inspec.chars import Char
 
 
 PositionSlider = namedtuple("PositionSlider", [
@@ -35,21 +35,21 @@ def generate_position_slider(position_slider, n_chars):
     string = ""
     for i in range(n_chars):
         if i < char_to_start and i + 1 <= char_to_start:
-            string += const.FULL_0
+            string += Char.FULL_0
         elif i < char_to_start and i + 1 > char_to_start:
-            string += const.QTR_0010
+            string += Char.QTR_0010
         elif i == char_to_start and char_width < 1:
-            string += const.QTR_1000
+            string += Char.QTR_1000
         elif i == char_to_start:
-            string += const.HALF_10
+            string += Char.HALF_10
         elif i < char_to_start < i + 1:
-            string += const.QTR_0010
+            string += Char.QTR_0010
         elif i < char_to_end and i + 1 <= char_to_end:
-            string += const.HALF_10
+            string += Char.HALF_10
         elif i < char_to_end and i + 1 > char_to_end:
-            string += const.QTR_1000
+            string += Char.QTR_1000
         else:
-            string += const.FULL_0
+            string += Char.FULL_0
 
     return " {} ".format(string)
 

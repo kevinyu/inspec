@@ -1,9 +1,14 @@
+from dataclasses import dataclass
 import sys
 from collections import namedtuple
+from typing import Iterator
 
 import numpy as np
+from numpy.typing import NDArray
 
-from inspec import const, var
+from inspec import var
+from inspec.colormap import Colormap
+from inspec.chars import Char, IChar
 
 
 # Set Console Mode so that ANSI codes will work
@@ -13,11 +18,18 @@ if sys.platform == "win32":
     kernel32.SetConsoleMode(kernel32.GetStdHandle(-11), 7)
 
 
-Char = namedtuple("Char", [
-    "char",
-    "fg",
-    "bg",
-])
+@dataclass
+class CharWithColor:
+    char: IChar
+    fg: float
+    bg: float
+
+
+@dataclass
+class CharWithColor256:
+    char: IChar
+    fg: Colormap.Color256
+    bg: Colormap.Color256
 
 
 class MapNotFound(Exception):
@@ -29,10 +41,10 @@ class CharMap(object):
     """
 
     patch_dimensions = (1, 1)
-    background_char = Char(char=const.FULL_0, fg=0, bg=0)
+    background_char = CharWithColor(char=Char.FULL_0, fg=0, bg=0)
 
     @classmethod
-    def iter_patches(cls, img):
+    def iter_patches(cls, img: NDArray) -> Iterator[tuple[tuple[int, int], NDArray]]:
         """Iterate over patches of image
 
         Iterates over the patches of a (H, W) image row by row, i.e.
@@ -57,13 +69,13 @@ class CharMap(object):
                 ]
 
     @classmethod
-    def max_img_shape(cls, char_rows, char_cols):
+    def max_img_shape(cls, char_rows, char_cols) -> tuple[int, int]:
         """Return the largest image size that can be rendered for a given size in characters
         """
         return (char_rows * cls.patch_dimensions[0], char_cols * cls.patch_dimensions[1])
 
     @classmethod
-    def to_char_array(cls, img, floor=None, ceil=None):
+    def to_char_array(cls, img, floor=None, ceil=None) -> NDArray[CharWithColor]:  # type: ignore
         """Convert an image array into an array of tuples with character and color info
 
         Params
@@ -105,7 +117,7 @@ class CharMap(object):
         return char_array
 
     @classmethod
-    def patch_to_char(cls, patch):
+    def patch_to_char(cls, patch) -> CharWithColor:
         """Convert a patch of values between 0 and 1 to a character and colors"""
         raise NotImplementedError
 
@@ -115,9 +127,9 @@ class FullCharMap(CharMap):
     patch_dimensions = (1, 1)
 
     @classmethod
-    def patch_to_char(cls, patch):
+    def patch_to_char(cls, patch) -> CharWithColor:
         bin0 = patch[0, 0]
-        return Char(char=const.FULL_1, fg=bin0, bg=bin0)
+        return CharWithColor(char=Char.FULL_1, fg=bin0, bg=bin0)
 
 
 class HalfCharMap(CharMap):
@@ -125,14 +137,14 @@ class HalfCharMap(CharMap):
     patch_dimensions = (2, 1)
 
     @classmethod
-    def patch_to_char(cls, patch):
+    def patch_to_char(cls, patch) -> CharWithColor:
         bin0, bin1 = patch[:, 0]
         if bin0 == bin1 == 0:
             return cls.background_char
         elif bin0 == bin1 != 0:
-            return Char(char=const.FULL_1, fg=bin0, bg=bin1)
+            return CharWithColor(char=Char.FULL_1, fg=bin0, bg=bin1)
         else:
-            return Char(char=const.HALF_10, fg=bin0, bg=bin1)
+            return CharWithColor(char=Char.HALF_10, fg=bin0, bg=bin1)
 
 
 class QuarterCharMap(CharMap):
@@ -140,7 +152,7 @@ class QuarterCharMap(CharMap):
     patch_dimensions = (2, 2)
 
     @classmethod
-    def patch_to_char(cls, patch):
+    def patch_to_char(cls, patch) -> CharWithColor:
         """Convert a 2x2 patch of fractional weights to a unicode character and colors
 
         Avoids using slower numpy operations for means and such
@@ -148,7 +160,7 @@ class QuarterCharMap(CharMap):
         flat_patch = patch[0, 0], patch[0, 1], patch[1, 0], patch[1, 1]
         patch_mean = sum(flat_patch) / 4
         mask = [p > patch_mean for p in flat_patch]
-        char = getattr(const, "QTR_{0}{2}{1}{3}".format(*map(int, mask)))
+        char = getattr(Char, "QTR_{0}{2}{1}{3}".format(*map(int, mask)))
 
         frac_lower = 0.0
         frac_greater = 0.0
@@ -168,22 +180,22 @@ class QuarterCharMap(CharMap):
         if len_greater == 0 and patch_mean == 0:
             return cls.background_char
         elif len_greater == 0:
-            return Char(char=const.FULL_1, fg=frac_lower, bg=frac_lower)
+            return CharWithColor(char=Char.FULL_1, fg=frac_lower, bg=frac_lower)
 
         frac_greater /= len_greater
 
         if frac_lower == frac_greater == 0:
             return cls.background_char
         elif frac_lower == frac_greater != 0:
-            return Char(char=const.FULL_1, fg=frac_greater, bg=frac_lower)
+            return CharWithColor(char=Char.FULL_1, fg=frac_greater, bg=frac_lower)
         else:
-            return Char(char=char, fg=frac_greater, bg=frac_lower)
+            return CharWithColor(char=char, fg=frac_greater, bg=frac_lower)
 
 
 class CharMapRGB(CharMap):
 
     @classmethod
-    def to_char_array(cls, img):
+    def to_char_array(cls, img) -> NDArray[CharWithColor]:  # type: ignore
         raise NotImplementedError
 
 

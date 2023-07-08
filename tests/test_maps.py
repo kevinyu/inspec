@@ -2,9 +2,10 @@ import unittest
 
 import numpy as np
 
-from inspec import const
+from inspec.chars import Char
 from inspec.maps import (
-    Char,
+    CharWithColor,
+    CharWithColor256,
     CharMap,
     FullCharMap,
     HalfCharMap,
@@ -100,8 +101,8 @@ class TestFullCharMap(unittest.TestCase):
 
     def test_patch_to_char(self):
         result = FullCharMap.patch_to_char(np.array([[0.2]]))
-        self.assertEqual(result, Char(
-            char=const.FULL_1,
+        self.assertEqual(result, CharWithColor(
+            char=Char.FULL_1,
             fg=0.2,
             bg=0.2
         ))
@@ -135,29 +136,29 @@ class TestHalfCharMap(unittest.TestCase):
 
     def test_patch_to_char(self):
         result = HalfCharMap.patch_to_char(np.array([[0.7], [0.2]]))
-        self.assertEqual(result, Char(
-            char=const.HALF_10,
+        self.assertEqual(result, CharWithColor(
+            char=Char.HALF_10,
             fg=0.7,
             bg=0.2
         ))
 
         result = HalfCharMap.patch_to_char(np.array([[0.2], [0.7]]))
-        self.assertEqual(result, Char(
-            char=const.HALF_10,
+        self.assertEqual(result, CharWithColor(
+            char=Char.HALF_10,
             fg=0.2,
             bg=0.7
         ))
 
         result = HalfCharMap.patch_to_char(np.array([[0.5], [0.5]]))
-        self.assertEqual(result, Char(
-            char=const.FULL_1,
+        self.assertEqual(result, CharWithColor(
+            char=Char.FULL_1,
             fg=0.5,
             bg=0.5
         ))
 
         result = HalfCharMap.patch_to_char(np.array([[0.0], [0.0]]))
-        self.assertEqual(result, Char(
-            char=const.FULL_0,
+        self.assertEqual(result, CharWithColor(
+            char=Char.FULL_0,
             fg=0.0,
             bg=0.0
         ))
@@ -193,8 +194,8 @@ class TestQuarterCharMap(unittest.TestCase):
             [0.2, 0.2],
             [0.2, 0.2]
         ]))
-        self.assertEqual(result, Char(
-            char=const.FULL_1,
+        self.assertEqual(result, CharWithColor(
+            char=Char.FULL_1,
             fg=0.2,
             bg=0.2
         ))
@@ -203,8 +204,8 @@ class TestQuarterCharMap(unittest.TestCase):
             [0.0, 0.0],
             [0.0, 0.0]
         ]))
-        self.assertEqual(result, Char(
-            char=const.FULL_0,
+        self.assertEqual(result, CharWithColor(
+            char=Char.FULL_0,
             fg=0.0,
             bg=0.0
         ))
@@ -213,8 +214,8 @@ class TestQuarterCharMap(unittest.TestCase):
             [0.7, 0.2],
             [0.2, 0.5]
         ]))
-        self.assertEqual(result, Char(
-            char=const.QTR_1001,
+        self.assertEqual(result, CharWithColor(
+            char=Char.QTR_1001,
             fg=0.6,
             bg=0.2
         ))
@@ -223,8 +224,8 @@ class TestQuarterCharMap(unittest.TestCase):
             [0.7, 0.7],
             [0.2, 0.3]
         ]))
-        self.assertEqual(result, Char(
-            char=const.QTR_1010,
+        self.assertEqual(result, CharWithColor(
+            char=Char.QTR_1010,
             fg=0.7,
             bg=0.25
         ))
@@ -233,8 +234,8 @@ class TestQuarterCharMap(unittest.TestCase):
             [0.1, 0.65],
             [0.65, 0.65]
         ]))
-        self.assertEqual(result, Char(
-            char=const.QTR_0111,
+        self.assertEqual(result, CharWithColor(
+            char=Char.QTR_0111,
             fg=0.65,
             bg=0.1
         ))

@@ -1,6 +1,6 @@
 import curses
 
-from inspec import const
+from inspec.chars import Char
 
 
 def add_breakpoint(stdscr):
@@ -15,7 +15,12 @@ def add_breakpoint(stdscr):
 def view_colormap(stdscr, cmap=None, num=True):
     curses.use_default_colors()
 
-    from inspec.colormap import curses_cmap, load_cmap
+    from inspec.colormap import (
+        set_curses_cmap,
+        load_cmap,
+        get_slot,
+        get_curses_cmap,
+    )
 
     if cmap is None:
         show_full = True
@@ -48,7 +53,7 @@ def view_colormap(stdscr, cmap=None, num=True):
                     if num:
                         full_str = (WIDTH - len(color_str)) * " " + color_str
                     else:
-                        full_str = WIDTH * const.FULL_1
+                        full_str = WIDTH * Char.FULL_1
 
                     col = ((i) // 2) * WIDTH * 6
                     row = block_idx
@@ -65,7 +70,7 @@ def view_colormap(stdscr, cmap=None, num=True):
                     if num:
                         full_str = (WIDTH - len(color_str)) * " " + color_str
                     else:
-                        full_str = WIDTH * const.FULL_1
+                        full_str = WIDTH * Char.FULL_1
 
                     row = bottom * 6 + block_idx % 6
                     col = WIDTH + ((i - 1) // 2) * WIDTH * 6 + (block_idx // 6) * WIDTH
@@ -73,25 +78,26 @@ def view_colormap(stdscr, cmap=None, num=True):
                     stdscr.addstr(row, col, full_str, color)
     else:
         cmap = load_cmap(cmap)
-        curses_cmap.init_colormap(cmap)
+        set_curses_cmap(cmap)
 
         col_idx = 0
         row_idx = 0
-        for color0 in curses_cmap.colors:
-            for color1 in curses_cmap.colors:
-                slot, inv = curses_cmap.get_slot(color0, color1)
+        for color0 in cmap.colors:
+            for color1 in cmap.colors:
+                slot, inv = get_slot(color0, color1)
                 color_str = str(slot)
                 if num:
                     full_str = (WIDTH - len(color_str)) * " " + color_str
                 else:
                     if color0.idx == color1.idx == 0:
-                        full_str = WIDTH * const.FULL_0
+                        char = Char.FULL_0
                     elif color0.idx == color1.idx != 0:
-                        full_str = WIDTH * const.FULL_1
-                    elif inv:
-                        full_str = WIDTH * const.QTR_1001
+                        char = Char.FULL_1
                     else:
-                        full_str = WIDTH * const.QTR_0110
+                        char = Char.QTR_0110
+                        if inv:
+                            char = char.invert()
+                    full_str = WIDTH * char
                 row_idx += 1
                 color = curses.color_pair(slot)
                 try:

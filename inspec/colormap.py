@@ -7,8 +7,23 @@ from typing import NewType, Optional, Union
 import numpy as np
 from numpy.typing import NDArray
 
-from inspec import const, var
+from inspec import var
 
+# This was calculated by hand. We have 256 colors but we are also limited to 256 slots of fg/bg
+# pairs. We do not need any slots where fg==bg, since we can represent those with a " " and any
+# value for fg. We also do not any slots where bg > fg (by convention) since we can just swap fg
+# and bg, and use an inverted character, e.g. ("▜", fg=1, bg=2) is the same as ("▟", fg=2, bg=1)
+# So...
+# * 2 colors, we need 1 slot (A, B)
+# * 3 colors, we need 3 slots (A, B), (A, C), (B, C)
+# * 4 colors, we need 6 slots (A, B), (A, C), (A, D), (B, C), (B, D), (C, D)
+# ...
+# * n colors, we need n*(n-1)/2 slots
+# * 22 colors, we need 231 slots
+# * 23 colors, we need 253 slots
+# I think I picked 22 becuase I think some slots needed to be reserved (like 8) and cant be
+# modified.
+_MAX_PAIRED_COLORS = 22
 _CURRENT_COLORMAP: Optional[PairedColormap] = None
 
 
@@ -94,9 +109,9 @@ class PairedColormap:
         """
         if len(self.colors) <= 1:
             raise ValueError("At least 2 colors must be defined in a colormap")
-        if len(self.colors) > const.MAX_PAIRED_COLORS:
+        if len(self.colors) > _MAX_PAIRED_COLORS:
             raise ValueError("Too many colors! {} out of max {}".format(
-                len(self.colors), const.MAX_PAIRED_COLORS))
+                len(self.colors), _MAX_PAIRED_COLORS))
 
     def scale(self, frac: float) -> Colormap.ColorBin:
         """
