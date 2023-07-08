@@ -3,7 +3,7 @@ import curses
 import numpy as np
 
 from inspec import const
-from inspec.colormap import curses_cmap
+from inspec.colormap import set_curses_cmap, get_slot
 from inspec.maps import Char
 
 
@@ -58,14 +58,14 @@ class CursesRenderer(BaseRenderer):
     @staticmethod
     def apply_cmap_to_char_array(cmap, char_array):
         """Applies a colormap to trasnslate float values in char_array to ColorSlots"""
-        curses_cmap.init_colormap(cmap)
+        set_curses_cmap(cmap)
         char_array = BaseRenderer.apply_cmap_to_char_array(cmap, char_array)
 
         output_array = np.empty(char_array.shape, dtype=object)
         for i in range(output_array.shape[0]):
             for j in range(output_array.shape[1]):
                 char = char_array[i, j]
-                slot, invert = curses_cmap.get_slot(char.fg, char.bg)
+                slot, invert = get_slot(char.fg, char.bg)
                 if invert:
                     char_ = const.INVERT[char.char]
                 elif char.fg.idx == char.bg.idx == 0:
