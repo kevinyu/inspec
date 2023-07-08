@@ -13,7 +13,6 @@ class CursesRenderError(Exception):
 
 
 class BaseRenderer(object):
-
     @staticmethod
     def apply_cmap_to_char_array(cmap: PairedColormap, char_array: NDArray[CharWithColor]) -> NDArray[CharWithColor256]:  # type: ignore
         """Applies a colormap to trasnslate float values in char_array to Color256s"""
@@ -25,7 +24,7 @@ class BaseRenderer(object):
                 output_array[i, j] = CharWithColor256(
                     char=char.char,
                     fg=cmap.scale_to_color(char.fg),
-                    bg=cmap.scale_to_color(char.bg)
+                    bg=cmap.scale_to_color(char.bg),
                 )
 
         return output_array
@@ -36,12 +35,13 @@ class BaseRenderer(object):
 
 
 class StdoutRenderer(BaseRenderer):
-
     @staticmethod
     def _ansi(fg_color: int = 0, bg_color: int = 0, reset=False):
         if reset:
             return "\u001b[0m"
-        return "\u001b[38;5;{fg_color}m\u001b[48;5;{bg_color}m".format(fg_color=fg_color, bg_color=bg_color)
+        return "\u001b[38;5;{fg_color}m\u001b[48;5;{bg_color}m".format(
+            fg_color=fg_color, bg_color=bg_color
+        )
 
     @staticmethod
     def render(char_array: NDArray[CharWithColor256]):  # type: ignore
@@ -50,16 +50,18 @@ class StdoutRenderer(BaseRenderer):
             row_output = ""
             for char_with_color in row:
                 char_with_color: CharWithColor256
-                row_output += StdoutRenderer._ansi(
-                    char_with_color.fg,
-                    char_with_color.bg,
-                ) + char_with_color.char
+                row_output += (
+                    StdoutRenderer._ansi(
+                        char_with_color.fg,
+                        char_with_color.bg,
+                    )
+                    + char_with_color.char
+                )
             row_output += StdoutRenderer._ansi(reset=True)
             print(row_output)
 
 
 class CursesRenderer(BaseRenderer):
-
     @staticmethod
     def apply_cmap_to_char_array(cmap, char_array: NDArray[CharWithColor]) -> NDArray[CharWithColor256]:  # type: ignore
         """Applies a colormap to trasnslate float values in char_array to ColorSlots"""
@@ -91,8 +93,7 @@ class CursesRenderer(BaseRenderer):
         start_row=0,
         start_col=0,
     ):
-        """Render a array of unicode characters with color slots to window
-        """
+        """Render a array of unicode characters with color slots to window"""
         errored_on = 0
         for row in range(char_array.shape[0]):
             for col in range(char_array.shape[1]):
@@ -104,10 +105,12 @@ class CursesRenderer(BaseRenderer):
                         start_row + char_array.shape[0] - row - 1,
                         start_col + col,
                         str(char),
-                        color
+                        color,
                     )
                 except curses.error:
                     errored_on += 1
 
         if errored_on > 1:
-            raise CursesRenderError("Could not write to more than just the last character in window")
+            raise CursesRenderError(
+                "Could not write to more than just the last character in window"
+            )

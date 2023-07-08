@@ -18,13 +18,15 @@ def _estimate(signal, sample_rate, start_time, end_time, nstd):
     # Construct the window
     gauss_t = np.arange(-half_win_size, half_win_size + 1, 1.0)
     gauss_std = float(win_size) / float(nstd)
-    gauss_window = np.exp(-gauss_t**2 / (2.0 * gauss_std**2)) / (gauss_std * np.sqrt(2 * np.pi))
+    gauss_window = np.exp(-(gauss_t**2) / (2.0 * gauss_std**2)) / (
+        gauss_std * np.sqrt(2 * np.pi)
+    )
 
     # Window the signal and take the FFT
     fft_len = len(signal)
     windowed_slice = signal[:fft_len] * gauss_window[:fft_len]
     s_fft = np.fft.fft(windowed_slice, n=fft_len)
-    freq = np.fft.fftfreq(fft_len, d=1.0/sample_rate)
+    freq = np.fft.fftfreq(fft_len, d=1.0 / sample_rate)
     nz = freq >= 0.0
 
     return freq[nz], s_fft[nz]
@@ -34,7 +36,15 @@ def _get_window_length(freq_spacing, nstd):
     return nstd / (2.0 * np.pi * freq_spacing)
 
 
-def compute_spectrogram(signal, sampling_rate, spec_sample_rate, freq_spacing, nstd=6, min_freq=0, max_freq=None):
+def compute_spectrogram(
+    signal,
+    sampling_rate,
+    spec_sample_rate,
+    freq_spacing,
+    nstd=6,
+    min_freq=0,
+    max_freq=None,
+):
     """Spectrogram computation
 
     Copied/adapted from https://github.com/theunissenlab/soundsig to remove
@@ -74,7 +84,7 @@ def compute_spectrogram(signal, sampling_rate, spec_sample_rate, freq_spacing, n
     window_centers = np.arange(nwindows) * nincrement + half_win_size
 
     # Take the FFT of each segment, padding with zeros when necessary to keep window length the same
-    spec = np.zeros([nfreq, nwindows], dtype='complex')
+    spec = np.zeros([nfreq, nwindows], dtype="complex")
     for k in range(nwindows):
         center = window_centers[k]
         start_idx = center - half_win_size
@@ -85,7 +95,7 @@ def compute_spectrogram(signal, sampling_rate, spec_sample_rate, freq_spacing, n
             sampling_rate,
             start_idx / sampling_rate,
             end_idx / sampling_rate,
-            nstd
+            nstd,
         )
         findex = (spec_freq <= max_freq) & (spec_freq >= min_freq)
         spec[:, k] = est[findex]
@@ -159,11 +169,7 @@ def resize(spec, target_height, target_width):
 
 def resize_1d(signal, output_len):
     t = np.linspace(0, len(signal), output_len)
-    resized = np.interp(
-        t,
-        np.linspace(0, len(signal), len(signal)),
-        signal
-    )
+    resized = np.interp(t, np.linspace(0, len(signal), len(signal)), signal)
     return resized
 
 
@@ -177,7 +183,6 @@ class InspecTransform(object):
 
 
 class AudioTransform(InspecTransform):
-
     def convert(self, data, sampling_rate):
         """Convert 1D audio signal into a 2D image array
 
@@ -187,14 +192,13 @@ class AudioTransform(InspecTransform):
 
 
 class SpectrogramTransform(AudioTransform):
-
     def __init__(
-            self,
-            spec_sampling_rate,
-            spec_freq_spacing,
-            min_freq=0,
-            max_freq=None,
-            ):
+        self,
+        spec_sampling_rate,
+        spec_freq_spacing,
+        min_freq=0,
+        max_freq=None,
+    ):
         self.spec_sampling_rate = spec_sampling_rate
         self.spec_freq_spacing = spec_freq_spacing
         self.min_freq = min_freq
@@ -234,14 +238,13 @@ class SpectrogramTransform(AudioTransform):
                 "freq_spacing": self.spec_freq_spacing,
                 "min_freq": self.min_freq,
                 "max_freq": self.max_freq,
-            }
+            },
         }
 
         return spec, metadata
 
 
 class AmplitudeEnvelopeTwoSidedTransform(AudioTransform):
-
     def __init__(self, gradient=None, ymax=None):
         """Initialize an 2-sided amplitude envelope image
 
@@ -256,10 +259,10 @@ class AmplitudeEnvelopeTwoSidedTransform(AudioTransform):
             not to start it at 0 exactly
         """
         if gradient and (
-                    not isinstance(gradient, tuple)
-                    or not len(gradient) == 2
-                    or not (0 <= gradient[0] <= gradient[1] <= 1)
-                ):
+            not isinstance(gradient, tuple)
+            or not len(gradient) == 2
+            or not (0 <= gradient[0] <= gradient[1] <= 1)
+        ):
             raise ValueError("Gradient must be a tuple of 2 floats between 0 and 1")
         self.ymax = ymax
         self.gradient = gradient
@@ -305,34 +308,33 @@ class AmplitudeEnvelopeTwoSidedTransform(AudioTransform):
             "t": t,
             "AmplitudeEnvelopeTwoSidedTransform": {
                 "ymax": ymax,
-                "gradient": self.gradient
-            }
+                "gradient": self.gradient,
+            },
         }
 
         return img, metadata
 
 
 class PilImageTransform(InspecTransform):
-
     pil_convert_mode = "L"
 
     def __init__(
-            self,
-            keep_aspect_ratio=True,
-            character_aspect_ratio=var.TERM_CHAR_ASPECT_RATIO,
-            thumbnail=False,
-            ):
+        self,
+        keep_aspect_ratio=True,
+        character_aspect_ratio=var.TERM_CHAR_ASPECT_RATIO,
+        thumbnail=False,
+    ):
         self.keep_aspect_ratio = keep_aspect_ratio
         self.character_aspect_ratio = character_aspect_ratio
         self.thumbnail = thumbnail
 
     def convert(
-            self,
-            data,
-            output_size,
-            size_multiple_of=None,
-            rotated=False,
-            ):
+        self,
+        data,
+        output_size,
+        size_multiple_of=None,
+        rotated=False,
+    ):
         """Convert an PIL array into greyscale"""
         original_height, original_width = data.height, data.width
 
@@ -344,10 +346,7 @@ class PilImageTransform(InspecTransform):
         # the first two conditions. Also, it comes out a lower resolution than may
         # be desired.
         if self.keep_aspect_ratio:
-            aspect_ratio = (
-                original_height
-                / original_width
-            )
+            aspect_ratio = original_height / original_width
             if rotated:
                 pseudo_aspect_ratio = aspect_ratio * self.character_aspect_ratio
             else:
@@ -355,9 +354,8 @@ class PilImageTransform(InspecTransform):
 
             if size_multiple_of is not None:
                 pseudo_aspect_ratio = (
-                    (size_multiple_of[0] * pseudo_aspect_ratio)
-                    / size_multiple_of[1]
-                )
+                    size_multiple_of[0] * pseudo_aspect_ratio
+                ) / size_multiple_of[1]
 
             proposed_new_width = int(np.floor(output_size[0] / pseudo_aspect_ratio))
             proposed_new_height = int(np.floor(pseudo_aspect_ratio * output_size[1]))
@@ -388,8 +386,8 @@ class PilImageTransform(InspecTransform):
             {
                 "keep_aspect_ratio": self.keep_aspect_ratio,
                 "character_aspect_ratio": self.character_aspect_ratio,
-                "image_mode": self.pil_convert_mode
-            }
+                "image_mode": self.pil_convert_mode,
+            },
         )
 
 

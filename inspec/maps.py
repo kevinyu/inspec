@@ -14,6 +14,7 @@ from inspec.chars import Char, IChar
 # Set Console Mode so that ANSI codes will work
 if sys.platform == "win32":
     import ctypes
+
     kernel32 = ctypes.windll.kernel32
     kernel32.SetConsoleMode(kernel32.GetStdHandle(-11), 7)
 
@@ -37,8 +38,7 @@ class MapNotFound(Exception):
 
 
 class CharMap(object):
-    """Base class for translating 2D image data into 2D array of unicode characters
-    """
+    """Base class for translating 2D image data into 2D array of unicode characters"""
 
     patch_dimensions = (1, 1)
     background_char = CharWithColor(char=Char.FULL_0, fg=0, bg=0)
@@ -57,22 +57,29 @@ class CharMap(object):
 
         On each iteration, yields the (output row_idx, output col_idx) tuple and the patch array
         """
-        if img.shape[0] % cls.patch_dimensions[0] or img.shape[1] % cls.patch_dimensions[1]:
-            raise ValueError("Image to convert to characters must be a even multiple of patch size")
+        if (
+            img.shape[0] % cls.patch_dimensions[0]
+            or img.shape[1] % cls.patch_dimensions[1]
+        ):
+            raise ValueError(
+                "Image to convert to characters must be a even multiple of patch size"
+            )
 
         rows, cols = img.shape
-        for row_idx, row in enumerate(range(rows)[::cls.patch_dimensions[0]]):
-            for col_idx, col in enumerate(range(cols)[::cls.patch_dimensions[1]]):
+        for row_idx, row in enumerate(range(rows)[:: cls.patch_dimensions[0]]):
+            for col_idx, col in enumerate(range(cols)[:: cls.patch_dimensions[1]]):
                 yield (row_idx, col_idx), img[
                     slice(row, row + cls.patch_dimensions[0]),
-                    slice(col, col + cls.patch_dimensions[1])
+                    slice(col, col + cls.patch_dimensions[1]),
                 ]
 
     @classmethod
     def max_img_shape(cls, char_rows, char_cols) -> tuple[int, int]:
-        """Return the largest image size that can be rendered for a given size in characters
-        """
-        return (char_rows * cls.patch_dimensions[0], char_cols * cls.patch_dimensions[1])
+        """Return the largest image size that can be rendered for a given size in characters"""
+        return (
+            char_rows * cls.patch_dimensions[0],
+            char_cols * cls.patch_dimensions[1],
+        )
 
     @classmethod
     def to_char_array(cls, img, floor=None, ceil=None) -> NDArray[CharWithColor]:  # type: ignore
@@ -88,8 +95,13 @@ class CharMap(object):
         The foreground and background colors are represented as Fracs so as to not be
         specific to a single colormap.
         """
-        if img.shape[0] % cls.patch_dimensions[0] or img.shape[1] % cls.patch_dimensions[1]:
-            raise ValueError("Image to convert to characters must be a even multiple of patch size")
+        if (
+            img.shape[0] % cls.patch_dimensions[0]
+            or img.shape[1] % cls.patch_dimensions[1]
+        ):
+            raise ValueError(
+                "Image to convert to characters must be a even multiple of patch size"
+            )
 
         # img_min = np.min(img)
         # img_max = np.max(img)
@@ -100,7 +112,7 @@ class CharMap(object):
 
         output_shape = (
             img.shape[0] // cls.patch_dimensions[0],
-            img.shape[1] // cls.patch_dimensions[1]
+            img.shape[1] // cls.patch_dimensions[1],
         )
 
         char_array = np.empty(output_shape, dtype=object)
@@ -108,11 +120,9 @@ class CharMap(object):
             if floor == ceil:
                 char_array[row, col] = cls.background_char
             else:
-                char_array[row, col] = cls.patch_to_char(np.clip(
-                    (patch - floor) / (ceil - floor),
-                    0,
-                    1
-                ))
+                char_array[row, col] = cls.patch_to_char(
+                    np.clip((patch - floor) / (ceil - floor), 0, 1)
+                )
 
         return char_array
 
@@ -123,7 +133,6 @@ class CharMap(object):
 
 
 class FullCharMap(CharMap):
-
     patch_dimensions = (1, 1)
 
     @classmethod
@@ -133,7 +142,6 @@ class FullCharMap(CharMap):
 
 
 class HalfCharMap(CharMap):
-
     patch_dimensions = (2, 1)
 
     @classmethod
@@ -148,7 +156,6 @@ class HalfCharMap(CharMap):
 
 
 class QuarterCharMap(CharMap):
-
     patch_dimensions = (2, 2)
 
     @classmethod
@@ -193,7 +200,6 @@ class QuarterCharMap(CharMap):
 
 
 class CharMapRGB(CharMap):
-
     @classmethod
     def to_char_array(cls, img) -> NDArray[CharWithColor]:  # type: ignore
         raise NotImplementedError

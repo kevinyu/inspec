@@ -17,10 +17,12 @@ class Paginator(object):
             raise ValueError("Page < 0 out of range")
         elif page_idx > self.n_pages - 1:
             raise ValueError("Page > {} out of range".format(self.n_pages - 1))
-        return list(range(
-            page_idx * self.items_per_page,
-            min((page_idx + 1) * self.items_per_page, self.total)
-        ))
+        return list(
+            range(
+                page_idx * self.items_per_page,
+                min((page_idx + 1) * self.items_per_page, self.total),
+            )
+        )
 
     def item_to_page(self, item_idx):
         return item_idx // (self.rows * self.cols)
