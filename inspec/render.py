@@ -14,7 +14,10 @@ class CursesRenderError(Exception):
 
 class BaseRenderer(object):
     @staticmethod
-    def apply_cmap_to_char_array(cmap: PairedColormap, char_array: NDArray[CharWithColor]) -> NDArray[CharWithColor256]:  # type: ignore
+    def apply_cmap_to_char_array(
+        cmap: PairedColormap,
+        char_array: NDArray[CharWithColor]  # type: ignore
+    ) -> NDArray[CharWithColor256]:  # type: ignore
         """Applies a colormap to trasnslate float values in char_array to Color256s"""
         output_array = np.empty(char_array.shape, dtype=object)
         for i in range(output_array.shape[0]):
@@ -63,7 +66,10 @@ class StdoutRenderer(BaseRenderer):
 
 class CursesRenderer(BaseRenderer):
     @staticmethod
-    def apply_cmap_to_char_array(cmap, char_array: NDArray[CharWithColor]) -> NDArray[CharWithColor256]:  # type: ignore
+    def apply_cmap_to_char_array(
+        cmap: PairedColormap,
+        char_array: NDArray[CharWithColor]  # type: ignore
+    ) -> NDArray[CharWithColor256]:  # type: ignore
         """Applies a colormap to trasnslate float values in char_array to ColorSlots"""
         set_curses_cmap(cmap)
         char_array = BaseRenderer.apply_cmap_to_char_array(cmap, char_array)
