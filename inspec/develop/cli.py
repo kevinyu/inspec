@@ -17,11 +17,7 @@ def benchmark_render(height, width, repeat):
     import numpy as np
 
     from inspec.colormap import load_cmap
-    from inspec.maps import (
-        FullCharMap,
-        HalfCharMap,
-        QuarterCharMap,
-    )
+    from inspec.maps import MapType, get_map
     from inspec.render import StdoutRenderer
 
     cmap = load_cmap(None)
@@ -33,7 +29,9 @@ def benchmark_render(height, width, repeat):
         msgs.append("{}: {:.3f}s / loop".format(msg, (time.time() - _t) / cycles))
         _t = time.time()
 
-    for mapper in [FullCharMap, HalfCharMap, QuarterCharMap]:
+    assert repeat >= 1
+    for map_type in (MapType.Full, MapType.Half, MapType.Quarter):
+        mapper = get_map(map_type)
         random_data = np.random.random((
             height * mapper.patch_dimensions[0], width * mapper.patch_dimensions[1]
         )) * 1000
@@ -42,10 +40,10 @@ def benchmark_render(height, width, repeat):
             char_array = mapper.to_char_array(random_data)
         _profile("Mapped array {} to char array with {}".format(random_data.shape, mapper), repeat)
         for _ in range(repeat):
-            cmapped_array = StdoutRenderer.apply_cmap_to_char_array(cmap, char_array)
+            cmapped_array = StdoutRenderer.apply_cmap_to_char_array(cmap, char_array)  # type: ignore
         _profile("Applied cmap to char array of size {}".format(random_data.shape), repeat)
         for _ in range(repeat):
-            StdoutRenderer.render(cmapped_array)
+            StdoutRenderer.render(cmapped_array)  # type: ignore
         _profile("Rendered {}".format(random_data.shape), repeat)
 
     for msg in msgs:
