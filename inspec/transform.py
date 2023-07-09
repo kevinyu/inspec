@@ -10,13 +10,19 @@ from inspec import var
 from inspec.io import LoadedAudioData, LoadedImage, ReturnT
 
 
-def _get_frequencies(signal_length, sample_rate):
+def _get_frequencies(signal_length: int, sample_rate: int):
     freq = np.fft.fftfreq(signal_length, d=1.0 / sample_rate)
     nz = freq >= 0.0
     return freq[nz]
 
 
-def _estimate(signal, sample_rate, start_time, end_time, nstd):
+def _calculate_fft(
+    signal: NDArray[np.float64],
+    sample_rate: int,
+    nstd: float,
+) -> tuple[NDArray[np.float64], NDArray[np.complex128]]:
+    assert signal.ndim == 1
+
     win_size = len(signal)
     if win_size % 2 == 0:
         win_size += 1
@@ -39,24 +45,31 @@ def _estimate(signal, sample_rate, start_time, end_time, nstd):
     return freq[nz], s_fft[nz]
 
 
-def _get_window_length(freq_spacing, nstd):
+def _get_window_length(freq_spacing: float, nstd: float) -> float:
     return nstd / (2.0 * np.pi * freq_spacing)
 
 
+TimeArray = NDArray[np.float64]
+FrequencyArray = NDArray[np.float64]
+SpectrogramArray = NDArray[np.float64]  # Expect a 2D array
+
+
 def compute_spectrogram(
-    signal,
-    sampling_rate,
-    spec_sample_rate,
-    freq_spacing,
-    nstd=6,
-    min_freq=0,
-    max_freq=None,
-):
+    signal: NDArray[np.float64],
+    sampling_rate: int,
+    spec_sample_rate: int,
+    freq_spacing: float,
+    nstd: int = 6,
+    min_freq: float = 0,
+    max_freq: Optional[float] = None,
+) -> tuple[TimeArray, FrequencyArray, SpectrogramArray]:
     """Spectrogram computation
 
     Copied/adapted from https://github.com/theunissenlab/soundsig to remove
     dependency and avoid slow import
     """
+    assert signal.ndim == 1
+
     increment = 1.0 / spec_sample_rate
     window_length = _get_window_length(freq_spacing, nstd)
 
@@ -97,11 +110,9 @@ def compute_spectrogram(
         start_idx = center - half_win_size
         end_idx = center + half_win_size + 1
 
-        spec_freq, est = _estimate(
+        spec_freq, est = _calculate_fft(
             zeros[start_idx:end_idx],
             sampling_rate,
-            start_idx / sampling_rate,
-            end_idx / sampling_rate,
             nstd,
         )
         findex = (spec_freq <= max_freq) & (spec_freq >= min_freq)
@@ -114,7 +125,7 @@ def compute_spectrogram(
     return t_arr, freq_arr, spec
 
 
-def resize(spec, target_height, target_width):
+def resize(spec: SpectrogramArray, target_height: int, target_width: int) -> SpectrogramArray:
     """Resize a 2D array with bilinear interpolation
 
     A modified version of https://chao-ji.github.io/jekyll/update/2018/07/19/BilinearResize.html
@@ -122,6 +133,8 @@ def resize(spec, target_height, target_width):
     `image` is a 2-D numpy array
     `height` and `width` are the desired spatial dimension of the new 2-D array.
     """
+    assert spec.ndim == 2
+
     original_height, original_width = spec.shape
     resized = np.empty([target_height, target_width])
 
@@ -174,13 +187,15 @@ def resize(spec, target_height, target_width):
     return resized
 
 
-def resize_1d(signal, output_len):
+def resize_1d(signal: NDArray, output_len: int) -> NDArray:
+    assert signal.ndim == 1
     t = np.linspace(0, len(signal), output_len)
     resized = np.interp(t, np.linspace(0, len(signal), len(signal)), signal)
     return resized
 
 
-def compute_ampenv(signal, sampling_rate):
+def compute_ampenv(signal: NDArray, sampling_rate: int) -> NDArray:
+    assert signal.ndim == 1
     return np.abs(signal)
 
 
@@ -198,7 +213,7 @@ class InspecTransform(Generic[ReturnT], abc.ABC):
 
 
 @dataclass
-class AudioTransform(InspecTransform[LoadedAudioData]):
+class AudioTransform(InspecTransform[LoadedAudioData], abc.ABC):
     def convert(
         self,
         data: LoadedAudioData,

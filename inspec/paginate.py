@@ -1,18 +1,21 @@
-class Paginator(object):
-    def __init__(self, rows, cols, total):
-        self.rows = rows
-        self.cols = cols
-        self.total = total
+from dataclasses import dataclass
+
+
+@dataclass
+class Paginator:
+    rows: int
+    cols: int
+    total: int
 
     @property
-    def n_pages(self):
+    def n_pages(self) -> int:
         return 1 + (self.total - 1) // (self.rows * self.cols)
 
     @property
-    def items_per_page(self):
+    def items_per_page(self) -> int:
         return self.rows * self.cols
 
-    def items_on_page(self, page_idx):
+    def items_on_page(self, page_idx: int) -> list[int]:
         if page_idx < 0:
             raise ValueError("Page < 0 out of range")
         elif page_idx > self.n_pages - 1:
@@ -24,5 +27,5 @@ class Paginator(object):
             )
         )
 
-    def item_to_page(self, item_idx):
+    def item_to_page(self, item_idx: int) -> int:
         return item_idx // (self.rows * self.cols)

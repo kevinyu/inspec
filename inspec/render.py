@@ -12,7 +12,7 @@ class CursesRenderError(Exception):
     pass
 
 
-class BaseRenderer(object):
+class BaseRenderer:
     @staticmethod
     def apply_cmap_to_char_array(
         cmap: PairedColormap, char_array: NDArray[CharWithColor]  # type: ignore
