@@ -18,7 +18,7 @@ from inspec.transform import (
 
 
 def run_all_tests(sample_audio_file):
-    data, sampling_rate, metadata = AudioReader.read_file(sample_audio_file)
+    audio_data = AudioReader.read_file(sample_audio_file)
 
     renderer = StdoutRenderer
 
@@ -45,7 +45,11 @@ def run_all_tests(sample_audio_file):
                 termsize = os.get_terminal_size()
                 desired_size = Map.max_img_shape(termsize.lines // 2, termsize.columns // 2)
                 print("Attemping size {}".format(desired_size))
-                img, metadata = transform.convert(data, sampling_rate, output_size=desired_size)
+                img, metadata = transform.convert(
+                    audio_data.data,
+                    audio_data.sampling_rate,
+                    output_size=desired_size
+                )
                 char_array = Map.to_char_array(img)
                 char_array = StdoutRenderer.apply_cmap_to_char_array(cmap, char_array)
                 StdoutRenderer.render(char_array)

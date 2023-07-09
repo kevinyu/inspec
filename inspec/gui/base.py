@@ -11,6 +11,8 @@ import numpy as np
 
 from inspec import var
 from inspec.colormap import list_cmap_names, load_cmap
+from inspec.io import FileReader
+from inspec.maps import CharMap
 from inspec.transform import InspecTransform
 from inspec.paginate import Paginator
 from inspec.render import CursesRenderer, CursesRenderError
@@ -271,7 +273,7 @@ class InspecGridApp(InspecCursesApp):
             padx=0,
             pady=0,
             cmap=None,
-            file_reader=None,
+            file_reader: FileReader = None,
             view_class=None,
             transform=None,
             map=None,
@@ -295,6 +297,7 @@ class InspecGridApp(InspecCursesApp):
 
         self.cmap = load_cmap(cmap)
         self.map = map
+        assert file_reader is not None
         self.reader = file_reader
 
         if isinstance(transform, InspecTransform):
@@ -388,10 +391,16 @@ class InspecGridApp(InspecCursesApp):
         for pad_page, page in zip(iter_pad_pages, iter_pages):
             self._assign_page_to_pad_page(page, pad_page)
 
-    def compute_char_array(self, file_view, window_idx, *args):
+    def compute_char_array(self, file_view, window_idx, loaded_file, *args):
         window = self.windows[window_idx]
+        assert isinstance(self.map, type)
+        assert issubclass(self.map, CharMap)
         desired_size = self.map.max_img_shape(*window.getmaxyx())
-        img, meta = self.transform.convert(*args, output_size=(desired_size[0], desired_size[1]))
+        img, _ = self.transform.convert(
+            loaded_file,
+            *args,
+            output_size=(desired_size[0], desired_size[1])
+        )
         char_array = self.map.to_char_array(img)
         char_array = CursesRenderer.apply_cmap_to_char_array(self.cmap, char_array)
         self.q.put_nowait((char_array, file_view, window_idx, self.current_page))
@@ -403,7 +412,7 @@ class InspecGridApp(InspecCursesApp):
         loop = asyncio.get_event_loop()
         if file_view.needs_redraw:
             try:
-                data, _ = self.reader.read_file(file_view.data["filename"])
+                file_data = self.reader.read_file(file_view.data["filename"])
             except RuntimeError:
                 self.debug("File {} is not readable".format(file_view.data["filename"]))
                 task = None
@@ -416,7 +425,7 @@ class InspecGridApp(InspecCursesApp):
                     self.compute_char_array,
                     file_view,
                     window_idx,
-                    data
+                    file_data,
                 )
                 self._window_idx_to_tasks[window_idx].append(task)
                 file_view.needs_redraw = False

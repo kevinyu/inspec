@@ -4,7 +4,7 @@ import numpy as np
 from numpy.typing import NDArray
 
 from inspec.chars import Char
-from inspec.colormap import PairedColormap, set_curses_cmap, get_slot
+from inspec.colormap import PairedColormap, get_slot, set_curses_cmap
 from inspec.maps import CharWithColor, CharWithColor256
 
 
@@ -15,8 +15,7 @@ class CursesRenderError(Exception):
 class BaseRenderer(object):
     @staticmethod
     def apply_cmap_to_char_array(
-        cmap: PairedColormap,
-        char_array: NDArray[CharWithColor]  # type: ignore
+        cmap: PairedColormap, char_array: NDArray[CharWithColor]  # type: ignore
     ) -> NDArray[CharWithColor256]:  # type: ignore
         """Applies a colormap to trasnslate float values in char_array to Color256s"""
         output_array = np.empty(char_array.shape, dtype=object)
@@ -67,8 +66,7 @@ class StdoutRenderer(BaseRenderer):
 class CursesRenderer(BaseRenderer):
     @staticmethod
     def apply_cmap_to_char_array(
-        cmap: PairedColormap,
-        char_array: NDArray[CharWithColor]  # type: ignore
+        cmap: PairedColormap, char_array: NDArray[CharWithColor]  # type: ignore
     ) -> NDArray[CharWithColor256]:  # type: ignore
         """Applies a colormap to trasnslate float values in char_array to ColorSlots"""
         set_curses_cmap(cmap)

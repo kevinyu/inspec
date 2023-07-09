@@ -3,6 +3,7 @@ from unittest import mock
 
 import numpy as np
 
+from inspec.io import LoadedAudioData
 from inspec.transform import (
     SpectrogramTransform,
     AmplitudeEnvelopeTwoSidedTransform,
@@ -46,16 +47,14 @@ class TestSpectrogramTransform(unittest.TestCase):
         )
 
         img, metadata = transform.convert(
-            data,
-            sampling_rate,
+            LoadedAudioData(data, sampling_rate),
             output_size=(40, 80)
         )
 
         self.assertEqual(img.shape, (40, 80))
 
         img, metadata = transform.convert(
-            data,
-            sampling_rate,
+            LoadedAudioData(data, sampling_rate),
             output_size=(49, 49)
         )
 
@@ -75,8 +74,7 @@ class TestSpectrogramTransform(unittest.TestCase):
         )
 
         img, metadata = transform.convert(
-            data,
-            sampling_rate,
+            LoadedAudioData(data, sampling_rate),
             output_size=(40, 80)
         )
 
@@ -103,14 +101,14 @@ class TestAmplitudeEnvelopeTwoSidedTransform(unittest.TestCase):
     def test_init(self):
         transform = AmplitudeEnvelopeTwoSidedTransform()
         self.assertEqual(transform.ymax, None)
-        self.assertEqual(transform.gradient, None)
+        self.assertEqual(transform.gradient, (1.0, 1.0))
 
         transform = AmplitudeEnvelopeTwoSidedTransform(ymax=1.0, gradient=(0.2, 1.0))
         self.assertEqual(transform.ymax, 1.0)
         self.assertEqual(transform.gradient, (0.2, 1.0))
 
         with self.assertRaises(ValueError):
-            AmplitudeEnvelopeTwoSidedTransform(ymax=1.0, gradient=True)
+            AmplitudeEnvelopeTwoSidedTransform(ymax=1.0, gradient=True)  # type: ignore
 
     @mock.patch("inspec.transform.compute_ampenv")
     def test_convert(self, mock_compute_ampenv):
@@ -121,7 +119,7 @@ class TestAmplitudeEnvelopeTwoSidedTransform(unittest.TestCase):
         ])
         mock_compute_ampenv.return_value = data
 
-        img, metadata = transform.convert(data, 1, output_size=(10, 10))
+        img, metadata = transform.convert(LoadedAudioData(data, 1), output_size=(10, 10))
         self.assertEqual(img.shape, (10, 10))
         np.testing.assert_array_equal(img,
             np.array([
@@ -147,7 +145,7 @@ class TestAmplitudeEnvelopeTwoSidedTransform(unittest.TestCase):
         ])
         mock_compute_ampenv.return_value = data
 
-        img, metadata = transform.convert(data, 1, output_size=(10, 10))
+        img, metadata = transform.convert(LoadedAudioData(data, 1), output_size=(10, 10))
         self.assertEqual(metadata["AmplitudeEnvelopeTwoSidedTransform"]["ymax"], 9.)
         self.assertEqual(metadata["AmplitudeEnvelopeTwoSidedTransform"]["gradient"], (0.5, 0.8))
 
@@ -160,7 +158,7 @@ class TestAmplitudeEnvelopeTwoSidedTransform(unittest.TestCase):
         ])
         mock_compute_ampenv.return_value = data
 
-        img, metadata = transform.convert(data, 1, output_size=(8, 10))
+        img, metadata = transform.convert(LoadedAudioData(data, 1), output_size=(8, 10))
         self.assertEqual(metadata["AmplitudeEnvelopeTwoSidedTransform"]["ymax"], 5.)
         self.assertEqual(metadata["AmplitudeEnvelopeTwoSidedTransform"]["gradient"], (0.2, 1.0))
 

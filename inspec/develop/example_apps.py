@@ -1,9 +1,11 @@
 import asyncio
 import curses
+from typing import Literal
 
 import numpy as np
 
 from inspec.colormap import load_cmap
+from inspec.io import LoadedAudioData
 from inspec.paginate import Paginator
 from inspec.gui.base import InspecCursesApp, PanelCoord
 from inspec.gui.utils import pad_string
@@ -189,7 +191,7 @@ class ExampleLiveAudioApp(InspecCursesApp):
             self,
             device,
             duration=1,
-            mode="spec",
+            mode: Literal["amp", "spec"]="spec",
             cmap=None,
             **kwargs,
             ):
@@ -203,11 +205,10 @@ class ExampleLiveAudioApp(InspecCursesApp):
         self.device = device
         self.duration = duration
         self.data = None
-        self.mode = mode
 
-        if self.mode == "amp":
+        if mode == "amp":
             self.transform = AmplitudeEnvelopeTwoSidedTransform(gradient=(0.3, 0.7))
-        elif self.mode == "spec":
+        elif mode == "spec":
             self.transform = SpectrogramTransform(
                 spec_sampling_rate=500,
                 spec_freq_spacing=100,
@@ -225,10 +226,11 @@ class ExampleLiveAudioApp(InspecCursesApp):
 
         window_size = self.window.getmaxyx()
         desired_size = QuarterCharMap.max_img_shape(*window_size)
-        if self.mode == "amp":
-            img, metadata = self.transform.convert(self.data[:, 0], self.samplerate, output_size=desired_size, scale=0.5)
+        assert self.data is not None
+        if isinstance(self.transform, AmplitudeEnvelopeTwoSidedTransform):
+            img, metadata = self.transform.convert(self.data, output_size=desired_size, scale=0.5)
         else:
-            img, metadata = self.transform.convert(self.data[:, 0], self.samplerate, output_size=desired_size)
+            img, metadata = self.transform.convert(self.data, output_size=desired_size)
         char_array = QuarterCharMap.to_char_array(img)
         colorized_char_array = CursesRenderer.apply_cmap_to_char_array(self.cmap, char_array)
         CursesRenderer.render(self.window, colorized_char_array)
@@ -252,8 +254,13 @@ class ExampleLiveAudioApp(InspecCursesApp):
         import sounddevice as sd
         self.q = asyncio.Queue()
 
-        self.samplerate = sd.query_devices(self.device, 'input')['default_samplerate']
-        self.data = np.zeros((int(self.samplerate * self.duration), 1))
+        query_response = sd.query_devices(self.device, 'input')
+        assert isinstance(query_response, dict)
+        self.samplerate = query_response['default_samplerate']
+        self.data = LoadedAudioData(
+            data=np.zeros((int(self.samplerate * self.duration), 1)),
+            sampling_rate=self.samplerate,
+        )
         self.stream = sd.InputStream(
             device=self.device,
             channels=1,
@@ -276,5 +283,6 @@ class ExampleLiveAudioApp(InspecCursesApp):
         while True:
             data = await self.q.get()
             shift = len(data)
-            self.data = np.roll(self.data, -shift, axis=0)
-            self.data[-shift:, :] = data
+            assert isinstance(self.data, LoadedAudioData)
+            self.data.data = np.roll(self.data.data, -shift, axis=0)
+            self.data.data[-shift:, :] = data

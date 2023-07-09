@@ -1,20 +1,24 @@
 import asyncio
-import concurrent
+import concurrent.futures
 import curses
+from typing import Literal
 
 import numpy as np
 
 from inspec.colormap import load_cmap
 from inspec.gui.base import InspecCursesApp, PanelCoord
 from inspec.gui.utils import db_scale
+from inspec.io import LoadedAudioData
+from inspec.maps import CharMap
 from inspec.render import CursesRenderer
+from inspec.transform import AudioTransform, AmplitudeEnvelopeTwoSidedTransform, SpectrogramTransform
 
 
 class LiveAudioViewApp(InspecCursesApp):
     def __init__(
             self,
             device,
-            mode="amp",
+            mode: Literal["spec", "amp"] = "amp",
             chunk_size=1024,
             step_chars=2,       # number of character columns to render in one calculation (overrides duration)
             duration=None,      #
@@ -222,6 +226,7 @@ class LiveAudioViewApp(InspecCursesApp):
 
     def translate_to_characters(self, data):
         channel_coords = self.panel_coords["channels"]
+        assert isinstance(self.map, CharMap)
 
         colorized_char_arrays = []
         for channel in range(self.channels):
@@ -238,12 +243,18 @@ class LiveAudioViewApp(InspecCursesApp):
             desired_cols = self.step_chars + alignment_needed
             desired_size = (desired_rows, desired_cols)
 
-            img, metadata = self.transform.convert(data[:, channel], self.sampling_rate, output_size=desired_size)
+            assert isinstance(self.transform, AudioTransform)
+            img, _ = self.transform.convert(
+                LoadedAudioData(data[:, channel], self.sampling_rate),
+                output_size=desired_size
+            )
 
             if self.mode == "spec":
                 char_array = self.map.to_char_array(img, floor=0.0, ceil=10.0)
             elif self.mode == "amp":
                 char_array = self.map.to_char_array(img)
+            else:
+                raise ValueError(f"Unknown mode: {self.mode}")
 
             if alignment_needed:
                 char_array = char_array[:, alignment_needed//2:-(alignment_needed + 1)//2]
@@ -276,10 +287,13 @@ class LiveAudioViewApp(InspecCursesApp):
 
     def scale_up(self):
         if self.mode == "amp":
+            # TODO: make the transform keep a _scale param separate from ymax.
+            assert isinstance(self.transform, AmplitudeEnvelopeTwoSidedTransform)
             self.transform.ymax /= 1.2
 
     def scale_down(self):
         if self.mode == "amp":
+            assert isinstance(self.transform, AmplitudeEnvelopeTwoSidedTransform)
             self.transform.ymax *= 1.2
 
     def set_gain(self):

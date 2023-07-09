@@ -1,6 +1,13 @@
+import abc
+from ast import Load
+from dataclasses import dataclass
+from typing import Generic, Literal, Optional
+
 import numpy as np
+from numpy.typing import NDArray
 
 from inspec import var
+from inspec.io import LoadedAudioData, LoadedImage, ReturnT
 
 
 def _get_frequencies(signal_length, sample_rate):
@@ -177,13 +184,28 @@ def compute_ampenv(signal, sampling_rate):
     return np.abs(signal)
 
 
-class InspecTransform(object):
-    def convert(self):
+@dataclass
+class InspecTransform(Generic[ReturnT], abc.ABC):
+    def convert(
+        self,
+        data: ReturnT,
+        output_size: tuple[int, int],
+        *args,
+        **kwargs,
+    ) -> tuple[NDArray[np.float64], dict]:
+        """Take some loaded data and return a 2D image array and some metadata"""
         raise NotImplementedError
 
 
-class AudioTransform(InspecTransform):
-    def convert(self, data, sampling_rate):
+@dataclass
+class AudioTransform(InspecTransform[LoadedAudioData]):
+    def convert(
+        self,
+        data: LoadedAudioData,
+        output_size: tuple[int, int],
+        *args,
+        **kwargs,
+    ) -> tuple[NDArray[np.float64], dict]:
         """Convert 1D audio signal into a 2D image array
 
         Returns tuple of 2D image array and dictionary of metadata about the conversion
@@ -191,27 +213,23 @@ class AudioTransform(InspecTransform):
         raise NotImplementedError
 
 
+@dataclass
 class SpectrogramTransform(AudioTransform):
-    def __init__(
-        self,
-        spec_sampling_rate,
-        spec_freq_spacing,
-        min_freq=0,
-        max_freq=None,
-    ):
-        self.spec_sampling_rate = spec_sampling_rate
-        self.spec_freq_spacing = spec_freq_spacing
-        self.min_freq = min_freq
-        self.max_freq = max_freq
+    spec_sampling_rate: int
+    spec_freq_spacing: float
+    min_freq: int = 0
+    max_freq: Optional[int] = None
 
-    def convert(self, data, sampling_rate, output_size=None):
+    def convert(
+        self, data: LoadedAudioData, output_size: tuple[int, int]
+    ) -> tuple[NDArray[np.float64], dict]:
         """Convert 1D audio signal into a spectrogram
 
         Returns spectrogram and metadata dictionary
         """
         t, f, spec = compute_spectrogram(
-            data,
-            sampling_rate,
+            data.data,
+            data.sampling_rate,
             spec_sample_rate=self.spec_sampling_rate,
             freq_spacing=self.spec_freq_spacing,
             min_freq=self.min_freq,
@@ -244,37 +262,29 @@ class SpectrogramTransform(AudioTransform):
         return spec, metadata
 
 
+@dataclass
 class AmplitudeEnvelopeTwoSidedTransform(AudioTransform):
-    def __init__(self, gradient=None, ymax=None):
-        """Initialize an 2-sided amplitude envelope image
+    ymax: Optional[float] = None
+    gradient: tuple[float, float] = (1.0, 1.0)
 
-        Params
-        ======
-        ymax : float
-            yscale of the output plot
-        gradient : tuple or None
-            if provided, is a tuple of two floats between 0 and 1. Output
-            values will be scaled between these two numbers. Note that 0
-            is likely the same as background and so it is advisable
-            not to start it at 0 exactly
-        """
-        if gradient and (
-            not isinstance(gradient, tuple)
-            or not len(gradient) == 2
-            or not (0 <= gradient[0] <= gradient[1] <= 1)
+    def __post_init__(self):
+        if self.gradient and (
+            not isinstance(self.gradient, tuple)
+            or not len(self.gradient) == 2
+            or not (0 <= self.gradient[0] <= self.gradient[1] <= 1)
         ):
             raise ValueError("Gradient must be a tuple of 2 floats between 0 and 1")
-        self.ymax = ymax
-        self.gradient = gradient
 
-    def convert(self, data, sampling_rate, output_size, scale=1.0):
+    def convert(
+        self, data: LoadedAudioData, output_size: tuple[int, int], scale: float = 1.0
+    ) -> tuple[NDArray[np.float64], dict]:
         """Convert 1D audio signal into a spectrogram
 
         Returns spectrogram and metadata dictionary
         """
-        ampenv = compute_ampenv(data, sampling_rate)
+        ampenv = compute_ampenv(data.data, data.sampling_rate)
 
-        t = np.linspace(0, len(data) / sampling_rate, output_size[1])
+        t = np.linspace(0, len(data.data) / data.sampling_rate, output_size[1])
         ampenv = resize_1d(ampenv, output_size[1])
 
         if self.ymax is not None:
@@ -315,28 +325,22 @@ class AmplitudeEnvelopeTwoSidedTransform(AudioTransform):
         return img, metadata
 
 
-class PilImageTransform(InspecTransform):
-    pil_convert_mode = "L"
-
-    def __init__(
-        self,
-        keep_aspect_ratio=True,
-        character_aspect_ratio=var.TERM_CHAR_ASPECT_RATIO,
-        thumbnail=False,
-    ):
-        self.keep_aspect_ratio = keep_aspect_ratio
-        self.character_aspect_ratio = character_aspect_ratio
-        self.thumbnail = thumbnail
+@dataclass
+class PilImageTransform(InspecTransform[LoadedImage]):
+    keep_aspect_ratio: bool = True
+    character_aspect_ratio: float = var.TERM_CHAR_ASPECT_RATIO
+    thumbnail: bool = False
+    pil_convert_mode: Literal["L", "RGB"] = "L"
 
     def convert(
         self,
-        data,
-        output_size,
-        size_multiple_of=None,
-        rotated=False,
+        data: LoadedImage,
+        output_size: tuple[int, int],
+        size_multiple_of: Optional[tuple[int, int]] = None,
+        rotated: bool = False,
     ):
         """Convert an PIL array into greyscale"""
-        original_height, original_width = data.height, data.width
+        original_height, original_width = data.data.height, data.data.width
 
         # This is code to try to figure out what the output side shoule be that
         # 1) closely approximates the original aspect ratio
@@ -372,12 +376,14 @@ class PilImageTransform(InspecTransform):
             output_size = output_size
 
         if self.thumbnail:
-            data.thumbnail((output_size[1], output_size[0]))  # Thumbnail edits in place
-            result = data.convert(mode=self.pil_convert_mode)
+            data.data.thumbnail(
+                (output_size[1], output_size[0])
+            )  # Thumbnail edits in place
+            result = data.data.convert(mode=self.pil_convert_mode)
             result = np.asarray(result)[::-1]
             resized = resize(result, output_size[0], output_size[1])
         else:
-            resized = data.resize((output_size[1], output_size[0]))
+            resized = data.data.resize((output_size[1], output_size[0]))
             resized = resized.convert(mode=self.pil_convert_mode)
             resized = np.asarray(resized)[::-1]
 
@@ -391,9 +397,11 @@ class PilImageTransform(InspecTransform):
         )
 
 
+@dataclass
 class PilImageGreyscaleTransform(PilImageTransform):
-    pil_convert_mode = "L"
+    pil_convert_mode: Literal["L"] = "L"
 
 
+@dataclass
 class PilImageRGBTransform(PilImageTransform):
-    pil_convert_mode = "RGB"
+    pil_convert_mode: Literal["RGB"] = "RGB"

@@ -1,9 +1,12 @@
+from ast import Load
 import asyncio
 import curses
 import curses.textpad
 import os
+from typing import Optional
 
 from inspec import var
+from inspec.io import AudioReader, LoadedAudioData
 from inspec.gui.base import DataView, InspecGridApp
 from inspec.gui.utils import (
     PositionSlider,
@@ -14,26 +17,26 @@ from inspec.gui.utils import (
 
 class AudioFileView(DataView):
 
-    def __init__(self, app, data, idx):
+    def __init__(self, app: InspecGridApp, data, idx):
         super().__init__(app, data, idx)
 
         self.needs_redraw = True
         self.channel = 0
         self.time_start = 0.0
-        self._file_metadata = {}
+        self._file_metadata: Optional[LoadedAudioData.Metadata] = None
 
     def validate_data(self):
         if "filename" not in self.data:
             raise ValueError("AudioFileView requires a 'filename' key in data")
 
     @property
-    def file_metadata(self):
+    def file_metadata(self) -> Optional[LoadedAudioData.Metadata]:
         if not self._file_metadata:
             try:
                 self._file_metadata = self.app.reader.read_file_metadata(self.data["filename"])
             except RuntimeError:
-                self._file_metadata["error"] = "invalid file"
-                self._file_metadata["duration"] = 1.0  # This is a hack so that things don't break on invalid files
+                # TODO: warning
+                print(f"File {self.data['filename']} is not readable")
                 # I'll find a better way to deal with invalid files at some point
 
         return self._file_metadata
@@ -42,11 +45,14 @@ class AudioFileView(DataView):
         return os.path.basename(self.data["filename"])
 
     @property
-    def duration(self):
-        return self.file_metadata.get("duration")
+    def duration(self) -> float:
+        if self.file_metadata is not None:
+            return self.file_metadata.duration
+        else:
+            return 1.0
 
     @property
-    def time_scale(self):
+    def time_scale(self) -> float:
         if self.app.state["time_scale"]:
             return min(self.app.state["time_scale"], self.duration)
         elif self.duration > var.GUI_DEFAULT_MAX_DURATION:
@@ -99,7 +105,8 @@ class InspecAudioApp(InspecGridApp):
         loop = asyncio.get_event_loop()
         if file_view.needs_redraw:
             try:
-                data, sampling_rate, file_meta = self.reader.read_file_by_time(
+                # assert isinstance(self.reader, AudioReader)
+                loaded_file = self.reader.read_file_by_time(
                     file_view.data["filename"],
                     duration=file_view.time_scale,
                     time_start=file_view.time_start,
@@ -112,13 +119,13 @@ class InspecAudioApp(InspecGridApp):
                 for prev_task in self._window_idx_to_tasks[window_idx]:
                     prev_task.cancel()
                 self._window_idx_to_tasks[window_idx] = []
+
                 task = loop.run_in_executor(
                     self.executor,
                     self.compute_char_array,
                     file_view,
                     window_idx,
-                    data,
-                    sampling_rate
+                    loaded_file,
                 )
                 self._window_idx_to_tasks[window_idx].append(task)
                 file_view.needs_redraw = False

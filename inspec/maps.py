@@ -1,14 +1,13 @@
-from dataclasses import dataclass
 import sys
+from dataclasses import dataclass
 from typing import Iterator, Optional
 
 import numpy as np
 from numpy.typing import NDArray
 
 from inspec import var
-from inspec.colormap import Colormap
 from inspec.chars import Char, IChar
-
+from inspec.colormap import Colormap
 
 # Set Console Mode so that ANSI codes will work
 # TODO: does this go here?
@@ -83,10 +82,7 @@ class CharMap:
 
     @classmethod
     def to_char_array(
-        cls,
-        img: NDArray,
-        floor: Optional[float] = None,
-        ceil: Optional[float] = None
+        cls, img: NDArray, floor: Optional[float] = None, ceil: Optional[float] = None
     ) -> NDArray[CharWithColor]:  # type: ignore
         """Convert an image array into an array of tuples with character and color info
 
@@ -221,7 +217,7 @@ _maps = {
 }
 
 
-def get_char_map(map_name, default=None):
+def get_char_map(map_name: Optional[str], default: Optional[str] = None) -> CharMap:
     if map_name is None:
         return _maps[default or var.DEFAULT_CHAR_MAP]
 

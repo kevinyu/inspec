@@ -1,4 +1,5 @@
 import asyncio
+from typing import Optional
 import click
 import curses
 import os
@@ -122,8 +123,8 @@ def _open_image_gui(
 
 def imshow(
         filename,
-        height=None,
-        width=None,
+        height: Optional[int] = None,
+        width: Optional[int] = None,
         cmap=None,
         vertical=False,
         characters="quarter",
@@ -149,10 +150,10 @@ def imshow(
         height, width = width, height
 
     desired_size = charmap.max_img_shape(height, width)
-    data, _ = PILImageReader.read_file(filename)
+    image_data = PILImageReader.read_file(filename)
 
     img, metadata = DEFAULTS["image"]["transform"].convert(
-        data,
+        image_data.data,
         output_size=desired_size,
         size_multiple_of=charmap.patch_dimensions,
         rotated=vertical,
@@ -167,8 +168,8 @@ def imshow(
 
 def show(
         filename,
-        height=None,
-        width=None,
+        height: Optional[int] = None,
+        width: Optional[int] = None,
         duration=None,
         time_=None,
         channel=None,
@@ -209,7 +210,7 @@ def show(
         if channel is None:
             channel = 0
 
-        data, sampling_rate, _ = AudioReader.read_file_by_time(
+        audio_data = AudioReader.read_file_by_time(
             filename,
             duration=duration,
             time_start=time_,
@@ -221,8 +222,8 @@ def show(
             transform.min_freq = min_freq
             transform.max_freq = max_freq
             img, metadata = DEFAULTS["audio"]["spec_transform"].convert(
-                data,
-                sampling_rate,
+                audio_data.data,
+                audio_data.sampling_rate,
                 output_size=desired_size
             )
             if vertical:
@@ -233,8 +234,8 @@ def show(
 
         if show_amp:
             img, metadata = DEFAULTS["audio"]["amp_transform"].convert(
-                data,
-                sampling_rate,
+                audio_data.data,
+                audio_data.sampling_rate,
                 output_size=desired_size
             )
             if vertical:

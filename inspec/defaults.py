@@ -2,11 +2,10 @@ from inspec import var
 
 # from inspec.maps import QuarterCharMap
 from inspec.transform import (
-    SpectrogramTransform,
     AmplitudeEnvelopeTwoSidedTransform,
     PilImageGreyscaleTransform,
+    SpectrogramTransform,
 )
-
 
 DEFAULTS = {
     "audio": {
