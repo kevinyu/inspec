@@ -113,8 +113,7 @@ class LiveAudioViewApp(InspecCursesApp):
         # Fancy indexing with mapping creates a (necessary!) copy:
         self.mic_queue.put_nowait(indata[:, :self.channels])
 
-    async def initialize_display(self):
-        await super().initialize_display()
+    def initialize_display(self):
         main_coord = self.panel_coords["main"]
         self.pad = curses.newpad(main_coord.nlines, main_coord.ncols * 2)
         self.colorized_char_array = np.empty((main_coord.nlines, main_coord.ncols))

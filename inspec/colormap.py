@@ -1,5 +1,6 @@
 from __future__ import annotations
 import bisect
+from copy import deepcopy
 import curses
 from dataclasses import dataclass
 from typing import NewType, Optional, Union
@@ -63,6 +64,17 @@ class Colormap:
         def __init__(self, value: int, idx: Colormap.ColorBin) -> None:
             int.__init__(value)
             self.idx = idx
+
+        def __copy__(self) -> Colormap.Color256:
+            return Colormap.Color256(self, self.idx)
+
+        def __deepcopy__(self, memo) -> Colormap.Color256:
+            cls = self.__class__
+            result = cls.__new__(cls, self, self.idx)
+            memo[id(self)] = result
+            for k, v in self.__dict__.items():
+                setattr(result, k, deepcopy(v, memo))
+            return result
 
 
 ColorSlot = NewType('ColorSlot', int)

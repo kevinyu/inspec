@@ -138,7 +138,7 @@ def show(
     "-c", "--cols", help="Columns of files per page (default 1)", type=int, default=1
 )
 @click.option(
-    "--cmap", type=str, help="Choose colormap (see 'inspec list-cmaps')", default=None
+    "--cmap", type=str, help="Choose colormap (see 'inspec list-cmaps')", default=var.DEFAULT_CMAP,
 )
 @click.option(
     "--spec/--no-spec",
@@ -176,7 +176,7 @@ def open_(
     from .core import open_gui
 
     open_gui(
-        filenames,
+        filenames=filenames,
         rows=rows,
         cols=cols,
         cmap=cmap,

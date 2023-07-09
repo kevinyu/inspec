@@ -1,29 +1,31 @@
-from ast import Load
+from __future__ import annotations
 import asyncio
 import curses
 import curses.textpad
+import concurrent.futures
+from dataclasses import dataclass, field
 import os
-from typing import Optional
+from typing import Callable, Optional, Type
 
 from inspec import var
 from inspec.io import AudioReader, LoadedAudioData
-from inspec.gui.base import DataView, InspecGridApp
+from inspec.gui.base import DataView, InspecGridApp, InspecGridAppConfig
+from inspec.maps import CharPatchProtocol
 from inspec.gui.utils import (
     PositionSlider,
     generate_position_slider,
     pad_string,
 )
+from inspec.transform import AudioTransform
 
 
+@dataclass
 class AudioFileView(DataView):
-
-    def __init__(self, app: InspecGridApp, data, idx):
-        super().__init__(app, data, idx)
-
-        self.needs_redraw = True
-        self.channel = 0
-        self.time_start = 0.0
-        self._file_metadata: Optional[LoadedAudioData.Metadata] = None
+    app_state: InspecAudioApp.State
+    file_reader: AudioReader = AudioReader()
+    channel: int = 0
+    time_start: float = 0.0
+    _file_metadata: Optional[LoadedAudioData.Metadata] = None
 
     def validate_data(self):
         if "filename" not in self.data:
@@ -33,7 +35,7 @@ class AudioFileView(DataView):
     def file_metadata(self) -> Optional[LoadedAudioData.Metadata]:
         if not self._file_metadata:
             try:
-                self._file_metadata = self.app.reader.read_file_metadata(self.data["filename"])
+                self._file_metadata = self.file_reader.read_file_metadata(self.data["filename"])
             except RuntimeError:
                 # TODO: warning
                 print(f"File {self.data['filename']} is not readable")
@@ -53,8 +55,8 @@ class AudioFileView(DataView):
 
     @property
     def time_scale(self) -> float:
-        if self.app.state["time_scale"]:
-            return min(self.app.state["time_scale"], self.duration)
+        if self.app_state.time_scale:
+            return min(self.app_state.time_scale, self.duration)
         elif self.duration > var.GUI_DEFAULT_MAX_DURATION:
             return var.GUI_DEFAULT_MAX_DURATION
         else:
@@ -94,19 +96,76 @@ class AudioFileView(DataView):
             self.time_start = 0.0
 
 
-class InspecAudioApp(InspecGridApp):
-    def __init__(self, *args, **kwargs):
-        """App for viewing files in a grid pattern
-        """
-        super().__init__(*args, **kwargs)
-        self.state["time_scale"] = None
+@dataclass
+class InspecAudioAppConfig(InspecGridAppConfig):
+    file_reader: Type[AudioReader]
+    rows: int
+    cols: int
+    files: list[str]
+    file_reader: Type[AudioReader]
+    view_class: Type[AudioFileView]
+    transform_options: list[AudioTransform]
+    map: CharPatchProtocol
+    cmap: str = var.DEFAULT_CMAP
+    n_threads: int = 4
+    poll_interval: float = 0.01
+    refresh_interval: float = 1.0 / 40.0
+    padx: int = 0
+    pady: int = 0
+    debug_mode: bool = False
+    debug_height: int = 2
+    status_height: int = 1
 
-    def refresh_window(self, file_view, window_idx):
+
+
+@dataclass
+class InspecAudioApp(InspecGridApp):
+    @dataclass
+    class State(InspecGridApp.State):
+        time_scale: Optional[float] = None
+        views: list[DataView] = field(default_factory=list)
+
+    _state: State = field(default_factory=State)
+    config: InspecAudioAppConfig = None  # type: ignore
+
+    @staticmethod
+    def from_config(config: InspecAudioAppConfig) -> Callable[[curses.window], InspecAudioApp]:
+        def make_app(stdscr: curses.window) -> InspecAudioApp:
+            app = InspecAudioApp(
+                stdscr=stdscr,
+                config=config,
+                status_window=None,
+                debug_window=None,
+                thread_pool_executor=concurrent.futures.ThreadPoolExecutor(
+                    max_workers=config.n_threads,
+                )
+            )
+
+            idx = 0
+            for filename in config.files:
+                try:
+                    app._state.views.append(config.view_class(app_state=app._state, data=dict(filename=filename), idx=idx))
+                except:
+                    raise
+                    pass
+                else:
+                    idx += 1
+            # raise Exception(app._state)
+
+            return app
+
+        return make_app
+
+    @property
+    def current_view(self) -> AudioFileView:
+        return self._state.views[self._state.current_selection]
+
+    def refresh_window(self, file_view: AudioFileView, window_idx: int):
         loop = asyncio.get_event_loop()
         if file_view.needs_redraw:
             try:
                 # assert isinstance(self.reader, AudioReader)
-                loaded_file = self.reader.read_file_by_time(
+                loaded_file = self.config.file_reader.read_file_by_time(
                     file_view.data["filename"],
                     duration=file_view.time_scale,
                     time_start=file_view.time_start,
@@ -119,21 +178,22 @@ class InspecAudioApp(InspecGridApp):
                 for prev_task in self._window_idx_to_tasks[window_idx]:
                     prev_task.cancel()
                 self._window_idx_to_tasks[window_idx] = []
+                import concurrent.futures
 
                 task = loop.run_in_executor(
-                    self.executor,
+                    self.thread_pool_executor,
                     self.compute_char_array,
                     file_view,
                     window_idx,
                     loaded_file,
                 )
-                self._window_idx_to_tasks[window_idx].append(task)
+                self._window_idx_to_tasks[window_idx].append(task)  # type: ignore
                 file_view.needs_redraw = False
 
-    def annotate_view(self, file_view, window):
+    def annotate_view(self, file_view: AudioFileView, window: curses.window):
         # Annotate the view
         maxy, maxx = window.getmaxyx()
-        if file_view.idx == self.current_selection:
+        if file_view.idx == self._state.current_selection:
             window.border(0,)
         else:
             window.border(1, 1, 1, 1)
@@ -189,23 +249,23 @@ class InspecAudioApp(InspecGridApp):
                 float
             )
             if scale is None:
-                self.state["time_scale"] = None
+                self._state.time_scale = None
             else:
-                self.state["time_scale"] = scale
-            for view in self.views:
+                self._state.time_scale = scale
+            for view in self._state.views:
                 view.needs_redraw = True
         elif ch == ord("-"):
-            if self.state["time_scale"] is not None:
+            if self._state.time_scale is not None:
                 max_timescale = min(var.MAX_TIMESCALE, self.current_view.duration)
-                self.state["time_scale"] = min(max_timescale, self.state["time_scale"] * 2)
-            for view in self.views:
+                self._state.time_scale = min(max_timescale, self._state.time_scale * 2)
+            for view in self._state.views:
                 view.needs_redraw = True
         elif ch == ord("+"):
-            if self.state["time_scale"] is not None:
-                self.state["time_scale"] = max(var.MIN_TIMESCALE, self.state["time_scale"] / 2)
+            if self._state.time_scale is not None:
+                self._state.time_scale = max(var.MIN_TIMESCALE, self._state.time_scale / 2)
             else:
-                self.state["time_scale"] = self.current_view.duration / 2
-            for view in self.views:
+                self._state.time_scale = self.current_view.duration / 2
+            for view in self._state.views:
                 view.needs_redraw = True
         elif ch == ord("t"):
             time_start = self.prompt("Jump to time: ", float)
@@ -214,7 +274,7 @@ class InspecAudioApp(InspecGridApp):
                 self.current_view.needs_redraw = True
         elif ord("0") <= ch <= ord("9"):
             channel = int(chr(ch))
-            if channel < self.current_view.file_metadata["n_channels"]:
+            if self.current_view.file_metadata and channel < self.current_view.file_metadata.n_channels:
                 self.current_view.channel = channel
                 self.current_view.needs_redraw = True
         else:

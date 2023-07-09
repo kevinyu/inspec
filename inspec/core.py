@@ -11,7 +11,7 @@ import numpy as np
 from inspec import var
 from inspec.colormap import load_cmap
 from inspec.defaults import DEFAULTS
-from inspec.gui.audio_viewer import AudioFileView, InspecAudioApp
+from inspec.gui.audio_viewer import AudioFileView, InspecAudioApp, InspecAudioAppConfig
 from inspec.gui.image_viewer import ImageFileView, InspecImageApp
 from inspec.gui.live_audio_viewer import LiveAudioViewApp
 from inspec.io import AudioReader, PILImageReader, gather_files
@@ -74,18 +74,20 @@ def open_gui(
 
     charmap = get_map(characters)
 
-    app = InspecAudioApp(
-        rows,
-        cols,
+    app_config = InspecAudioAppConfig(
+        rows=rows,
+        cols=cols,
         files=files,
         file_reader=AudioReader,
         cmap=cmap,
         view_class=AudioFileView,
-        transform=transforms,
+        transform_options=transforms,
         map=charmap,
-        debug=debug,
+        debug_mode=debug,
     )
-    asyncio.run(app.main(stdscr))
+
+    app = InspecAudioApp.from_config(config=app_config)(stdscr)
+    asyncio.run(app.main())
 
 
 @cursed

@@ -44,8 +44,8 @@ class ScrollingExampleApp(InspecCursesApp):
             except curses.error:
                 continue
 
-    async def initialize_display(self):
-        await super().initialize_display()
+    def initialize_display(self):
+        super().initialize_display()
         # Set up fun colors
         i = 1
         for color in range(255):
@@ -136,8 +136,8 @@ class PaginationExample(InspecCursesApp):
 
         return self.pad
 
-    async def initialize_display(self):
-        await super().initialize_display()
+    def initialize_display(self):
+        super().initialize_display()
         panel_coords = self.panel_coords
 
         # Set up rolling pad to keep recently loaded files loaded
@@ -228,9 +228,9 @@ class ExampleLiveAudioApp(InspecCursesApp):
         desired_size = QuarterCharMap.max_img_shape(*window_size)
         assert self.data is not None
         if isinstance(self.transform, AmplitudeEnvelopeTwoSidedTransform):
-            img, metadata = self.transform.convert(self.data, output_size=desired_size, scale=0.5)
+            img, _ = self.transform.convert(self.data, output_size=desired_size, scale=0.5)
         else:
-            img, metadata = self.transform.convert(self.data, output_size=desired_size)
+            img, _ = self.transform.convert(self.data, output_size=desired_size)
         char_array = QuarterCharMap.to_char_array(img)
         colorized_char_array = CursesRenderer.apply_cmap_to_char_array(self.cmap, char_array)
         CursesRenderer.render(self.window, colorized_char_array)
@@ -242,9 +242,7 @@ class ExampleLiveAudioApp(InspecCursesApp):
         # Fancy indexing with mapping creates a (necessary!) copy:
         self.q.put_nowait(indata[:, [0]])
 
-    async def initialize_display(self):
-        await super().initialize_display()
-
+    def initialize_display(self):
         self.window = curses.newwin(*self.panel_coords["main"])
         self.window.border(0,)
         self.window.refresh()

@@ -1,4 +1,5 @@
 from collections import namedtuple
+from typing import Literal
 
 import numpy as np
 
@@ -13,8 +14,9 @@ PositionSlider = namedtuple("PositionSlider", [
 
 
 def slider_to_character_positions(
-        position_slider,
-        n_chars):
+    position_slider: PositionSlider,
+    n_chars: int,
+):
     # Get the starting character to 1/2 character resolution
     char_to_start = np.round(2 * n_chars * position_slider.start / position_slider.total) / 2
     # Get the ending character to 1/2 character resolution
@@ -54,7 +56,7 @@ def generate_position_slider(position_slider, n_chars):
     return " {} ".format(string)
 
 
-def pad_string(string, side="right", max_len=3, fill_char=" "):
+def pad_string(string: str, side: Literal["left", "right"] = "right", max_len: int =3, fill_char: str = " ") -> str:
     if side not in ("right", "left"):
         raise ValueError("side must be left or right")
 
@@ -68,8 +70,10 @@ def pad_string(string, side="right", max_len=3, fill_char=" "):
             return fill_char * (max_len - len(string)) + string
         else:
             return string[-max_len:]
+    else:
+        raise ValueError("side must be left or right")
 
 
-def db_scale(x, dB=None):
+def db_scale(x: float, dB: float):
     """Scale the channels of a signal (in dB) independently"""
     return np.power(10.0, dB / 20.0) * x
