@@ -6,13 +6,14 @@ import itertools
 import os
 import time
 from collections import defaultdict, namedtuple
+from typing import Type
 
 import numpy as np
 
 from inspec import var
 from inspec.colormap import list_cmap_names, load_cmap
 from inspec.io import FileReader
-from inspec.maps import CharMap
+from inspec.maps import CharPatchProtocol
 from inspec.transform import InspecTransform
 from inspec.paginate import Paginator
 from inspec.render import CursesRenderer, CursesRenderError
@@ -273,7 +274,7 @@ class InspecGridApp(InspecCursesApp):
             padx=0,
             pady=0,
             cmap=None,
-            file_reader: FileReader = None,
+            file_reader: Type[FileReader] = None,
             view_class=None,
             transform=None,
             map=None,
@@ -393,8 +394,7 @@ class InspecGridApp(InspecCursesApp):
 
     def compute_char_array(self, file_view, window_idx, loaded_file, *args):
         window = self.windows[window_idx]
-        assert isinstance(self.map, type)
-        assert issubclass(self.map, CharMap)
+        assert isinstance(self.map, CharPatchProtocol)
         desired_size = self.map.max_img_shape(*window.getmaxyx())
         img, _ = self.transform.convert(
             loaded_file,

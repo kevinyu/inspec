@@ -1,13 +1,29 @@
-from inspec import var
+from typing import TypedDict
 
-# from inspec.maps import QuarterCharMap
+from inspec import var
 from inspec.transform import (
     AmplitudeEnvelopeTwoSidedTransform,
     PilImageGreyscaleTransform,
     SpectrogramTransform,
 )
 
-DEFAULTS = {
+
+class _AudioDefaults(TypedDict):
+    spec_transform: SpectrogramTransform
+    amp_transform: AmplitudeEnvelopeTwoSidedTransform
+
+
+class _ImageDefaults(TypedDict):
+    transform: PilImageGreyscaleTransform
+
+
+class _Defaults(TypedDict):
+    audio: _AudioDefaults
+    image: _ImageDefaults
+    cmap: str
+
+
+DEFAULTS: _Defaults = {
     "audio": {
         "spec_transform": SpectrogramTransform(
             spec_sampling_rate=var.DEFAULT_SPECTROGRAM_SAMPLE_RATE,
@@ -24,3 +40,5 @@ DEFAULTS = {
     },
     "cmap": "greys",
 }
+
+__all__ = ["DEFAULTS"]

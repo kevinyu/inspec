@@ -125,7 +125,9 @@ def compute_spectrogram(
     return t_arr, freq_arr, spec
 
 
-def resize(spec: SpectrogramArray, target_height: int, target_width: int) -> SpectrogramArray:
+def resize(
+    spec: SpectrogramArray, target_height: int, target_width: int
+) -> SpectrogramArray:
     """Resize a 2D array with bilinear interpolation
 
     A modified version of https://chao-ji.github.io/jekyll/update/2018/07/19/BilinearResize.html
@@ -232,8 +234,8 @@ class AudioTransform(InspecTransform[LoadedAudioData], abc.ABC):
 class SpectrogramTransform(AudioTransform):
     spec_sampling_rate: int
     spec_freq_spacing: float
-    min_freq: int = 0
-    max_freq: Optional[int] = None
+    min_freq: float = 0.0
+    max_freq: Optional[float] = None
 
     def convert(
         self, data: LoadedAudioData, output_size: tuple[int, int]

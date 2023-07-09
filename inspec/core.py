@@ -1,46 +1,57 @@
 import asyncio
-from typing import Optional
-import click
 import curses
+import enum
+import functools
 import os
+from typing import Optional
 
+import click
 import numpy as np
 
 from inspec import var
 from inspec.colormap import load_cmap
 from inspec.defaults import DEFAULTS
 from inspec.gui.audio_viewer import AudioFileView, InspecAudioApp
-from inspec.gui.image_viewer import InspecImageApp, ImageFileView
+from inspec.gui.image_viewer import ImageFileView, InspecImageApp
 from inspec.gui.live_audio_viewer import LiveAudioViewApp
 from inspec.io import AudioReader, PILImageReader, gather_files
-from inspec.maps import get_char_map
+from inspec.maps import MapType, get_map
 from inspec.render import StdoutRenderer
 from inspec.transform import (
     AmplitudeEnvelopeTwoSidedTransform,
     PilImageGreyscaleTransform,
-    SpectrogramTransform,
 )
 
 
-def open_gui(*args, **kwargs):
-    """Launch a terminal gui to view one or more audio files
-    """
-    curses.wrapper(_open_gui, *args, **kwargs)
+class AudioViewMode(str, enum.Enum):
+    Spectrogram = "spectroram"
+    AmplitudeEnvelope = "amplitude_envelope"
 
 
-def _open_gui(
-        stdscr,
-        filenames,
-        rows=1,
-        cols=1,
-        cmap=DEFAULTS["cmap"],
-        spec=True,
-        amp=True,
-        min_freq=var.DEFAULT_SPECTROGRAM_MIN_FREQ,
-        max_freq=var.DEFAULT_SPECTROGRAM_MAX_FREQ,
-        characters="quarter",
-        debug=False,
-        ):
+def cursed(fn):
+    """Decorator to run a function in a curses context"""
+
+    @functools.wraps(fn)
+    def wrapper(*args, **kwargs):
+        curses.wrapper(fn, *args, **kwargs)
+
+    return wrapper
+
+
+@cursed
+def open_gui(
+    stdscr: curses.window,
+    filenames: list[str],
+    rows: int = 1,
+    cols: int = 1,
+    cmap: str = DEFAULTS["cmap"],
+    spec: bool = True,
+    amp: bool = True,
+    min_freq: float = var.DEFAULT_SPECTROGRAM_MIN_FREQ,
+    max_freq: float = var.DEFAULT_SPECTROGRAM_MAX_FREQ,
+    characters: MapType = MapType.Quarter,
+    debug: bool = False,
+):
     # files = gather_files(filenames, "wav", filter_with_readers=[AudioReader])
     files = gather_files(filenames, "wav")
 
@@ -61,7 +72,7 @@ def _open_gui(
         click.echo("spec or amp (or both) must be selected")
         return
 
-    charmap = get_char_map(characters)
+    charmap = get_map(characters)
 
     app = InspecAudioApp(
         rows,
@@ -72,26 +83,21 @@ def _open_gui(
         view_class=AudioFileView,
         transform=transforms,
         map=charmap,
-        debug=debug
+        debug=debug,
     )
     asyncio.run(app.main(stdscr))
 
 
-def open_image_gui(*args, **kwargs):
-    """Launch a terminal gui to view one or more audio files
-    """
-    curses.wrapper(_open_image_gui, *args, **kwargs)
-
-
-def _open_image_gui(
-        stdscr,
-        filenames,
-        rows=1,
-        cols=1,
-        cmap=DEFAULTS["cmap"],
-        characters="quarter",
-        debug=False,
-        ):
+@cursed
+def open_image_gui(
+    stdscr: curses.window,
+    filenames: list[str],
+    rows: int = 1,
+    cols: int = 1,
+    cmap: str = DEFAULTS["cmap"],
+    characters: MapType = MapType.Quarter,
+    debug: bool = False,
+):
     # Need to be careful if validating a large number of files is too slow
     files = gather_files(filenames, "*", filter_with_readers=[PILImageReader])
     # files = gather_files(filenames, "*")
@@ -105,7 +111,7 @@ def _open_image_gui(
         PilImageGreyscaleTransform(thumbnail=True),
     ]
 
-    charmap = get_char_map(characters)
+    charmap = get_map(characters)
 
     app = InspecImageApp(
         rows,
@@ -116,21 +122,21 @@ def _open_image_gui(
         view_class=ImageFileView,
         transform=transforms,
         map=charmap,
-        debug=debug
+        debug=debug,
     )
     asyncio.run(app.main(stdscr))
 
 
 def imshow(
-        filename,
-        height: Optional[int] = None,
-        width: Optional[int] = None,
-        cmap=None,
-        vertical=False,
-        characters="quarter",
-        thumbnail=False
-        ):
-    cmap = load_cmap(cmap or var.DEFAULT_CMAP)
+    filename: str,
+    height: Optional[int] = None,
+    width: Optional[int] = None,
+    cmap: str = var.DEFAULT_CMAP,
+    vertical: bool = False,
+    characters: MapType = MapType.Quarter,
+    thumbnail: bool = False,
+):
+    loaded_cmap = load_cmap(cmap)
     termsize = os.get_terminal_size()
 
     if height and isinstance(height, float) and 0 < height <= 1:
@@ -142,7 +148,7 @@ def imshow(
     elif width:
         width = int(width)
 
-    charmap = get_char_map(characters)
+    charmap = get_map(characters)
 
     height = height or termsize.lines
     width = width or termsize.columns
@@ -152,8 +158,8 @@ def imshow(
     desired_size = charmap.max_img_shape(height, width)
     image_data = PILImageReader.read_file(filename)
 
-    img, metadata = DEFAULTS["image"]["transform"].convert(
-        image_data.data,
+    img, _ = DEFAULTS["image"]["transform"].convert(
+        image_data,
         output_size=desired_size,
         size_multiple_of=charmap.patch_dimensions,
         rotated=vertical,
@@ -162,26 +168,26 @@ def imshow(
         img = img.T
 
     char_array = charmap.to_char_array(img)
-    char_array = StdoutRenderer.apply_cmap_to_char_array(cmap, char_array)
+    char_array = StdoutRenderer.apply_cmap_to_char_array(loaded_cmap, char_array)
     StdoutRenderer.render(char_array)
 
 
 def show(
-        filename,
-        height: Optional[int] = None,
-        width: Optional[int] = None,
-        duration=None,
-        time_=None,
-        channel=None,
-        cmap=None,
-        show_spec=True,
-        show_amp=False,
-        min_freq=var.DEFAULT_SPECTROGRAM_MIN_FREQ,
-        max_freq=var.DEFAULT_SPECTROGRAM_MAX_FREQ,
-        vertical=False,
-        characters="quarter",
-        ):
-    cmap = load_cmap(cmap or var.DEFAULT_CMAP)
+    filename: str,
+    height: Optional[int] = None,
+    width: Optional[int] = None,
+    duration: Optional[float] = None,
+    time_: Optional[float] = None,
+    channel: Optional[int] = None,
+    cmap: str = var.DEFAULT_CMAP,
+    show_spec: bool = True,
+    show_amp: bool = False,
+    min_freq: float = var.DEFAULT_SPECTROGRAM_MIN_FREQ,
+    max_freq: float = var.DEFAULT_SPECTROGRAM_MAX_FREQ,
+    vertical: bool = False,
+    characters: MapType = MapType.Quarter,
+):
+    loaded_cmap = load_cmap(cmap)
     termsize = os.get_terminal_size()
 
     if height and isinstance(height, float) and 0 < height <= 1:
@@ -195,7 +201,7 @@ def show(
 
     is_audio = True
     if is_audio:
-        charmap = get_char_map(characters)
+        charmap = get_map(characters)
 
         height = height or termsize.lines
         width = width or termsize.columns
@@ -211,67 +217,59 @@ def show(
             channel = 0
 
         audio_data = AudioReader.read_file_by_time(
-            filename,
-            duration=duration,
-            time_start=time_,
-            channel=channel
+            filename, duration=duration, time_start=time_, channel=channel
         )
 
         if show_spec:
             transform = DEFAULTS["audio"]["spec_transform"]
             transform.min_freq = min_freq
             transform.max_freq = max_freq
-            img, metadata = DEFAULTS["audio"]["spec_transform"].convert(
-                audio_data.data,
-                audio_data.sampling_rate,
-                output_size=desired_size
+            img, _ = DEFAULTS["audio"]["spec_transform"].convert(
+                audio_data, output_size=desired_size
             )
             if vertical:
                 img = img.T
             char_array = charmap.to_char_array(img)
-            char_array = StdoutRenderer.apply_cmap_to_char_array(cmap, char_array)
+            char_array = StdoutRenderer.apply_cmap_to_char_array(
+                loaded_cmap, char_array
+            )
             StdoutRenderer.render(char_array)
 
         if show_amp:
-            img, metadata = DEFAULTS["audio"]["amp_transform"].convert(
-                audio_data.data,
-                audio_data.sampling_rate,
-                output_size=desired_size
+            img, _ = DEFAULTS["audio"]["amp_transform"].convert(
+                audio_data, output_size=desired_size
             )
             if vertical:
                 img = img.T
             char_array = charmap.to_char_array(img)
-            char_array = StdoutRenderer.apply_cmap_to_char_array(cmap, char_array)
+            char_array = StdoutRenderer.apply_cmap_to_char_array(
+                loaded_cmap, char_array
+            )
             StdoutRenderer.render(char_array)
 
 
 def list_devices():
     import sounddevice as sd
+
     return sd.query_devices()
 
 
-def listen(*args, **kwargs):
-    """Show live display of audio input
-    """
-    curses.wrapper(_listen, *args, **kwargs)
-
-
-def _listen(
-        stdscr,
-        device,
-        mode="amp",
-        chunk_size=1024,
-        step_chunks=2,
-        step_chars=None,
-        channels=1,
-        duration=2.0,
-        cmap=None,
-        min_freq=var.DEFAULT_SPECTROGRAM_MIN_FREQ,
-        max_freq=var.DEFAULT_SPECTROGRAM_MAX_FREQ,
-        characters="quarter",
-        debug=False,
-        ):
-
+@cursed
+def listen(
+    stdscr: curses.window,
+    device: int | str,
+    mode: AudioViewMode = AudioViewMode.Spectrogram,
+    chunk_size: int = 1024,
+    step_chunks: int = 2,
+    step_chars: Optional[int] = None,
+    channels: int = 1,
+    duration: float = 2.0,
+    cmap: str = var.DEFAULT_CMAP,
+    min_freq: float = var.DEFAULT_SPECTROGRAM_MIN_FREQ,
+    max_freq: float = var.DEFAULT_SPECTROGRAM_MAX_FREQ,
+    characters: MapType = MapType.Quarter,
+    debug: bool = False,
+):
     if mode == "amp":
         transform = AmplitudeEnvelopeTwoSidedTransform(ymax=500.0, gradient=(0.1, 1.0))
     elif mode == "spec":
@@ -290,11 +288,11 @@ def _listen(
         channels=channels,
         duration=duration,
         transform=transform,
-        map=get_char_map(characters),
+        map=get_map(characters),
         cmap=cmap,
         debug=debug,
         refresh_rate=30,
         padx=2,
-        pady=2
+        pady=2,
     )
     asyncio.run(app.main(stdscr))

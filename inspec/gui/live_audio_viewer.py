@@ -9,7 +9,7 @@ from inspec.colormap import load_cmap
 from inspec.gui.base import InspecCursesApp, PanelCoord
 from inspec.gui.utils import db_scale
 from inspec.io import LoadedAudioData
-from inspec.maps import CharMap
+from inspec.maps import CharPatchProtocol
 from inspec.render import CursesRenderer
 from inspec.transform import AudioTransform, AmplitudeEnvelopeTwoSidedTransform, SpectrogramTransform
 
@@ -226,7 +226,7 @@ class LiveAudioViewApp(InspecCursesApp):
 
     def translate_to_characters(self, data):
         channel_coords = self.panel_coords["channels"]
-        assert isinstance(self.map, CharMap)
+        assert isinstance(self.map, CharPatchProtocol)
 
         colorized_char_arrays = []
         for channel in range(self.channels):

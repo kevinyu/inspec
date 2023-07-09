@@ -5,7 +5,7 @@ from PIL import Image
 
 from inspec.gui.base import DataView, InspecGridApp
 from inspec.io import LoadedImage, PILImageReader
-from inspec.maps import CharMap
+from inspec.maps import CharPatchProtocol
 from inspec.render import CursesRenderer
 
 
@@ -31,7 +31,7 @@ class InspecImageApp(InspecGridApp):
 
     def compute_char_array(self, file_view, window_idx, loaded_file: LoadedImage, *args):
         window = self.windows[window_idx]
-        assert isinstance(self.map, CharMap)  # TODO: get rid of
+        assert isinstance(self.map, CharPatchProtocol)  # TODO: get rid of
         desired_size = self.map.max_img_shape(*window.getmaxyx())
         img, _ = self.transform.convert(
             loaded_file,

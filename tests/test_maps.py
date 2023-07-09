@@ -4,37 +4,39 @@ import numpy as np
 
 from inspec.chars import Char
 from inspec.maps import (
+    _CharMap,  # noqa: F401
     CharWithColor,
     CharWithColor256,
-    CharMap,
-    FullCharMap,
-    HalfCharMap,
-    QuarterCharMap,
+    MapType,
+    get_map,
 )
 
 
 class TestBaseCharMap(unittest.TestCase):
 
     def setUp(self):
-        class MockCharMap(CharMap):
+        class TestCharMap(_CharMap):
             patch_dimensions = (2, 3)
-        self.MockCharMap = MockCharMap
+            def _patch_to_char(self, patch) -> CharWithColor:
+                return CharWithColor(char=Char.FULL_1, fg=0.5, bg=0.5)
+
+        self.TestCharMap = TestCharMap
 
     def test_max_img_shape(self):
 
         self.assertEqual(
-            self.MockCharMap.max_img_shape(char_rows=10, char_cols=10),
+            self.TestCharMap().max_img_shape(char_rows=10, char_cols=10),
             (20, 30)
         )
 
         self.assertEqual(
-            self.MockCharMap.max_img_shape(char_rows=1, char_cols=7),
+            self.TestCharMap().max_img_shape(char_rows=1, char_cols=7),
             (2, 21)
         )
 
     def test_iter_patches(self):
         test_arr = np.arange(600).reshape((20, 30))
-        patches = list(self.MockCharMap.iter_patches(test_arr))
+        patches = list(self.TestCharMap().iter_patches(test_arr))
         self.assertEqual(
             len(patches),
             100,
@@ -67,28 +69,28 @@ class TestBaseCharMap(unittest.TestCase):
     def test_invalid_iter_patches(self):
         test_arr = np.zeros((19, 30))
         with self.assertRaises(ValueError):
-            list(self.MockCharMap.iter_patches(test_arr))
+            list(self.TestCharMap().iter_patches(test_arr))
 
         test_arr = np.zeros((20, 29))
         with self.assertRaises(ValueError):
-            list(self.MockCharMap.iter_patches(test_arr))
+            list(self.TestCharMap().iter_patches(test_arr))
 
 
 class TestFullCharMap(unittest.TestCase):
 
     def test_max_img_shape(self):
         self.assertEqual(
-            FullCharMap.max_img_shape(char_rows=10, char_cols=10),
+            get_map(MapType.Full).max_img_shape(char_rows=10, char_cols=10),
             (10, 10)
         )
         self.assertEqual(
-            FullCharMap.max_img_shape(char_rows=1, char_cols=7),
+            get_map(MapType.Full).max_img_shape(char_rows=1, char_cols=7),
             (1, 7)
         )
 
     def test_iter_patches(self):
         test_arr = np.arange(100).reshape((10, 10))
-        patches = list(FullCharMap.iter_patches(test_arr))
+        patches = list(get_map(MapType.Full).iter_patches(test_arr))
         self.assertEqual(
             len(patches),
             100,
@@ -100,7 +102,7 @@ class TestFullCharMap(unittest.TestCase):
         ]))
 
     def test_patch_to_char(self):
-        result = FullCharMap.patch_to_char(np.array([[0.2]]))
+        result = get_map(MapType.Full)._patch_to_char(np.array([[0.2]]))  # type: ignore
         self.assertEqual(result, CharWithColor(
             char=Char.FULL_1,
             fg=0.2,
@@ -112,17 +114,17 @@ class TestHalfCharMap(unittest.TestCase):
 
     def test_max_img_shape(self):
         self.assertEqual(
-            HalfCharMap.max_img_shape(char_rows=10, char_cols=10),
+            get_map(MapType.Half).max_img_shape(char_rows=10, char_cols=10),
             (20, 10)
         )
         self.assertEqual(
-            HalfCharMap.max_img_shape(char_rows=1, char_cols=7),
+            get_map(MapType.Half).max_img_shape(char_rows=1, char_cols=7),
             (2, 7)
         )
 
     def test_iter_patches(self):
         test_arr = np.arange(100).reshape((10, 10))
-        patches = list(HalfCharMap.iter_patches(test_arr))
+        patches = list(get_map(MapType.Half).iter_patches(test_arr))
         self.assertEqual(
             len(patches),
             50,
@@ -135,28 +137,28 @@ class TestHalfCharMap(unittest.TestCase):
         ]))
 
     def test_patch_to_char(self):
-        result = HalfCharMap.patch_to_char(np.array([[0.7], [0.2]]))
+        result = get_map(MapType.Half)._patch_to_char(np.array([[0.7], [0.2]]))  # type: ignore
         self.assertEqual(result, CharWithColor(
             char=Char.HALF_10,
             fg=0.7,
             bg=0.2
         ))
 
-        result = HalfCharMap.patch_to_char(np.array([[0.2], [0.7]]))
+        result = get_map(MapType.Half)._patch_to_char(np.array([[0.2], [0.7]]))  # type: ignore
         self.assertEqual(result, CharWithColor(
             char=Char.HALF_10,
             fg=0.2,
             bg=0.7
         ))
 
-        result = HalfCharMap.patch_to_char(np.array([[0.5], [0.5]]))
+        result = get_map(MapType.Half)._patch_to_char(np.array([[0.5], [0.5]]))  # type: ignore
         self.assertEqual(result, CharWithColor(
             char=Char.FULL_1,
             fg=0.5,
             bg=0.5
         ))
 
-        result = HalfCharMap.patch_to_char(np.array([[0.0], [0.0]]))
+        result = get_map(MapType.Half)._patch_to_char(np.array([[0.0], [0.0]]))  # type: ignore
         self.assertEqual(result, CharWithColor(
             char=Char.FULL_0,
             fg=0.0,
@@ -167,17 +169,17 @@ class TestQuarterCharMap(unittest.TestCase):
 
     def test_max_img_shape(self):
         self.assertEqual(
-            QuarterCharMap.max_img_shape(char_rows=10, char_cols=10),
+            get_map(MapType.Quarter).max_img_shape(char_rows=10, char_cols=10),
             (20, 20)
         )
         self.assertEqual(
-            QuarterCharMap.max_img_shape(char_rows=1, char_cols=7),
+            get_map(MapType.Quarter).max_img_shape(char_rows=1, char_cols=7),
             (2, 14)
         )
 
     def test_iter_patches(self):
         test_arr = np.arange(100).reshape((10, 10))
-        patches = list(QuarterCharMap.iter_patches(test_arr))
+        patches = list(get_map(MapType.Quarter).iter_patches(test_arr))
         self.assertEqual(
             len(patches),
             25,
@@ -190,7 +192,7 @@ class TestQuarterCharMap(unittest.TestCase):
         ]))
 
     def test_patch_to_char(self):
-        result = QuarterCharMap.patch_to_char(np.array([
+        result = get_map(MapType.Quarter)._patch_to_char(np.array([  # type: ignore
             [0.2, 0.2],
             [0.2, 0.2]
         ]))
@@ -200,7 +202,7 @@ class TestQuarterCharMap(unittest.TestCase):
             bg=0.2
         ))
 
-        result = QuarterCharMap.patch_to_char(np.array([
+        result = get_map(MapType.Quarter)._patch_to_char(np.array([  # type: ignore
             [0.0, 0.0],
             [0.0, 0.0]
         ]))
@@ -210,7 +212,7 @@ class TestQuarterCharMap(unittest.TestCase):
             bg=0.0
         ))
 
-        result = QuarterCharMap.patch_to_char(np.array([
+        result = get_map(MapType.Quarter)._patch_to_char(np.array([  # type: ignore
             [0.7, 0.2],
             [0.2, 0.5]
         ]))
@@ -220,7 +222,7 @@ class TestQuarterCharMap(unittest.TestCase):
             bg=0.2
         ))
 
-        result = QuarterCharMap.patch_to_char(np.array([
+        result = get_map(MapType.Quarter)._patch_to_char(np.array([  # type: ignore
             [0.7, 0.7],
             [0.2, 0.3]
         ]))
@@ -230,7 +232,7 @@ class TestQuarterCharMap(unittest.TestCase):
             bg=0.25
         ))
 
-        result = QuarterCharMap.patch_to_char(np.array([
+        result = get_map(MapType.Quarter)._patch_to_char(np.array([  # type: ignore
             [0.1, 0.65],
             [0.65, 0.65]
         ]))

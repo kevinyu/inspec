@@ -133,7 +133,7 @@ For more fine-grained control, or to extend the visualizations to other data for
 import inspec
 from inspec.colormap import load_cmap
 from inspec.io import AudioReader
-from inspec.maps import QuarterCharMap
+from inspec.maps import get_map
 from inspec.render import StdoutRenderer
 from inspec.transform import SpectrogramTransform
 
@@ -146,7 +146,7 @@ data, sampling_rate, _ = AudioReader.read_file("sample.wav")
 img, _ = transform.convert(data, sampling_rate, output_size=(80, 160))
 
 # Convert the image into tuples of unicode characters and colors to map (from 0. to 1.)
-char_img = QuarterCharMap.to_char_array(img)
+char_img = get_map("quarter").to_char_array(img)
 
 # Apply a colormap to the 0. to 1. colors into terminal color values (or curses colors)
 char_img_colorized = StdoutRenderer.apply_cmap_to_char_array(cmap, char_img)
