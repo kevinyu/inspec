@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 import sys
-from typing import Iterator
+from typing import Iterator, Optional
 
 import numpy as np
 from numpy.typing import NDArray
@@ -11,6 +11,7 @@ from inspec.chars import Char, IChar
 
 
 # Set Console Mode so that ANSI codes will work
+# TODO: does this go here?
 if sys.platform == "win32":
     import ctypes
 
@@ -36,11 +37,11 @@ class MapNotFound(Exception):
     pass
 
 
-class CharMap(object):
+class CharMap:
     """Base class for translating 2D image data into 2D array of unicode characters"""
 
-    patch_dimensions = (1, 1)
-    background_char = CharWithColor(char=Char.FULL_0, fg=0, bg=0)
+    patch_dimensions: tuple[int, int] = (1, 1)
+    background_char: CharWithColor = CharWithColor(char=Char.FULL_0, fg=0, bg=0)
 
     @classmethod
     def iter_patches(cls, img: NDArray) -> Iterator[tuple[tuple[int, int], NDArray]]:
@@ -73,7 +74,7 @@ class CharMap(object):
                 ]
 
     @classmethod
-    def max_img_shape(cls, char_rows, char_cols) -> tuple[int, int]:
+    def max_img_shape(cls, char_rows: int, char_cols: int) -> tuple[int, int]:
         """Return the largest image size that can be rendered for a given size in characters"""
         return (
             char_rows * cls.patch_dimensions[0],
@@ -81,7 +82,12 @@ class CharMap(object):
         )
 
     @classmethod
-    def to_char_array(cls, img, floor=None, ceil=None) -> NDArray[CharWithColor]:  # type: ignore
+    def to_char_array(
+        cls,
+        img: NDArray,
+        floor: Optional[float] = None,
+        ceil: Optional[float] = None
+    ) -> NDArray[CharWithColor]:  # type: ignore
         """Convert an image array into an array of tuples with character and color info
 
         Params
@@ -105,9 +111,9 @@ class CharMap(object):
         # img_min = np.min(img)
         # img_max = np.max(img)
         if floor is None:
-            floor = np.quantile(img, var.SPECTROGRAM_LOWER_QUANTILE)
+            floor = float(np.quantile(img, var.SPECTROGRAM_LOWER_QUANTILE))
         if ceil is None:
-            ceil = np.quantile(img, var.SPECTROGRAM_UPPER_QUANTILE)
+            ceil = float(np.quantile(img, var.SPECTROGRAM_UPPER_QUANTILE))
 
         output_shape = (
             img.shape[0] // cls.patch_dimensions[0],
