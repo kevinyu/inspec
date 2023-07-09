@@ -477,7 +477,7 @@ class InspecGridApp(InspecCursesApp):
                 file_view.needs_redraw = False
 
     def annotate_view(self, file_view: DataView, window: curses.window) -> None:
-        if file_view.idx == self.current_selection:
+        if file_view.idx == self._state.current_selection:
             window.border(0,)
         else:
             window.border(1, 1, 1, 1)

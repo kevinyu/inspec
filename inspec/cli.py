@@ -344,7 +344,7 @@ def listen(
         device = int(device)
     except ValueError:
         pass
-    listen(
+    listen(  # type: ignore
         device=device,
         chunk_size=chunk_size,
         step_chars=step_chars,

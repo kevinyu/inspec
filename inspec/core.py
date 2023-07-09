@@ -12,7 +12,7 @@ from inspec import var
 from inspec.colormap import load_cmap
 from inspec.defaults import DEFAULTS
 from inspec.gui.audio_viewer import AudioFileView, InspecAudioApp, InspecAudioAppConfig
-from inspec.gui.image_viewer import ImageFileView, InspecImageApp
+from inspec.gui.image_viewer import ImageFileView, InspecImageApp, InspecImageAppConfig
 from inspec.gui.live_audio_viewer import LiveAudioViewApp
 from inspec.io import AudioReader, PILImageReader, gather_files
 from inspec.maps import MapType, get_map
@@ -115,18 +115,19 @@ def open_image_gui(
 
     charmap = get_map(characters)
 
-    app = InspecImageApp(
-        rows,
-        cols,
+    config = InspecImageAppConfig(
+        rows=rows,
+        cols=cols,
         files=files,
         file_reader=PILImageReader,
         cmap=cmap,
         view_class=ImageFileView,
-        transform=transforms,
+        transform_options=transforms,
         map=charmap,
-        debug=debug,
+        debug_mode=debug,
     )
-    asyncio.run(app.main(stdscr))
+    app = InspecImageApp.from_config(config=config)(stdscr)
+    asyncio.run(app.main())
 
 
 def imshow(
