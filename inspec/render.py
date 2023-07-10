@@ -3,8 +3,8 @@ import curses
 import numpy as np
 from numpy.typing import NDArray
 
-from inspec.chars import Char
-from inspec.colormap import PairedColormap, get_slot, set_curses_cmap
+from inspec.chars import Char, IChar
+from inspec.colormap import Colormap, PairedColormap, get_slot, set_curses_cmap
 from inspec.maps import CharWithColor, CharWithColor256
 
 
@@ -36,38 +36,33 @@ class BaseRenderer:
         raise NotImplementedError
 
 
+
 class StdoutRenderer(BaseRenderer):
+
     @staticmethod
-    def _ansi(fg_color: int = 0, bg_color: int = 0, reset=False):
-        if reset:
-            return "\u001b[0m"
-        return "\u001b[38;5;{fg_color}m\u001b[48;5;{bg_color}m".format(
-            fg_color=fg_color, bg_color=bg_color
-        )
+    def _ansi_set_color_str(fg_color: Colormap.Color256, bg_color: Colormap.Color256) -> str:
+        return f"\u001b[38;5;{fg_color}m\u001b[48;5;{bg_color}m"
 
     @staticmethod
     def render(char_array: NDArray[CharWithColor256]):  # type: ignore
         print()
+        ansi_reset_str = "\u001b[0m"
         for row in char_array[::-1]:
-            row_output = ""
+            parts = []
             for char_with_color in row:
                 char_with_color: CharWithColor256
-                row_output += (
-                    StdoutRenderer._ansi(
-                        char_with_color.fg,
-                        char_with_color.bg,
-                    )
+                parts.append(
+                    StdoutRenderer._ansi_set_color_str(char_with_color.fg, char_with_color.bg)
                     + char_with_color.char
                 )
-            row_output += StdoutRenderer._ansi(reset=True)
-            print(row_output)
-
+            print("".join(parts) + ansi_reset_str)
 
 class CursesRenderer(BaseRenderer):
+
     @staticmethod
     def apply_cmap_to_char_array(
         cmap: PairedColormap, char_array: NDArray[CharWithColor]  # type: ignore
-    ) -> NDArray[CharWithColor256]:  # type: ignore
+    ) -> NDArray[tuple[IChar, int]]:  # type: ignore
         """Applies a colormap to trasnslate float values in char_array to ColorSlots"""
         set_curses_cmap(cmap)
         char_array = BaseRenderer.apply_cmap_to_char_array(cmap, char_array)

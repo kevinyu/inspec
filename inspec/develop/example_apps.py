@@ -9,7 +9,7 @@ from inspec.io import LoadedAudioData
 from inspec.paginate import Paginator
 from inspec.gui.base import InspecCursesApp, PanelCoord
 from inspec.gui.utils import pad_string
-from inspec.maps import QuarterCharMap
+from inspec.maps import MapType, get_map
 from inspec.render import CursesRenderer
 from inspec.transform import AmplitudeEnvelopeTwoSidedTransform, SpectrogramTransform
 
@@ -225,13 +225,14 @@ class ExampleLiveAudioApp(InspecCursesApp):
         await super().refresh()
 
         window_size = self.window.getmaxyx()
-        desired_size = QuarterCharMap.max_img_shape(*window_size)
+        mapper = get_map(MapType.Quarter)
+        desired_size = mapper.max_img_shape(*window_size)
         assert self.data is not None
         if isinstance(self.transform, AmplitudeEnvelopeTwoSidedTransform):
             img, _ = self.transform.convert(self.data, output_size=desired_size, scale=0.5)
         else:
             img, _ = self.transform.convert(self.data, output_size=desired_size)
-        char_array = QuarterCharMap.to_char_array(img)
+        char_array = mapper.to_char_array(img)
         colorized_char_array = CursesRenderer.apply_cmap_to_char_array(self.cmap, char_array)
         CursesRenderer.render(self.window, colorized_char_array)
 
