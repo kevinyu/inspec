@@ -25,6 +25,14 @@ dependencies = [
     "windows-curses; platform_system=='Windows'",
 ]
 
+[project.optional-dependencies]
+dev = [
+    "flake8",
+    "twine",
+    "black",
+    "isort",
+]
+
 [project.urls]
 Repository = "https://github.com/kevinyu/inspec"
 
