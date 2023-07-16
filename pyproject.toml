@@ -1,0 +1,43 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+
+[project]
+name = "inspec"
+version = "0.4"
+description = "Inspect audio and image files from command line"
+readme = "README.md"
+authors = [{name = "Kevin Yu", email = "thekevinyu@gmail.edu"}]
+license = {file = "LICENSE"}
+keywords = ["spectrogram", "audio", "visualization", "sound", "terminal"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Programming Language :: Python :: 3.0",
+    "Operating System :: OS Independent",
+]
+requires-python = ">=3.9"
+dependencies = [
+    "Click",
+    "SoundFile",
+    "numpy",
+    "Pillow",
+    "sounddevice",
+    "wheel",
+    "windows-curses; platform_system=='Windows'",
+]
+
+[project.urls]
+Repository = "https://github.com/kevinyu/inspec"
+
+[project.scripts]
+inspec = "inspec.cli:cli"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["inspec"]
+exclude = []
+namespaces = false
+
+[tool.isort]
+profile = "black"
+src_paths = "inspec"
+extend_skip = [".env", "env"]
