@@ -1,8 +1,9 @@
 from __future__ import annotations
+
 import curses
 from typing import Optional
-from inspec_curses.color_pair import ColorToSlot
 
+from inspec_curses.color_pair import ColorToSlot
 
 _CURRENT_COLORMAP: Optional[ColorToSlot] = None
 
@@ -12,7 +13,9 @@ def get_active() -> ColorToSlot:
     Get the currently active colormap
     """
     if _CURRENT_COLORMAP is None:
-        raise RuntimeError("Curses colormap not initialized; never called set_active_cmap(colors: ColorToSlot)")
+        raise RuntimeError(
+            "Curses colormap not initialized; never called set_active_cmap(colors: ColorToSlot)"
+        )
     return _CURRENT_COLORMAP
 
 

@@ -1,10 +1,10 @@
 from __future__ import annotations
+
 from dataclasses import dataclass
 from typing import Iterator
 
 import numpy as np
 import pydantic
-
 from render.types import IChar, XTermColor
 
 
@@ -13,6 +13,7 @@ class ColorPairSlot(np.generic):
     """
     Represents one of the 256 color-pair slots in curses.
     """
+
     value: int
 
     def __post_init__(self):
@@ -37,25 +38,22 @@ class ColorToSlot(pydantic.BaseModel):
         # * 22 colors, we need 231 slots
         # * 23 colors, we need 253 slots
         assert len(self.colors) <= 22
-        self._color_idx = {
-            color: i
-            for i, color in enumerate(self.colors)
-        }
+        self._color_idx = {color: i for i, color in enumerate(self.colors)}
 
     def _get_slot(self, bin1: int, bin2: int) -> ColorPairSlot:
         assert 0 <= bin2 < bin1 < len(self.colors)
-        return ColorPairSlot(
-            int(
-                (bin1 * (bin1 - 1) / 2) + bin2
-            )
-        )
+        return ColorPairSlot(int((bin1 * (bin1 - 1) / 2) + bin2))
 
-    def iter_color_pairs(self) -> Iterator[tuple[XTermColor, XTermColor, ColorPairSlot]]:
+    def iter_color_pairs(
+        self,
+    ) -> Iterator[tuple[XTermColor, XTermColor, ColorPairSlot]]:
         for i in range(len(self.colors)):
             for j in range(i + 1, len(self.colors)):
                 yield self.colors[i], self.colors[j], self._get_slot(i, j)
 
-    def convert(self, char: IChar, fg: XTermColor, bg: XTermColor) -> tuple[ColorPairSlot, str]:
+    def convert(
+        self, char: IChar, fg: XTermColor, bg: XTermColor
+    ) -> tuple[ColorPairSlot, str]:
         """
         Get the curses color pair slot for a given fg/bg pair
 

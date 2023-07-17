@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from render.types import IChar
 
-
 FULL_1 = IChar(fg="█", bg=" ")
 FULL_0 = IChar(fg=" ", bg="█")
 HALF_00 = IChar(fg=" ", bg="█")
@@ -41,6 +40,8 @@ def get_char(*mask: bool | int) -> IChar:
     elif len(mask) == 2:
         return globals()[f"HALF_{int(mask[0])}{int(mask[1])}"]
     elif len(mask) == 4:
-        return globals()[f"QTR_{int(mask[0])}{int(mask[1])}{int(mask[2])}{int(mask[3])}"]
+        return globals()[
+            f"QTR_{int(mask[0])}{int(mask[1])}{int(mask[2])}{int(mask[3])}"
+        ]
     else:
         raise ValueError("Invalid mask")

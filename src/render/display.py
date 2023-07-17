@@ -1,6 +1,4 @@
-
-
-from render.types import XTermColor, ColoredChar, ColoredCharArray
+from render.types import ColoredChar, ColoredCharArray, XTermColor
 
 
 def _ansi_set_color_str(fg_color: XTermColor, bg_color: XTermColor) -> str:

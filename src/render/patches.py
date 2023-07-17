@@ -1,18 +1,24 @@
 from __future__ import annotations
 
 import abc
+import warnings
 from dataclasses import dataclass
 from typing import Generic, Iterator, Literal, Protocol, TypeVar
-import warnings
 
 import numpy as np
 from numpy.typing import NDArray
-
 from render import chars
 from render.colors import IntensityMap, RGBMap
-from render.types import ColorPair, ColoredChar, ColoredCharArray, CharShape, Intensity, RGB
+from render.types import (
+    RGB,
+    CharShape,
+    ColoredChar,
+    ColoredCharArray,
+    ColorPair,
+    Intensity,
+)
 
-InputT= TypeVar("InputT", covariant=True)
+InputT = TypeVar("InputT", covariant=True)
 _WARN_IMAGE_SIZE = 100_000
 
 
@@ -37,7 +43,6 @@ class Renderer(Generic[InputT], Protocol):
 
 
 class PatchRenderer(Renderer[InputT], abc.ABC):
-
     _patch_dimensions: tuple[int, int]
 
     @abc.abstractmethod
@@ -62,8 +67,12 @@ class PatchRenderer(Renderer[InputT], abc.ABC):
             )
 
         rows, cols = image.shape
-        for output_row_idx, input_row_idx in enumerate(range(rows)[:: self._patch_dimensions[0]]):
-            for output_col_idx, input_col_idx in enumerate(range(cols)[:: self._patch_dimensions[1]]):
+        for output_row_idx, input_row_idx in enumerate(
+            range(rows)[:: self._patch_dimensions[0]]
+        ):
+            for output_col_idx, input_col_idx in enumerate(
+                range(cols)[:: self._patch_dimensions[1]]
+            ):
                 yield Patch(
                     row=output_row_idx,
                     col=output_col_idx,
@@ -189,7 +198,9 @@ class FullCharRGBRenderer(FullCharRenderer[RGB]):
 
     def apply(self, image: NDArray) -> ColoredCharArray:
         if image.shape[0] * image.shape[1] > _WARN_IMAGE_SIZE:
-            warnings.warn(f"Rendering large image of shape {image.shape}, this may take a while")
+            warnings.warn(
+                f"Rendering large image of shape {image.shape}, this may take a while"
+            )
         return super().apply(image)
 
 
@@ -212,11 +223,15 @@ class HalfCharRGBRenderer(HalfCharRenderer[RGB]):
 
     def apply(self, image: NDArray) -> ColoredCharArray:
         if image.shape[0] * image.shape[1] > _WARN_IMAGE_SIZE:
-            warnings.warn(f"Rendering large image of shape {image.shape}, this may take a while")
+            warnings.warn(
+                f"Rendering large image of shape {image.shape}, this may take a while"
+            )
         return super().apply(image)
 
 
-def make_intensity_renderer(intensity_map: IntensityMap, shape: CharShape = CharShape.Half) -> Renderer[Intensity]:
+def make_intensity_renderer(
+    intensity_map: IntensityMap, shape: CharShape = CharShape.Half
+) -> Renderer[Intensity]:
     if shape == CharShape.Full:
         return FullCharIntensityRenderer(intensity_map=intensity_map)
     elif shape == CharShape.Half:
@@ -227,7 +242,9 @@ def make_intensity_renderer(intensity_map: IntensityMap, shape: CharShape = Char
         raise ValueError(f"Invalid shape: {shape}")
 
 
-def make_rgb_renderer(shape: Literal[CharShape.Full, CharShape.Half] = CharShape.Half) -> Renderer[RGB]:
+def make_rgb_renderer(
+    shape: Literal[CharShape.Full, CharShape.Half] = CharShape.Half
+) -> Renderer[RGB]:
     if shape == CharShape.Full:
         return FullCharRGBRenderer(rgb_map=RGBMap())
     elif shape == CharShape.Half:

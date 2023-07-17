@@ -2,17 +2,16 @@
 Organize ways that colors are represented
 """
 from __future__ import annotations
+
 import bisect
-
 from typing import Optional
-import pydantic
 
-from render.types import XTermColor, Intensity, RGB
+import pydantic
 from render import x256
+from render.types import RGB, Intensity, XTermColor
 
 
 class IntensityMap(pydantic.BaseModel):
-
     colors: tuple[XTermColor, ...]
     bin_edges: tuple[float, ...]
 
@@ -45,9 +44,7 @@ class IntensityMap(pydantic.BaseModel):
             bin_edges = [i / len(colors) for i in range(1, len(colors))]
 
         if len(bin_edges) != len(colors) - 1:
-            raise ValueError(
-                "bin_edges must be a list of length len(colors) - 1"
-            )
+            raise ValueError("bin_edges must be a list of length len(colors) - 1")
 
         return IntensityMap(colors=tuple(colors), bin_edges=tuple(bin_edges))
 
@@ -71,10 +68,7 @@ class IntensityMap(pydantic.BaseModel):
 
 
 class RGBMap(pydantic.BaseModel):
-
-    colors: tuple[XTermColor, ...] = tuple(
-        XTermColor(i) for i in range(0, 256)
-    )
+    colors: tuple[XTermColor, ...] = tuple(XTermColor(i) for i in range(0, 256))
     _inverted: bool = False
 
     class Config:

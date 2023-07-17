@@ -1,6 +1,7 @@
 from __future__ import annotations
-from dataclasses import dataclass
+
 import enum
+from dataclasses import dataclass
 
 from numpy.typing import NDArray
 
@@ -47,6 +48,7 @@ class XTermColor:
     Represents one of the 256 colors in xterm-256color palette
     Check your terminal with `echo $TERM`
     """
+
     value: int
 
     def __post_init__(self):
@@ -61,6 +63,7 @@ class Intensity:
     """
     Represents a grey-scale color from 0 to 1.
     """
+
     value: float
 
     def __post_init__(self):
@@ -72,6 +75,7 @@ class RGB:
     """
     Represents an RGB color from 0 to 1.
     """
+
     r: int
     g: int
     b: int
