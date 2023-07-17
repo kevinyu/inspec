@@ -1,5 +1,0 @@
-click>=7.1.2
-numpy>=1.16.0
-Pillow>=8.1.0
-SoundFile>=0.10.3.post1
-sounddevice>=0.4.1
