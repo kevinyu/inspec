@@ -4,6 +4,38 @@ Inspect audio files and images from the command line by displaying them as unico
 
 Primary purpose is to inspect media files on a server during a remote SSH session or to quickly spot-check files during a script. Provides printing to stdout, a terminal gui built with curses, and importable Python functions.
 
+## Under construction
+
+Currently, `src/inspec` is legacy and will be replaced entirely by the other modules.
+
+The curses app will be decoupled from the rendering and cli.
+
+Setup for dev
+
+```
+pip install -e .
+```
+
+Run tests
+
+```
+pytest src
+```
+
+Run some samples
+```
+inspec show demo/warbling.wav
+inspec imshow demo/mandrill.jpg
+
+python -m view.test_view
+python -m render.test_render
+```
+
+TODO:
+- Move new modules into `inspec` and move old code out
+- Release as 1.0
+- Reimplement curses apps
+
 ## Install
 
 ```

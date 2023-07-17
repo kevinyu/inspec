@@ -1,4 +1,5 @@
 # Local development files
+.vscode/
 coverage_html/
 
 # Byte-compiled / optimized / DLL files
