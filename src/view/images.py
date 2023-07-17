@@ -7,19 +7,14 @@ from numpy.typing import NDArray
 from pydantic import BaseModel
 from PIL import Image
 
+from inspec.transform import resize
 from render.types import RGB
 
 from view.base import FileReader, Size, View
 
 
 class BasicImageView(View):
-    class AspectRatio(str, enum.Enum):
-        KeepHeight = "keep_height"
-        KeepWidth = "keep_width"
-        Fill = "fill"
-        Keep = "keep"
-
-    preserve_aspect_ratio: AspectRatio = AspectRatio.Keep
+    thumbnail: bool = False
 
 
 class BasicImageReader(BaseModel, FileReader[RGB, BasicImageView]):
@@ -33,22 +28,35 @@ class BasicImageReader(BaseModel, FileReader[RGB, BasicImageView]):
         im = Image.open(self.filename)
         ar = im.size[1] / im.size[0]
         if isinstance(view.expect_size, Size.FixedSize):
-            im = im.resize((view.expect_size.width, view.expect_size.height))
+            shape = (view.expect_size.height, view.expect_size.width)
         elif isinstance(view.expect_size, Size.FixedWidth):
-            im = im.resize((view.expect_size.width, int(ar * view.expect_size.width)))
+            shape = (view.expect_size.width, int(ar * view.expect_size.width))
         elif isinstance(view.expect_size, Size.FixedHeight):
-            im = im.resize((int(ar * view.expect_size.height), view.expect_size.height))
+            shape = (int(ar * view.expect_size.height), view.expect_size.height)
         elif isinstance(view.expect_size, Size.MinSize):
             if ar > view.expect_size.height / view.expect_size.width:
-                im = im.resize((view.expect_size.width, int(ar * view.expect_size.width)))
+                shape = (view.expect_size.width, int(ar * view.expect_size.width))
             else:
-                im = im.resize((int(ar * view.expect_size.height), view.expect_size.height))
+                shape = (int(ar * view.expect_size.height), view.expect_size.height)
         elif isinstance(view.expect_size, Size.MaxSize):
             if ar < view.expect_size.height / view.expect_size.width:
-                im = im.resize((view.expect_size.width, int(ar * view.expect_size.width)))
+                shape = (view.expect_size.width, int(ar * view.expect_size.width))
             else:
-                im = im.resize((int(ar * view.expect_size.height), view.expect_size.height))
+                shape = (int(ar * view.expect_size.height), view.expect_size.height)
+        else:
+            raise ValueError(f"Unknown size {view.expect_size}")
 
-        im = np.asarray(im.convert(mode="RGB"))[::-1]  # Flips the image because (?)
-        arr = np.vectorize(BasicImageReader._to_rgb, signature="(n) -> ()")(im)
+        if view.thumbnail:
+            # im.thumbnail((shape[1], shape[0]))
+            # arr = np.asarray(im.convert(mode="RGB"))[::-1]
+            # arr = np.vectorize(BasicImageReader._to_rgb, signature="(n) -> ()")(arr)
+            # arr = resize(arr, shape[0], shape[1])
+            # Can't implement this until we have a solid `resize` function that will work
+            # on a 3D array.
+            raise NotImplementedError
+        else:
+            im = im.resize((shape[1], shape[0]))
+            arr = np.asarray(im.convert(mode="RGB"))[::-1]
+            arr = np.vectorize(BasicImageReader._to_rgb, signature="(n) -> ()")(arr)
+
         return arr

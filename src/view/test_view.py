@@ -20,7 +20,10 @@ def test_image_reader(terminal_size):
     from render.types import CharShape
 
     reader = BasicImageReader(filename="demo/mandrill.jpg")
-    view = BasicImageView(expect_size=Size.MaxSize.fill_terminal(shape=CharShape.Half))
+    view = BasicImageView(
+        expect_size=Size.MaxSize.fill_terminal(shape=CharShape.Half),
+        thumbnail=False,
+    )
     renderer = make_rgb_renderer(shape=CharShape.Half)
     arr = reader.get_view(view)
     display(renderer.apply(arr))
