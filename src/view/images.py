@@ -5,7 +5,7 @@ from numpy.typing import NDArray
 from PIL import Image
 from pydantic import BaseModel
 from render.types import RGB
-from view.base import FileReader, Size, View
+from inspec_core.base_view import FileReader, Size, View
 
 
 class BasicImageView(View):

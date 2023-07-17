@@ -2,8 +2,8 @@ import os
 from unittest import mock
 
 import pytest
+from inspec_core.base_view import Size
 from view.audio import BasicAudioReader, BasicAudioView
-from view.base import Size
 from view.images import BasicImageReader, BasicImageView
 
 

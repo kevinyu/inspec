@@ -4,7 +4,7 @@ from typing import Literal, Optional
 from render import make_intensity_renderer, make_rgb_renderer
 from render.display import display
 from render.types import CharShape
-from view.base import Size
+from inspec_core.base_view import Size
 
 # Set Console Mode so that ANSI codes will work
 if sys.platform == "win32":
