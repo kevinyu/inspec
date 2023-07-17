@@ -6,7 +6,6 @@ from typing import Generic, Self, TypeVar, Union
 
 from numpy.typing import NDArray
 from pydantic import BaseModel
-
 from render.types import CharShape
 
 T = TypeVar("T", covariant=True)
@@ -28,7 +27,9 @@ class BaseWidthHeight(BaseModel):
         return size
 
     @classmethod
-    def fit_characters(cls, rows: int, cols: int, shape: CharShape = CharShape.Full) -> Self:
+    def fit_characters(
+        cls, rows: int, cols: int, shape: CharShape = CharShape.Full
+    ) -> Self:
         if shape is CharShape.Full:
             return cls(width=cols, height=rows)
         elif shape is CharShape.Half:
@@ -67,6 +68,7 @@ class View(BaseModel):
         terminal characters. So, to fill the entire terminal for CharShape.Half, you would want to
         pass in Size(width=cols, height=rows * 2 - 1).
     """
+
     expect_size: Size.Size
 
 
@@ -74,7 +76,6 @@ ViewT = TypeVar("ViewT", bound=View)
 
 
 class FileReader(Generic[T, ViewT], abc.ABC):
-
     @abc.abstractmethod
     def get_view(self, view: ViewT) -> NDArray[T]:  # type: ignore
         raise NotImplementedError

@@ -4,10 +4,9 @@ from typing import Optional
 
 import numpy as np
 import soundfile
+from inspec.transform import compute_spectrogram, resize
 from numpy.typing import NDArray
 from pydantic import BaseModel
-
-from inspec.transform import compute_spectrogram, resize
 from render.types import Intensity
 from view.base import FileReader, Size, View
 
@@ -42,7 +41,11 @@ class BasicAudioReader(BaseModel, FileReader[Intensity, BasicAudioView]):
         min_val = np.min(spec)
         max_val = np.max(spec)
         arr = (spec - min_val) / (max_val - min_val)
-        arr = resize(arr, target_height=view.expect_size.height, target_width=view.expect_size.width)
+        arr = resize(
+            arr,
+            target_height=view.expect_size.height,
+            target_width=view.expect_size.width,
+        )
         arr = np.vectorize(Intensity)(arr)
 
         return arr

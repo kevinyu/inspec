@@ -5,7 +5,9 @@ import curses
 
 from inspec_curses.color_pair import ColorToSlot
 
-_CURRENT_COLORMAP: contextvars.ContextVar[ColorToSlot] = contextvars.ContextVar("_CURRENT_COLORMAP")
+_CURRENT_COLORMAP: contextvars.ContextVar[ColorToSlot] = contextvars.ContextVar(
+    "_CURRENT_COLORMAP"
+)
 
 
 def get_active() -> ColorToSlot:
@@ -36,8 +38,6 @@ def set_active(color_to_slot: ColorToSlot) -> ColorToSlot:
             )
     except Exception as e:
         _CURRENT_COLORMAP.reset(token)
-        raise RuntimeError(
-            "Unexpected error setting curses colormap"
-        ) from e
+        raise RuntimeError("Unexpected error setting curses colormap") from e
 
     return color_to_slot

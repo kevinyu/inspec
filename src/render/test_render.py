@@ -1,6 +1,5 @@
 import numpy as np
-from inspec.io import PILImageReader
-from inspec_curses import get_colormap
+from colormaps import get_colormap
 from render import make_intensity_renderer, make_rgb_renderer
 from render.display import display
 from render.types import RGB, CharShape, Intensity
@@ -25,19 +24,6 @@ def test_display_rgb():
     display(renderer.apply(arr))
 
 
-def test_display_image():
-    reader = PILImageReader()
-    data = reader.read_file("demo/mandrill.jpg")
-    output_size = (100, 50)
-    resized = data.data.resize((output_size[1], output_size[0]))
-    resized = resized.convert(mode="RGB")
-    resized = np.asarray(resized)[::-1]
-    arr = np.vectorize(to_rgb, signature="(n) -> ()")(resized)
-    renderer = make_rgb_renderer(shape=CharShape.Half)
-    display(renderer.apply(arr))
-
-
 if __name__ == "__main__":
     test_display()
     test_display_rgb()
-    test_display_image()

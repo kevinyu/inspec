@@ -2,8 +2,8 @@
 Organize ways that colors are represented
 """
 from __future__ import annotations
-import abc
 
+import abc
 import bisect
 from typing import Any, Optional, Self
 

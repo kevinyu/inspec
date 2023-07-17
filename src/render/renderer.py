@@ -72,10 +72,10 @@ class PatchRenderer(Renderer[InputT], abc.ABC):
 
         rows, cols = image.shape
         for output_row_idx, input_row_idx in enumerate(
-            range(rows)[:-slice_off_rows or None: self._patch_dimensions[0]]
+            range(rows)[: -slice_off_rows or None : self._patch_dimensions[0]]
         ):
             for output_col_idx, input_col_idx in enumerate(
-                range(cols)[:-slice_off_cols or None: self._patch_dimensions[1]]
+                range(cols)[: -slice_off_cols or None : self._patch_dimensions[1]]
             ):
                 yield Patch(
                     row=output_row_idx,
@@ -94,7 +94,7 @@ class PatchRenderer(Renderer[InputT], abc.ABC):
         slice_off_cols = image.shape[1] % self._patch_dimensions[1]
         output_shape = (
             (image.shape[0] - slice_off_rows) // self._patch_dimensions[0],
-            (image.shape[1] - slice_off_cols) // self._patch_dimensions[1]
+            (image.shape[1] - slice_off_cols) // self._patch_dimensions[1],
         )
 
         char_array = np.empty(output_shape, dtype=object)
@@ -187,7 +187,9 @@ class QuarterCharIntensityRenderer(QuarterCharRenderer[Intensity]):
             raise RuntimeError("This should never happen")
 
         fg_mean = sum([p.value for p in flat_patch if p.value > patch_mean]) / count
-        bg_mean = sum([p.value for p in flat_patch if p.value <= patch_mean]) / (4 - count)
+        bg_mean = sum([p.value for p in flat_patch if p.value <= patch_mean]) / (
+            4 - count
+        )
 
         return ColoredChar(
             char=chars.get_char(*mask),

@@ -1,12 +1,10 @@
 import sys
-
 from typing import Literal, Optional
 
 from render import make_intensity_renderer, make_rgb_renderer
 from render.display import display
 from render.types import CharShape
 from view.base import Size
-
 
 # Set Console Mode so that ANSI codes will work
 if sys.platform == "win32":
@@ -25,11 +23,14 @@ def imshow(
     from view.images import BasicImageReader, BasicImageView
 
     reader = BasicImageReader(filename=filename)
-    view = BasicImageView(expect_size=
-        Size.FixedSize(width=width, height=height) if width and height else
-        Size.FixedWidth(width=width) if width else
-        Size.FixedHeight(height=height) if height else
-        Size.MaxSize.fill_terminal(shape=chars)
+    view = BasicImageView(
+        expect_size=Size.FixedSize(width=width, height=height)
+        if width and height
+        else Size.FixedWidth(width=width)
+        if width
+        else Size.FixedHeight(height=height)
+        if height
+        else Size.MaxSize.fill_terminal(shape=chars)
     )
     renderer = make_rgb_renderer(shape=chars)
     arr = reader.get_view(view)
@@ -42,15 +43,16 @@ def ashow(
     width: Optional[int] = None,
     cmap: str = "viridis",
     chars: CharShape = CharShape.Full,
-
 ):
+    from colormaps import get_colormap, valid_colormaps
     from view.audio import BasicAudioReader, BasicAudioView
-    from inspec_curses import get_colormap, valid_colormaps
 
     try:
         intensity_map = get_colormap(cmap)
     except KeyError:
-        raise ValueError(f"Invalid colormap {cmap}. Valid colormaps are {valid_colormaps()}")
+        raise ValueError(
+            f"Invalid colormap {cmap}. Valid colormaps are {valid_colormaps()}"
+        )
 
     reader = BasicAudioReader(filename=filename)
     size = Size.FixedSize.fill_terminal(shape=chars)

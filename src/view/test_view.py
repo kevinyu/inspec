@@ -2,7 +2,6 @@ import os
 from unittest import mock
 
 import pytest
-
 from view.audio import BasicAudioReader, BasicAudioView
 from view.base import Size
 from view.images import BasicImageReader, BasicImageView
@@ -30,14 +29,16 @@ def test_image_reader(terminal_size):
 
 
 def test_audio_reader(terminal_size):
+    from colormaps import get_colormap
     from render import make_intensity_renderer
     from render.display import display
     from render.types import CharShape
-    from inspec_curses import get_colormap
 
     cmap = get_colormap("viridis")
     reader = BasicAudioReader(filename="demo/warbling.wav")
-    view = BasicAudioView(expect_size=Size.FixedSize.fill_terminal(shape=CharShape.Half))
+    view = BasicAudioView(
+        expect_size=Size.FixedSize.fill_terminal(shape=CharShape.Half)
+    )
     renderer = make_intensity_renderer(cmap, shape=CharShape.Half)
     arr = reader.get_view(view)
     display(renderer.apply(arr))
