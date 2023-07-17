@@ -162,3 +162,10 @@ def get_colormap(name: str) -> IntensityMap:
     Get a colormap by name
     """
     return _registered_colormaps[name]
+
+
+def valid_colormaps() -> list[str]:
+    """
+    Return a list of valid colormap names
+    """
+    return list(_registered_colormaps.keys())

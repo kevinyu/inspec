@@ -58,20 +58,24 @@ class PatchRenderer(Renderer[InputT], abc.ABC):
 
         The order is not guaranteed.
         """
-        if (
-            image.shape[0] % self._patch_dimensions[0]
-            or image.shape[1] % self._patch_dimensions[1]
-        ):
-            raise ValueError(
-                "Image to convert to characters must be a even multiple of patch size"
-            )
+        # if (
+        #     image.shape[0] % self._patch_dimensions[0]
+        #     or image.shape[1] % self._patch_dimensions[1]
+        # ):
+        #     raise ValueError(
+        #         "Image to convert to characters must be a even multiple of patch size"
+        #     )
+
+        # Unpad the image to be a multiple of the patch size
+        slice_off_rows = image.shape[0] % self._patch_dimensions[0]
+        slice_off_cols = image.shape[1] % self._patch_dimensions[1]
 
         rows, cols = image.shape
         for output_row_idx, input_row_idx in enumerate(
-            range(rows)[:: self._patch_dimensions[0]]
+            range(rows)[:-slice_off_rows or None: self._patch_dimensions[0]]
         ):
             for output_col_idx, input_col_idx in enumerate(
-                range(cols)[:: self._patch_dimensions[1]]
+                range(cols)[:-slice_off_cols or None: self._patch_dimensions[1]]
             ):
                 yield Patch(
                     row=output_row_idx,
@@ -86,17 +90,11 @@ class PatchRenderer(Renderer[InputT], abc.ABC):
         """
         Convert an image array into colorized characters.
         """
-        if (
-            image.shape[0] % self._patch_dimensions[0]
-            or image.shape[1] % self._patch_dimensions[1]
-        ):
-            raise ValueError(
-                "Image to convert to characters must be a even multiple of patch size"
-            )
-
+        slice_off_rows = image.shape[0] % self._patch_dimensions[0]
+        slice_off_cols = image.shape[1] % self._patch_dimensions[1]
         output_shape = (
-            image.shape[0] // self._patch_dimensions[0],
-            image.shape[1] // self._patch_dimensions[1],
+            (image.shape[0] - slice_off_rows) // self._patch_dimensions[0],
+            (image.shape[1] - slice_off_cols) // self._patch_dimensions[1]
         )
 
         char_array = np.empty(output_shape, dtype=object)
@@ -172,11 +170,30 @@ class QuarterCharIntensityRenderer(QuarterCharRenderer[Intensity]):
         patch_mean = sum([intensity.value for intensity in flat_patch]) / 4
         mask = [p.value > patch_mean for p in flat_patch]
 
+        # We can only pick two intensity values for the patch, for the fg and bg.
+        # We'll average the values of the pixels that are above the mean for the fg,
+        # and the values of the pixels that are below the mean for the bg.
+        count = sum(mask)
+        if count == 0:
+            # If the count is 0, it means that all the values are equal to the mean.
+            return ColoredChar(
+                char=chars.QTR_0000,
+                color=ColorPair(
+                    fg=self.intensity_map.to_color(Intensity(patch_mean)),
+                    bg=self.intensity_map.to_color(Intensity(patch_mean)),
+                ),
+            )
+        elif count == 4:
+            raise RuntimeError("This should never happen")
+
+        fg_mean = sum([p.value for p in flat_patch if p.value > patch_mean]) / count
+        bg_mean = sum([p.value for p in flat_patch if p.value <= patch_mean]) / (4 - count)
+
         return ColoredChar(
             char=chars.get_char(*mask),
             color=ColorPair(
-                fg=self.intensity_map.to_color(Intensity(patch_mean)),
-                bg=self.intensity_map.to_color(Intensity(patch_mean)),
+                fg=self.intensity_map.to_color(Intensity(fg_mean)),
+                bg=self.intensity_map.to_color(Intensity(bg_mean)),
             ),
         )
 

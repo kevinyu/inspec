@@ -37,11 +37,11 @@ dev = [
 Repository = "https://github.com/kevinyu/inspec"
 
 [project.scripts]
-inspec = "inspec.cli:cli"
+inspec = "inspec_cli.cli:cli"
 
 [tool.setuptools.packages.find]
 where = ["src"]
-include = ["inspec", "inspec_curses", "render"]
+include = ["inspec_legacy", "inspec_cli", "inspec_curses", "render", "view"]
 exclude = []
 namespaces = false
 

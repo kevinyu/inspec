@@ -1,7 +1,8 @@
 from inspec_curses import context
-from inspec_curses.registry import get_colormap
+from inspec_curses.registry import get_colormap, valid_colormaps
 
 __all__ = [
-    "get_colormap",
     "context",
+    "get_colormap",
+    "valid_colormaps",
 ]

@@ -1,15 +1,15 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Iterator
+from typing import Any, Iterator
 
-import numpy as np
 import pydantic
+from render import chars
 from render.types import IChar, XTermColor
 
 
 @dataclass
-class ColorPairSlot(np.generic):
+class ColorPairSlot:
     """
     Represents one of the 256 color-pair slots in curses.
     """
@@ -24,7 +24,7 @@ class ColorToSlot(pydantic.BaseModel):
     colors: list[XTermColor]
     _color_idx: dict[XTermColor, int] = pydantic.PrivateAttr()
 
-    def __post_init__(self):
+    def model_post_init(self, __context: Any) -> None:
         # This was calculated by hand. We have 256 colors but we are also limited to 248 slots of fg/bg
         # pairs. We do not need any slots where fg==bg, since we can represent those with a " " and any
         # value for fg. We also do not any slots where bg > fg (by convention) since we can just swap fg
@@ -49,7 +49,7 @@ class ColorToSlot(pydantic.BaseModel):
     ) -> Iterator[tuple[XTermColor, XTermColor, ColorPairSlot]]:
         for i in range(len(self.colors)):
             for j in range(i + 1, len(self.colors)):
-                yield self.colors[i], self.colors[j], self._get_slot(i, j)
+                yield self.colors[j], self.colors[i], self._get_slot(j, i)
 
     def convert(
         self, char: IChar, fg: XTermColor, bg: XTermColor
@@ -61,12 +61,16 @@ class ColorToSlot(pydantic.BaseModel):
         bg=0          0     1     2
         bg=1                3     4
         bg=2                      5
+        bg=3
 
         Note: we don't need to represent fg=bg because we can just use a space character as long
         as bg is chosen correctly.
 
         Note: we don't need to represent bg>fg because we can just swap fg and bg, and use an
         inverted character, e.g. ("▜", fg=1, bg=2) is the same as ("▟", fg=2, bg=1)
+
+        Note: there is no slot that represents bg=n-1 (just like there is no slot to represent
+        fg=0). In these cases, we need to invert the character and swap fg and bg.
 
         The general formula for the slot is then:
         slot = (fg * (fg - 1) / 2) + bg
@@ -76,11 +80,15 @@ class ColorToSlot(pydantic.BaseModel):
         fg_idx = self._color_idx[fg]
         bg_idx = self._color_idx[bg]
 
-        if fg_idx == bg_idx:
-            return ColorPairSlot(0), " "
+        if fg_idx == bg_idx == 0:
+            return self._get_slot(len(self._color_idx) - 1, bg_idx), chars.FULL_0
+        elif fg_idx == bg_idx:
+            return self._get_slot(fg_idx, 0), chars.FULL_1
 
         if bg_idx > fg_idx:
             char = char.invert()
             fg_idx, bg_idx = bg_idx, fg_idx
+
+        print(f"fg={fg_idx} bg={bg_idx} slot={self._get_slot(fg_idx, bg_idx)}")
 
         return self._get_slot(fg_idx, bg_idx), str(char)

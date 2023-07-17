@@ -27,7 +27,7 @@ def test_display_rgb():
 
 def test_display_image():
     reader = PILImageReader()
-    data = reader.read_file("/Users/kevin/Downloads/IMG_4002.PNG")
+    data = reader.read_file("demo/mandrill.jpg")
     output_size = (100, 50)
     resized = data.data.resize((output_size[1], output_size[0]))
     resized = resized.convert(mode="RGB")
