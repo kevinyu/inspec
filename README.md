@@ -33,6 +33,27 @@ python -m render.test_render
 
 TODO:
 - Move new modules into `inspec` and move old code out
+- Reorg to this?
+```
+inspec/
+  __init__.py
+  core/
+    ...render
+    base_view.py
+  views/
+    images.py
+    audio.py
+  curses/
+    color_pair.py
+    renderer.py  <- totally different api from core renderer
+    context.py
+  app/
+    ...curses app files...
+cli.py
+colormaps.py
+
+
+```
 - Release as 1.0
 - Reimplement curses apps
 
