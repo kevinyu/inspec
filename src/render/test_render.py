@@ -1,8 +1,8 @@
 import numpy as np
 from inspec.io import PILImageReader
 from inspec_curses import get_colormap
+from render import make_intensity_renderer, make_rgb_renderer
 from render.display import display
-from render.patches import make_intensity_renderer, make_rgb_renderer
 from render.types import RGB, CharShape, Intensity
 
 

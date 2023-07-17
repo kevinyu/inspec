@@ -2,26 +2,49 @@
 Organize ways that colors are represented
 """
 from __future__ import annotations
+import abc
 
 import bisect
-from typing import Optional
+from typing import Any, Optional, Self
 
 import pydantic
 from render import x256
 from render.types import RGB, Intensity, XTermColor
 
 
-class IntensityMap(pydantic.BaseModel):
+class BaseMap(pydantic.BaseModel, abc.ABC):
+    colors: tuple[XTermColor, ...]
+
+    class Config:
+        frozen = True
+
+    @abc.abstractmethod
+    def to_color(self, value: Any) -> XTermColor:
+        """
+        Apply the intensity map to a single intensity value
+        """
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def inverted(self) -> Self:
+        """
+        Return a new colormap with the colors reversed
+        """
+        raise NotImplementedError
+
+
+class IntensityMap(BaseMap):
     colors: tuple[XTermColor, ...]
     bin_edges: tuple[float, ...]
 
     class Config:
         frozen = True
 
-    def __post_init__(self):
+    def model_post_init(self, __context: Any) -> None:
         assert len(self.colors) > 0
         assert len(self.bin_edges) == len(self.colors) - 1
         assert all(0 < b <= 1 for b in self.bin_edges)
+        return super().model_post_init(__context)
 
     @staticmethod
     def create(
@@ -48,7 +71,7 @@ class IntensityMap(pydantic.BaseModel):
 
         return IntensityMap(colors=tuple(colors), bin_edges=tuple(bin_edges))
 
-    def to_bin(self, intensity: Intensity) -> int:
+    def _to_bin(self, intensity: Intensity) -> int:
         """
         Apply the intensity map to a single intensity value
         """
@@ -58,7 +81,7 @@ class IntensityMap(pydantic.BaseModel):
         """
         Apply the intensity map to a single intensity value
         """
-        return self.colors[self.to_bin(intensity)]
+        return self.colors[self._to_bin(intensity)]
 
     def inverted(self) -> IntensityMap:
         """
@@ -67,15 +90,16 @@ class IntensityMap(pydantic.BaseModel):
         return self.model_copy(update=dict(colors=self.colors[::-1]))
 
 
-class RGBMap(pydantic.BaseModel):
+class RGBMap(BaseMap):
     colors: tuple[XTermColor, ...] = tuple(XTermColor(i) for i in range(0, 256))
     _inverted: bool = False
 
     class Config:
         frozen = True
 
-    def __post_init__(self):
+    def model_post_init(self, __context: Any) -> None:
         assert len(self.colors) > 0
+        return super().model_post_init(__context)
 
     @staticmethod
     def create(colors: list[XTermColor]) -> RGBMap:
@@ -90,7 +114,7 @@ class RGBMap(pydantic.BaseModel):
 
         return RGBMap(colors=tuple(colors))
 
-    def to_bin(self, rgb: RGB) -> int:
+    def _to_bin(self, rgb: RGB) -> int:
         """
         Apply the intensity map to a single intensity value
         """
@@ -102,7 +126,7 @@ class RGBMap(pydantic.BaseModel):
         """
         Apply the intensity map to a single intensity value
         """
-        return self.colors[self.to_bin(rgb)]
+        return self.colors[self._to_bin(rgb)]
 
     def inverted(self) -> RGBMap:
         """

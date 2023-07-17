@@ -38,7 +38,7 @@ dev = [
 Repository = "https://github.com/kevinyu/inspec"
 
 [project.scripts]
-inspec = "inspec_cli.cli:cli"
+inspec = "cli:cli"
 
 [tool.setuptools.packages.find]
 where = ["src"]

@@ -1,15 +1,11 @@
 from __future__ import annotations
 
-import enum
-
 import numpy as np
 from numpy.typing import NDArray
 from pydantic import BaseModel
 from PIL import Image
 
-from inspec.transform import resize
 from render.types import RGB
-
 from view.base import FileReader, Size, View
 
 

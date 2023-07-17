@@ -1,11 +1,19 @@
-
+import sys
 
 from typing import Literal, Optional
 
+from render import make_intensity_renderer, make_rgb_renderer
 from render.display import display
 from render.types import CharShape
-from render.patches import make_intensity_renderer, make_rgb_renderer
 from view.base import Size
+
+
+# Set Console Mode so that ANSI codes will work
+if sys.platform == "win32":
+    import ctypes
+
+    kernel32 = ctypes.windll.kernel32
+    kernel32.SetConsoleMode(kernel32.GetStdHandle(-11), 7)
 
 
 def imshow(

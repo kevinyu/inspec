@@ -268,3 +268,10 @@ def make_rgb_renderer(
         return HalfCharRGBRenderer(rgb_map=RGBMap())
     else:
         raise ValueError(f"Invalid shape for RGB rendering: {shape}")
+
+
+__all__ = [
+    "Renderer",
+    "make_intensity_renderer",
+    "make_rgb_renderer",
+]

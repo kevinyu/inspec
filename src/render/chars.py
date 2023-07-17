@@ -45,3 +45,30 @@ def get_char(*mask: bool | int) -> IChar:
         ]
     else:
         raise ValueError("Invalid mask")
+
+
+__all__ = [
+    "get_char",
+    "FULL_1",
+    "FULL_0",
+    "HALF_00",
+    "HALF_11",
+    "HALF_10",
+    "HALF_01",
+    "QTR_0000",
+    "QTR_1000",
+    "QTR_0010",
+    "QTR_0100",
+    "QTR_1110",
+    "QTR_0110",
+    "QTR_1101",
+    "QTR_0111",
+    "QTR_0001",
+    "QTR_1001",
+    "QTR_1011",
+    "QTR_0101",
+    "QTR_1010",
+    "QTR_1100",
+    "QTR_0011",
+    "QTR_1111",
+]

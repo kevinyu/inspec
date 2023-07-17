@@ -15,8 +15,8 @@ def terminal_size():
 
 
 def test_image_reader(terminal_size):
+    from render import make_rgb_renderer
     from render.display import display
-    from render.patches import make_rgb_renderer
     from render.types import CharShape
 
     reader = BasicImageReader(filename="demo/mandrill.jpg")
@@ -30,8 +30,8 @@ def test_image_reader(terminal_size):
 
 
 def test_audio_reader(terminal_size):
+    from render import make_intensity_renderer
     from render.display import display
-    from render.patches import make_intensity_renderer
     from render.types import CharShape
     from inspec_curses import get_colormap
 
