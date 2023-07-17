@@ -1,12 +1,13 @@
 from __future__ import annotations
+
 from typing import Optional
+
 import numpy as np
+import soundfile
+from inspec.transform import compute_spectrogram, resize
+from inspec_core.base_view import FileReader, Size, View
 from numpy.typing import NDArray
 from pydantic import BaseModel
-import soundfile
-
-from inspec.transform import compute_spectrogram, resize
-from inspec_core.base_view import Size, View, ViewT, FileReader
 from render.types import Intensity
 
 
@@ -25,24 +26,29 @@ class AudioViewState(View):
     min_freq: float = 250.0
     max_freq: Optional[float] = 8_000.0
 
+    class Config:
+        arbitrary_types_allowed = True
 
-class AudioReaderComponent(FileReader[Intensity, AudioViewState]):
+
+class AudioReaderComponent(BaseModel, FileReader[Intensity, AudioViewState]):
     class LoadedData(BaseModel):
-        audio: np.ndarray
+        audio: NDArray[np.float64]
         sample_rate: int
         channels: list[int]
+
+        class Config:
+            arbitrary_types_allowed = True
 
     filename: str
     data: Optional[LoadedData] = None
 
-    def _load_data(self, filename: str) -> LoadedData:
-        audio, sample_rate = soundfile.read(filename, always_2d=True)
-        channels = list(range(audio.shape[1]))
-        return AudioReaderComponent.LoadedData(audio=audio, sample_rate=sample_rate, channels=channels)
-
     def _ensure_data(self) -> LoadedData:
         if self.data is None:
-            self.data = self._load_data(self.filename)
+            audio, sample_rate = soundfile.read(self.filename, always_2d=True)
+            channels = list(range(audio.shape[1]))
+            self.data = AudioReaderComponent.LoadedData(
+                audio=audio, sample_rate=sample_rate, channels=channels
+            )
         return self.data
 
     def get_view(self, view: AudioViewState) -> NDArray:

@@ -1,11 +1,10 @@
 from unittest import mock
 
 import pytest
-
 from inspec_curses import context
 from inspec_curses.color_pair import ColorToSlot
-from render.types import XTermColor
 from render import chars
+from render.types import XTermColor
 
 
 @pytest.fixture()

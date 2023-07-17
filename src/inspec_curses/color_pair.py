@@ -42,7 +42,7 @@ class ColorToSlot(pydantic.BaseModel):
 
     def _get_slot(self, bin1: int, bin2: int) -> ColorPairSlot:
         assert 0 <= bin2 < bin1 < len(self.colors)
-        return ColorPairSlot(int((bin1 * (bin1 - 1) / 2) + bin2))
+        return ColorPairSlot(int((bin1 * (bin1 - 1) / 2) + bin2) + 1)
 
     def iter_color_pairs(
         self,
@@ -88,7 +88,5 @@ class ColorToSlot(pydantic.BaseModel):
         if bg_idx > fg_idx:
             char = char.invert()
             fg_idx, bg_idx = bg_idx, fg_idx
-
-        print(f"fg={fg_idx} bg={bg_idx} slot={self._get_slot(fg_idx, bg_idx)}")
 
         return self._get_slot(fg_idx, bg_idx), str(char)
