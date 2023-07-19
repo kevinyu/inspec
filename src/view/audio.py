@@ -8,7 +8,7 @@ from inspec.transform import compute_spectrogram, resize
 from numpy.typing import NDArray
 from pydantic import BaseModel
 from render.types import Intensity
-from view.base import FileReader, Size, View
+from inspec_core.base_view import FileReader, Size, View
 
 
 class BasicAudioView(View):

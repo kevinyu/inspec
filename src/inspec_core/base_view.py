@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import abc
 import os
-from typing import Generic, Self, TypeVar, Union
+from typing import AsyncIterator, Generic, Self, TypeVar, Union
 
 from numpy.typing import NDArray
 from pydantic import BaseModel
@@ -18,6 +18,10 @@ class BaseWidthHeight(BaseModel):
     def __post_init__(self):
         assert self.width > 0
         assert self.height > 0
+
+    @property
+    def T(self) -> Self:
+        return type(self)(width=self.height, height=self.width)
 
     @classmethod
     def fill_terminal(cls, shape: CharShape = CharShape.Full) -> Self:
@@ -81,9 +85,16 @@ class FileReader(Generic[T, ViewT], abc.ABC):
         raise NotImplementedError
 
 
+class FileStreamer(Generic[T, ViewT], abc.ABC):
+    @abc.abstractmethod
+    async def stream_view(self, view: ViewT) -> AsyncIterator[NDArray[T]]:  # type: ignore
+        raise NotImplementedError
+
+
 __all__ = [
     "Size",
     "View",
     "ViewT",
     "FileReader",
+    "FileStreamer",
 ]
