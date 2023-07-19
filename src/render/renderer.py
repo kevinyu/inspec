@@ -29,6 +29,12 @@ class Patch(Generic[InputT]):
     arr: NDArray
 
 
+@dataclass
+class CharDimensions:
+    width: int
+    height: int
+
+
 class Renderer(Generic[InputT], Protocol):
     """
     A generic renderer from an image to colorized characters.
@@ -37,6 +43,8 @@ class Renderer(Generic[InputT], Protocol):
     input type, and we don't want to do validation here -- ideally this conversion
     is quite fast.
     """
+    def scale(self) -> CharDimensions:
+        ...
 
     def apply(self, image: NDArray) -> ColoredCharArray:
         ...
@@ -49,6 +57,12 @@ class PatchRenderer(Renderer[InputT], abc.ABC):
     def patch_to_char(self, patch: Patch[InputT]) -> ColoredChar:
         """Convert a patch of values between 0 and 1 to a character and colors"""
         raise NotImplementedError
+
+    def scale(self) -> CharDimensions:
+        return CharDimensions(
+            width=self._patch_dimensions[1],
+            height=self._patch_dimensions[0],
+        )
 
     def iter_patches(self, image: NDArray) -> Iterator[Patch[InputT]]:
         """

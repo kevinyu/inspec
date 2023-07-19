@@ -88,7 +88,7 @@ def display(window: curses.window, arr: ColoredCharArray):
             f"View.render was called with mismatched window size {window.getmaxyx()} != data size: {arr.shape}"
         )
 
-    for row_idx, row in enumerate(arr):
+    for row_idx, row in enumerate(arr[::-1]):
         for col_idx, char in enumerate(row):
             char: ColoredChar
             try:
