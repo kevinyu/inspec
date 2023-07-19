@@ -1,10 +1,17 @@
+import enum
+import os
 import sys
+from concurrent.futures import ThreadPoolExecutor
 from typing import Literal, Optional
 
+from colormaps import get_colormap
+from inspec_core.base_view import Size
+from inspec_core.live_audio_view import LiveAudioComponent, LiveAudioViewState
 from render import make_intensity_renderer, make_rgb_renderer
 from render.display import display
 from render.types import CharShape
 from inspec_core.base_view import Size
+from typing import Optional
 
 # Set Console Mode so that ANSI codes will work
 if sys.platform == "win32":
@@ -20,7 +27,7 @@ def imshow(
     width: Optional[int] = None,
     chars: Literal[CharShape.Full, CharShape.Half] = CharShape.Full,
 ):
-    from view.images import BasicImageReader, BasicImageView
+    from inspec_core.basic_image_view import BasicImageReader, BasicImageView
 
     reader = BasicImageReader(filename=filename)
     view = BasicImageView(
@@ -45,7 +52,7 @@ def ashow(
     chars: CharShape = CharShape.Full,
 ):
     from colormaps import get_colormap, valid_colormaps
-    from view.audio import BasicAudioReader, BasicAudioView
+    from inspec_core.basic_audio_view import BasicAudioReader, BasicAudioView
 
     try:
         intensity_map = get_colormap(cmap)
@@ -65,3 +72,36 @@ def ashow(
     renderer = make_intensity_renderer(intensity_map, shape=chars)
     arr = reader.get_view(view)
     display(renderer.apply(arr))
+
+
+class LivePrintMode(str, enum.Enum):
+    Scroll = "scroll"
+    Fixed = "fixed"
+
+
+async def listen(
+    channel: int = 0,
+    width: Optional[int] = None,
+    mode: LivePrintMode = LivePrintMode.Fixed,
+    gain: float = 0.0,
+    cmap: str = "viridis",
+    chars: CharShape = CharShape.Full,
+):
+    component = LiveAudioComponent(executor=ThreadPoolExecutor(max_workers=1))
+
+    view = LiveAudioViewState(
+        # This is transposed since we want to print out spectrogram vertically
+        expect_size=Size.FixedSize(
+            height=width or os.get_terminal_size().columns,  # 'width'
+            width=1 if chars == CharShape.Full else 2,       # 'height'
+        ),
+        gain=gain,
+    )
+
+    colormap = get_colormap(cmap)
+    renderer = make_intensity_renderer(colormap, shape=chars)
+    async for arr in component.stream_view(view):
+        display(
+            renderer.apply(arr[:, :, channel].T),
+            end="\n" if mode is LivePrintMode.Scroll else "\r",
+        )

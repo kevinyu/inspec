@@ -1,30 +1,5 @@
 import curses
 
-from inspec_curses.context import get_active
-from numpy.typing import NDArray
-from render.types import ColoredChar, ColoredCharArray
-
-
-def display(window: curses.window, arr: ColoredCharArray):
-    if window.getmaxyx() != arr.shape:
-        raise ValueError(
-            f"View.render was called with mismatched window size {window.getmaxyx()} != data size: {arr.shape}"
-        )
-
-    cmap = get_active()
-    for row_idx, row in enumerate(arr):
-        for col_idx, char in enumerate(row):
-            char: ColoredChar
-            slot, character = cmap.convert(char.char, char.color.fg, char.color.bg)
-            try:
-                window.addstr(
-                    row_idx, col_idx, character, curses.color_pair(slot.value)
-                )
-            except:
-                pass
-
-    window.refresh()
-
 
 def test_display():
     import time
@@ -33,8 +8,7 @@ def test_display():
     from colormaps import get_colormap
     from inspec_core.audio_view import AudioReaderComponent, AudioViewState, TimeRange
     from inspec_core.base_view import Size
-    from inspec_curses.color_pair import ColorToSlot
-    from inspec_curses.context import set_active
+    from inspec_curses.context import display, set_active
     from render import make_intensity_renderer
     from render.types import CharShape
 
@@ -51,7 +25,7 @@ def test_display():
         stdscr.nodelay(True)
         curses.use_default_colors()
         stdscr.refresh()
-        set_active(ColorToSlot(colors=list(cmap.colors)))
+        set_active(list(cmap.colors))
 
         for dt in np.arange(0, 1.0, 0.2):
             stdscr.clear()

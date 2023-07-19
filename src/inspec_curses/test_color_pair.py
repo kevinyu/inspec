@@ -28,7 +28,7 @@ def test_set_active(mock_curses_colors):
             XTermColor(255),
         ]
     )
-    context.set_active(color_to_slot)
+    context.set_active(color_to_slot.colors)
 
     assert set(mock_curses_colors.keys()) == {0, 1, 2, 3, 4, 5}
     assert mock_curses_colors[0] == (1, 0)
@@ -49,7 +49,7 @@ def test_color_to_slot(mock_curses_colors):
             XTermColor(255),
         ]
     )
-    context.set_active(color_to_slot)
+    context.set_active(color_to_slot.colors)
 
     slot, char = color_to_slot.convert(
         chars.QTR_0001,

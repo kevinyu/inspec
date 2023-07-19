@@ -37,7 +37,8 @@ class ColorToSlot(pydantic.BaseModel):
         # * n colors, we need n*(n-1)/2 slots
         # * 22 colors, we need 231 slots
         # * 23 colors, we need 253 slots
-        assert len(self.colors) <= 22
+        if len(self.colors) > 22:
+            raise ValueError("Cannot initialize a curses colorset with more than 22 colors")
         self._color_idx = {color: i for i, color in enumerate(self.colors)}
 
     def _get_slot(self, bin1: int, bin2: int) -> ColorPairSlot:

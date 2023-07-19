@@ -5,12 +5,19 @@ import curses
 import logging
 
 from inspec_curses.color_pair import ColorToSlot
+from inspec_curses.context import get_active
+from render.colors import XTermColor
+from render.types import ColoredChar, ColoredCharArray
 
 logger = logging.getLogger(__name__)
 
 _CURRENT_COLORMAP: contextvars.ContextVar[ColorToSlot] = contextvars.ContextVar(
     "_CURRENT_COLORMAP"
 )
+
+
+class InvalidColor(Exception):
+    """Tried to draw color(s) that were not initialized as a curses colorpair"""
 
 
 def get_active() -> ColorToSlot:
@@ -26,11 +33,12 @@ def get_active() -> ColorToSlot:
     return current_colormap
 
 
-def set_active(color_to_slot: ColorToSlot) -> ColorToSlot:
+def set_active(colors: list[XTermColor]) -> ColorToSlot:
     """
     Apply the cmap to the current curses context.
     """
 
+    color_to_slot = ColorToSlot(colors=colors)
     token = _CURRENT_COLORMAP.set(color_to_slot)
     if not hasattr(curses, "COLOR_PAIRS"):
         raise RuntimeError(
@@ -54,3 +62,37 @@ def set_active(color_to_slot: ColorToSlot) -> ColorToSlot:
         raise RuntimeError("Unexpected error setting curses colormap") from e
 
     return color_to_slot
+
+
+def draw(window: curses.window, row: int, col: int, char: ColoredChar):
+    """
+    Low level draw a character at a given position in a curses window
+
+    Does not call window.refresh(). Requires a colormap to be set.
+    """
+    cmap = get_active()
+    try:
+        slot, character = cmap.convert(char.char, char.color.fg, char.color.bg)
+    except KeyError:
+        raise InvalidColor from None
+    window.addstr(row, col, character, curses.color_pair(slot.value))
+
+
+def display(window: curses.window, arr: ColoredCharArray):
+    """
+    Draw a colored character array to a curses window that matches the size of the array
+
+    Does not call window.refresh(). Requires a colormap to be set.
+    """
+    if window.getmaxyx() != arr.shape:
+        raise ValueError(
+            f"View.render was called with mismatched window size {window.getmaxyx()} != data size: {arr.shape}"
+        )
+
+    for row_idx, row in enumerate(arr):
+        for col_idx, char in enumerate(row):
+            char: ColoredChar
+            try:
+                draw(window, row_idx, col_idx, char)
+            except curses.error:
+                pass
