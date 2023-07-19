@@ -12,7 +12,7 @@ from inspec_core.base_view import Size
 from inspec_core.live_audio_view import LiveAudioComponent, LiveAudioViewState
 from render.display import display
 from render.renderer import make_intensity_renderer
-from render.types import CharShape, Intensity
+from render.types import CharShape
 
 
 class PrintMode(str, enum.Enum):
