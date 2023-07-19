@@ -30,8 +30,8 @@ def imshow(
     from inspec_core.basic_image_view import BasicImageReader, BasicImageView
 
     reader = BasicImageReader(filename=filename)
-    view = BasicImageView(
-        expect_size=Size.FixedSize(width=width, height=height)
+    size = (
+        Size.FixedSize(width=width, height=height)
         if width and height
         else Size.FixedWidth(width=width)
         if width
@@ -39,8 +39,9 @@ def imshow(
         if height
         else Size.MaxSize.fill_terminal(shape=chars)
     )
+    view = BasicImageView()
     renderer = make_rgb_renderer(shape=chars)
-    arr = reader.get_view(view)
+    arr = reader.get_view(view, size)
     display(renderer.apply(arr))
 
 
@@ -68,9 +69,9 @@ def ashow(
     if width:
         size.width = width
 
-    view = BasicAudioView(expect_size=size)
+    view = BasicAudioView()
     renderer = make_intensity_renderer(intensity_map, shape=chars)
-    arr = reader.get_view(view)
+    arr = reader.get_view(view, size)
     display(renderer.apply(arr))
 
 
@@ -89,18 +90,18 @@ async def listen(
 ):
     component = LiveAudioComponent(executor=ThreadPoolExecutor(max_workers=1))
 
+    size = Size.FixedSize(
+        height=width or os.get_terminal_size().columns,  # 'width'
+        width=1 if chars == CharShape.Full else 2,       # 'height'
+    )
     view = LiveAudioViewState(
         # This is transposed since we want to print out spectrogram vertically
-        expect_size=Size.FixedSize(
-            height=width or os.get_terminal_size().columns,  # 'width'
-            width=1 if chars == CharShape.Full else 2,       # 'height'
-        ),
         gain=gain,
     )
 
     colormap = get_colormap(cmap)
     renderer = make_intensity_renderer(colormap, shape=chars)
-    async for arr in component.stream_view(view):
+    async for arr in component.stream_view(view, size):
         display(
             renderer.apply(arr[:, :, channel].T),
             end="\n" if mode is LivePrintMode.Scroll else "\r",

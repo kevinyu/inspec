@@ -18,6 +18,7 @@ def mock_curses_colors():
         yield mock_curses_colors
 
 
+
 def test_set_active(mock_curses_colors):
     # Test this by setting the slots (but mocking curses)
     color_to_slot = ColorToSlot(

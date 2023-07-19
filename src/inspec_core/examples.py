@@ -33,12 +33,12 @@ async def print_live_audio(
 ):
     component = LiveAudioComponent(executor=ThreadPoolExecutor(max_workers=1))
 
+    size = Size.FixedSize(
+        height=width or os.get_terminal_size().columns,  # 'width'
+        width=1,                                         # 'height'
+    )
     view = LiveAudioViewState(
         # This is transposed since we want to print out spectrogram vertically
-        expect_size=Size.FixedSize(
-            height=width or os.get_terminal_size().columns,  # 'width'
-            width=1,                                         # 'height'
-        ),
         gain=gain,
         spec_sampling_rate=spec_sampling_rate,
         spec_freq_spacing=spec_freq_spacing,
@@ -48,7 +48,7 @@ async def print_live_audio(
 
     colormap = get_colormap(cmap)
     renderer = make_intensity_renderer(colormap, shape=CharShape.Full)
-    async for arr in component.stream_view(view):
+    async for arr in component.stream_view(view, size):
         display(
             renderer.apply(arr[:, :, channel].T),
             end="\n" if mode is PrintMode.Scroll else "\r",

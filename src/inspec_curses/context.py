@@ -5,7 +5,6 @@ import curses
 import logging
 
 from inspec_curses.color_pair import ColorToSlot
-from inspec_curses.context import get_active
 from render.colors import XTermColor
 from render.types import ColoredChar, ColoredCharArray
 

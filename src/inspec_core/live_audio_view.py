@@ -28,7 +28,6 @@ class ListenConfig(BaseModel):
 
 
 class LiveAudioViewState(View):
-    expect_size: Size.FixedSize
     gain: float = 0.0
     spec_max: float = 600.0  # Not sure what units this is. Maybe better to make it a magic constant and control everything with gain?
 
@@ -38,7 +37,7 @@ class LiveAudioViewState(View):
     # Spectrogram parameters
     spec_sampling_rate: int = 200
     spec_freq_spacing: float = 50.0
-    min_freq: float = 400.0
+    min_freq: float = 100.0
     max_freq: Optional[float] = 2_000.0
 
     class Config:
@@ -56,7 +55,7 @@ class LiveAudioComponent(BaseModel, FileStreamer[Intensity, LiveAudioViewState])
         self._output_queue: asyncio.Queue[NDArray] = asyncio.Queue()
         return super().model_post_init(__context)
 
-    async def _listen(self, view: LiveAudioViewState) -> None:
+    async def _listen(self, view: LiveAudioViewState, size: Size.FixedSize) -> None:
         buffer = np.zeros((
             view.listen.chunk_size * view.listen.step_chunks,
             view.listen.channels
@@ -72,13 +71,14 @@ class LiveAudioComponent(BaseModel, FileStreamer[Intensity, LiveAudioViewState])
                     self._conversion,
                     1 * buffer,
                     chunk.sample_rate,
-                    view
+                    view,
+                    size,
                 )
 
-    def _conversion(self, buffer: NDArray, sampling_rate: int, view: LiveAudioViewState) -> None:
+    def _conversion(self, buffer: NDArray, sampling_rate: int, view: LiveAudioViewState, size: Size.FixedSize) -> None:
         assert self._loop is not None
-        desired_rows = view.expect_size.height
-        desired_cols = view.expect_size.width
+        desired_rows = size.height
+        desired_cols = size.width
         buffer = db_scale(buffer, view.gain)
         arrays = []
         for channel in range(buffer.shape[1]):
@@ -102,10 +102,11 @@ class LiveAudioComponent(BaseModel, FileStreamer[Intensity, LiveAudioViewState])
 
     async def stream_view(
         self,
-        view: LiveAudioViewState
+        view: LiveAudioViewState,
+        size: Size.FixedSize,
     ) -> AsyncIterator[NDArray[Intensity]]:  # type: ignore
         self._loop = asyncio.get_running_loop()
-        listen_task = self._loop.create_task(self._listen(view))
+        listen_task = self._loop.create_task(self._listen(view, size))
         try:
             while True:
                 yield np.vectorize(Intensity)(await self._output_queue.get())

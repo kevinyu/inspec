@@ -19,12 +19,10 @@ def test_image_reader(terminal_size):
     from render.types import CharShape
 
     reader = BasicImageReader(filename="demo/mandrill.jpg")
-    view = BasicImageView(
-        expect_size=Size.MaxSize.fill_terminal(shape=CharShape.Half),
-        thumbnail=False,
-    )
+    size = Size.FixedSize.fill_terminal(shape=CharShape.Half)
+    view = BasicImageView(thumbnail=False)
     renderer = make_rgb_renderer(shape=CharShape.Half)
-    arr = reader.get_view(view)
+    arr = reader.get_view(view, size)
     display(renderer.apply(arr))
 
 
@@ -36,11 +34,10 @@ def test_audio_reader(terminal_size):
 
     cmap = get_colormap("viridis")
     reader = BasicAudioReader(filename="demo/warbling.wav")
-    view = BasicAudioView(
-        expect_size=Size.FixedSize.fill_terminal(shape=CharShape.Half)
-    )
+    view = BasicAudioView()
+    size = Size.FixedSize.fill_terminal(shape=CharShape.Half)
     renderer = make_intensity_renderer(cmap, shape=CharShape.Half)
-    arr = reader.get_view(view)
+    arr = reader.get_view(view, size)
     display(renderer.apply(arr))
 
 

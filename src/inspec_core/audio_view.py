@@ -17,7 +17,6 @@ class TimeRange(BaseModel):
 
 
 class AudioViewState(View):
-    expect_size: Size.FixedSize
     time_range: TimeRange
     channel: int
 
@@ -51,7 +50,7 @@ class AudioReaderComponent(BaseModel, FileReader[Intensity, AudioViewState]):
             )
         return self.data
 
-    def get_view(self, view: AudioViewState) -> NDArray:
+    def get_view(self, view: AudioViewState, size: Size.FixedSize) -> NDArray:
         data = self._ensure_data()
         start_idx = int(view.time_range.start * data.sample_rate)
         end_idx = int(view.time_range.end * data.sample_rate)
@@ -70,8 +69,8 @@ class AudioReaderComponent(BaseModel, FileReader[Intensity, AudioViewState]):
         arr = (spec - min_val) / (max_val - min_val)
         arr = resize(
             arr,
-            target_height=view.expect_size.height,
-            target_width=view.expect_size.width,
+            target_height=size.height,
+            target_width=size.width,
         )
         arr = np.vectorize(Intensity)(arr)
 

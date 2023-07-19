@@ -14,7 +14,6 @@ from inspec_core.base_view import FileReader, Size, View
 class BasicAudioView(View):
     # mode: Literal["spectrogram", "waveform"]
 
-    expect_size: Size.FixedSize
     channel: int = 0
 
     spec_sampling_rate: int = 1000
@@ -26,7 +25,7 @@ class BasicAudioView(View):
 class BasicAudioReader(BaseModel, FileReader[Intensity, BasicAudioView]):
     filename: str
 
-    def get_view(self, view: BasicAudioView) -> NDArray:
+    def get_view(self, view: BasicAudioView, size: Size.FixedSize) -> NDArray:
         data, sampling_rate = soundfile.read(self.filename)
 
         _, _, spec = compute_spectrogram(
@@ -43,8 +42,8 @@ class BasicAudioReader(BaseModel, FileReader[Intensity, BasicAudioView]):
         arr = (spec - min_val) / (max_val - min_val)
         arr = resize(
             arr,
-            target_height=view.expect_size.height,
-            target_width=view.expect_size.width,
+            target_height=size.height,
+            target_width=size.width,
         )
         arr = np.vectorize(Intensity)(arr)
 

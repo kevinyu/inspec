@@ -64,16 +64,7 @@ class Size:
 
 
 class View(BaseModel):
-    """
-    Attributes
-    ----------
-    expect_size : Size
-        The size to shape the output array. This corresponds to the width and height in units of
-        terminal characters. So, to fill the entire terminal for CharShape.Half, you would want to
-        pass in Size(width=cols, height=rows * 2 - 1).
-    """
-
-    expect_size: Size.Size
+    pass
 
 
 ViewT = TypeVar("ViewT", bound=View)
@@ -81,13 +72,13 @@ ViewT = TypeVar("ViewT", bound=View)
 
 class FileReader(Generic[T, ViewT], abc.ABC):
     @abc.abstractmethod
-    def get_view(self, view: ViewT) -> NDArray[T]:  # type: ignore
+    def get_view(self, view: ViewT, size: Size.Size) -> NDArray[T]:  # type: ignore
         raise NotImplementedError
 
 
 class FileStreamer(Generic[T, ViewT], abc.ABC):
     @abc.abstractmethod
-    async def stream_view(self, view: ViewT) -> AsyncIterator[NDArray[T]]:  # type: ignore
+    async def stream_view(self, view: ViewT, size: Size.Size) -> AsyncIterator[NDArray[T]]:  # type: ignore
         raise NotImplementedError
 
 

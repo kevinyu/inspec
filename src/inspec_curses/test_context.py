@@ -15,7 +15,6 @@ def test_display():
     cmap = get_colormap("viridis")
     reader = AudioReaderComponent(filename="demo/warbling.wav")
     view = AudioViewState(
-        expect_size=Size.FixedSize.fill_terminal(shape=CharShape.Full),
         time_range=TimeRange(start=0, end=1.0),
         channel=0,
     )
@@ -29,10 +28,10 @@ def test_display():
 
         for dt in np.arange(0, 1.0, 0.2):
             stdscr.clear()
-            view.expect_size = Size.FixedSize.fit_characters(
+            size = Size.FixedSize.fit_characters(
                 *stdscr.getmaxyx(), shape=CharShape.Full
             )
-            arr = reader.get_view(view)
+            arr = reader.get_view(view, size)
             display(stdscr, renderer.apply(arr))
             view.time_range = TimeRange(start=dt, end=dt + 1.0)
             time.sleep(1.0)
