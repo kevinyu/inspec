@@ -21,3 +21,5 @@ context.draw(
   ),
 )
 ```
+
+We are limited to 22 colors to support (22 + 21 + ... + 1) = 253 color pairs. If we don't care about using color pairs (i.e. we only use the 'Full' character set), we can support up to 247 unique colors. This may make things look a lot better actually...
