@@ -30,8 +30,8 @@ def test_display():
     import time
 
     import numpy as np
-    from app.audio_view import AudioReaderComponent, AudioViewState, TimeRange
     from colormaps import get_colormap
+    from inspec_core.audio_view import AudioReaderComponent, AudioViewState, TimeRange
     from inspec_core.base_view import Size
     from inspec_curses.color_pair import ColorToSlot
     from inspec_curses.context import set_active

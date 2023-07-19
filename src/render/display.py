@@ -16,4 +16,4 @@ def display(arr: ColoredCharArray, end: str = "\n") -> None:
                 _ansi_set_color_str(char_with_color.color.fg, char_with_color.color.bg)
                 + char_with_color.char
             )
-        print("".join(parts) + ansi_reset_str, end="\r" if i != last else end)
+        print("".join(parts) + ansi_reset_str, end="\n" if i != last else end)

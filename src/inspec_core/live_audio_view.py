@@ -30,7 +30,7 @@ class ListenConfig(BaseModel):
 class LiveAudioViewState(View):
     expect_size: Size.FixedSize
     gain: float = 0.0
-    spec_max: float = 400.0  # Not sure what units this is. Maybe better to make it a magic constant and control everything with gain?
+    spec_max: float = 600.0  # Not sure what units this is. Maybe better to make it a magic constant and control everything with gain?
 
     # Microphone parameters
     listen: ListenConfig = ListenConfig()
@@ -78,7 +78,7 @@ class LiveAudioComponent(BaseModel, FileStreamer[Intensity, LiveAudioViewState])
     def _conversion(self, buffer: NDArray, sampling_rate: int, view: LiveAudioViewState) -> None:
         assert self._loop is not None
         desired_rows = view.expect_size.height
-        desired_cols = view.listen.step_chunks  # This should probably be in units of characters
+        desired_cols = view.expect_size.width
         buffer = db_scale(buffer, view.gain)
         arrays = []
         for channel in range(buffer.shape[1]):

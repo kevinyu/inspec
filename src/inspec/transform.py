@@ -140,6 +140,12 @@ def resize(
     original_height, original_width = spec.shape
     resized = np.empty([target_height, target_width])
 
+    if target_height == 1:
+        return resize_1d(spec[0], target_width)[None, :]
+
+    if target_width == 1:
+        return resize_1d(spec[:, 0], target_height)[:, None]
+
     dy = (original_height - 1) / (target_height - 1)
     dx = (original_width - 1) / (target_width - 1)
 
