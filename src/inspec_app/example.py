@@ -13,6 +13,7 @@ from typing import Generic, Optional, TypeVar
 import pydantic
 from colormaps import get_colormap
 from inspec_app.paginate import GridPaginator
+import inspec_app.draw
 from inspec_core.base_view import Size, ViewT
 from inspec_core.basic_audio_view import BasicAudioReader, BasicAudioView
 from inspec_core.basic_image_view import (
@@ -58,41 +59,22 @@ class PanelAppState(pydantic.BaseModel):
         )
 
 
-def _draw_border(window: curses.window) -> None:
-    """Draws unicode border on window"""
-    window.border(
-        0,
-        0,
-        0,
-        0,
-        curses.ACS_ULCORNER,
-        curses.ACS_URCORNER,
-        curses.ACS_LLCORNER,
-        curses.ACS_LRCORNER,
-    )
-
-
 def render_window_with_border(
-    window: curses.window, component: SupportedComponent, renderer: Renderer[Intensity]
+    window: curses.window,
+    component: SupportedComponent,
+    renderer: Renderer[Intensity],
 ) -> None:
-    outer_size = window.getmaxyx()
-    subwin = window.derwin(
-        outer_size[0] - 2,
-        outer_size[1] - 2,
-        1,
-        1,
-    )
-    _draw_border(window)
+    _, inner_window = inspec_app.draw.make_border(window)
 
     # component.file_.filename
     window.addstr(0, 1, component.file_.filename)
 
-    size = Size.FixedSize(
-        width=subwin.getmaxyx()[1] * renderer.scale().width,
-        height=subwin.getmaxyx()[0] * renderer.scale().height,
-    )
+    size = inspec_app.draw.size_from_window(inner_window)
+    size.height *= renderer.scale().height
+    size.width *= renderer.scale().width
+
     context.display(
-        subwin,
+        inner_window,
         renderer.apply(
             # This call works as long as we ensure that the component file_ and state types align.
             component.file_.get_view(component.state, size),  # type: ignore
@@ -122,21 +104,7 @@ def run(stdscr: curses.window) -> None:
         ],
     )
 
-    window_size = stdscr.getmaxyx()
-    windows = [
-        stdscr.derwin(
-            window_size[0] - 1,
-            window_size[1] // 2 - 1,
-            0,
-            0,
-        ),
-        stdscr.derwin(
-            window_size[0] - 1,
-            window_size[1] // 2 - 1,
-            0,
-            window_size[1] // 2,
-        ),
-    ]
+    windows = inspec_app.draw.layout_grid(stdscr, state.rows, state.cols)
 
     cmap = get_colormap("greys")
     renderer = make_intensity_renderer(cmap, shape=CharShape.Half)
