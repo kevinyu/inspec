@@ -7,6 +7,8 @@ from typing import Generic, Optional, TypeVar
 import pydantic
 from colormaps import get_colormap
 from inspec_app import draw
+from inspec_app import events
+from inspec_app import key_handlers
 from inspec_app.paginate import GridPaginator
 from inspec_core.base_view import ViewT
 from inspec_core.basic_audio_view import BasicAudioReader, BasicAudioView
@@ -41,9 +43,13 @@ class ImageComponentView(
 SupportedComponent = AudioComponentView | ImageComponentView
 
 
-class PanelAppState(pydantic.BaseModel):
+class GridState(pydantic.BaseModel):
     rows: int = 1
     cols: int = 1
+
+
+class PanelAppState(pydantic.BaseModel):
+    grid: GridState = GridState()
     current_page: int = 0
     active_component_idx: int = 0  # Index into components
     components: list[SupportedComponent]
@@ -57,8 +63,8 @@ class PanelAppState(pydantic.BaseModel):
     @property
     def paginator(self) -> GridPaginator:
         return GridPaginator(
-            rows=self.rows,
-            cols=self.cols,
+            rows=self.grid.rows,
+            cols=self.grid.cols,
         )
 
 
@@ -86,44 +92,6 @@ def render_window_with_border(
     )
 
 
-class Event(pydantic.BaseModel):
-    pass
-
-
-class QuitEvent(Event):
-    pass
-
-
-class NextPageEvent(Event):
-    pass
-
-
-class PrevPageEvent(Event):
-    pass
-
-
-class LogEvent(Event):
-    msg: str
-
-
-class WindowResized(Event):
-    pass
-
-
-class Move:
-    class Right(Event):
-        pass
-
-    class Left(Event):
-        pass
-
-    class Up(Event):
-        pass
-
-    class Down(Event):
-        pass
-
-
 class Windows(pydantic.BaseModel):
     main: curses.window
     status: curses.window
@@ -140,7 +108,7 @@ def apply_layout(stdscr: curses.window, state: PanelAppState) -> Windows:
         [draw.Span.Stretch(1), draw.Span.Fixed(1), draw.Span.Fixed(1)],
         direction=draw.Direction.Column,
     )
-    grid_windows = draw.layout_grid(main_window, state.rows, state.cols)
+    grid_windows = draw.layout_grid(main_window, state.grid.rows, state.grid.cols)
 
     return Windows(
         main=main_window,
@@ -161,18 +129,46 @@ async def run(
 
     loop = asyncio.get_running_loop()
     state = PanelAppState(
-        rows=rows,
-        cols=cols,
+        grid=GridState(
+            rows=rows,
+            cols=cols,
+        ),
         components=components,
     )
     layout = apply_layout(stdscr, state)
+    grid_layout_stack: list[GridState] = [state.grid]
+    current_handler: key_handlers.KeyHandler = key_handlers.default_handler
 
     cmap = get_colormap("greys")
     renderer = make_intensity_renderer(cmap, shape=CharShape.Half)
     context.set_active(list(cmap.colors))
 
-    keys = asyncio.Queue()
-    events = asyncio.Queue()
+    keys_queue = asyncio.Queue()
+    events_queue = asyncio.Queue()
+
+    def update_state(
+        grid: Optional[GridState] = None,
+        current_page: Optional[int] = None,
+        active_component_idx: Optional[int] = None,
+        components: Optional[list[SupportedComponent]] = None,
+    ) -> None:
+        nonlocal state
+        if all(v is None for v in (grid, current_page, active_component_idx, components)):
+            return
+
+        new_state = state.model_copy()
+        if grid is not None:
+            new_state.grid = grid
+            if current_page is None:
+                new_state.current_page = new_state.paginator.locate(state.active_component_idx).page
+        if current_page is not None:
+            new_state.current_page = current_page
+        if active_component_idx is not None:
+            new_state.active_component_idx = active_component_idx
+        if components is not None:
+            new_state.components = components
+
+        state = new_state
 
     async def listen_for_keys() -> None:
         """
@@ -182,7 +178,7 @@ async def run(
             ch: int = stdscr.getch()
             assert ch is not None
             if ch != -1:
-                loop.call_soon_threadsafe(keys.put_nowait, ch)
+                loop.call_soon_threadsafe(keys_queue.put_nowait, ch)
             await asyncio.sleep(state.poll_interval)
 
     def log(msg: str) -> None:
@@ -231,83 +227,80 @@ async def run(
             return
 
         old_position = state.paginator.locate(state.active_component_idx)
-        old_window_idx = old_position.col + old_position.row * state.cols
-        new_window_idx = position.col + position.row * state.cols
+        old_window_idx = old_position.col + old_position.row * state.grid.cols
+        new_window_idx = position.col + position.row * state.grid.cols
         state.active_component_idx = idx
         redraw(window_idxs={old_window_idx, new_window_idx})
 
     async def key_handler_task() -> None:
         while True:
-            ch = await keys.get()
-            # TODO: the handling of ch should be determined by the current state
-            # rather than this global handler
-
-            if ch == ord("q"):
-                events.put_nowait(QuitEvent())
-            elif ch == ord("l"):
-                events.put_nowait(NextPageEvent())
-            elif ch == ord("h"):
-                events.put_nowait(PrevPageEvent())
-            elif ch == ord("?"):
-                events.put_nowait(LogEvent(msg=HELP_MESSAGE))
-            # Python intercepts the SIGWINCH signal and prevents curses from seeing KEY_RESIZE
-            # so resizing the window is not supported.
-            # elif ch == curses.KEY_RESIZE:
-            #     events.put_nowait(WindowResized())
-            elif ch == curses.KEY_RIGHT:
-                events.put_nowait(Move.Right())
-            elif ch == curses.KEY_LEFT:
-                events.put_nowait(Move.Left())
-            elif ch == curses.KEY_UP:
-                events.put_nowait(Move.Up())
-            elif ch == curses.KEY_DOWN:
-                events.put_nowait(Move.Down())
-            else:
-                events.put_nowait(LogEvent(msg=f"Unknown key {ch}"))
+            ch = await keys_queue.get()
+            events_queue.put_nowait(current_handler.handle(ch))
 
     handler_task = loop.create_task(key_handler_task())
-
-    # Start the key listener thread
     key_listener = loop.create_task(listen_for_keys())
 
     try:
         redraw()
         set_selection(state.active_component_idx)
         while True:
-            event = await events.get()
-            if isinstance(event, QuitEvent):
+            event = await events_queue.get()
+            if isinstance(event, events.QuitEvent):
                 break
-            elif isinstance(event, NextPageEvent):
-                state.current_page = (state.current_page + 1) % state.paginator.n_pages(
+            elif isinstance(event, events.NextPageEvent):
+                update_state(current_page=(state.current_page + 1) % state.paginator.n_pages(
                     len(state.components)
-                )
+                ))
                 redraw()
-            elif isinstance(event, PrevPageEvent):
-                state.current_page = (state.current_page - 1) % state.paginator.n_pages(
+            elif isinstance(event, events.PrevPageEvent):
+                update_state(current_page=(state.current_page - 1) % state.paginator.n_pages(
                     len(state.components)
-                )
+                ))
                 redraw()
-            elif isinstance(event, LogEvent):
+            elif isinstance(event, events.LogEvent):
                 log(event.msg)
-            elif isinstance(event, WindowResized):
+            elif isinstance(event, events.WindowResized):
                 curses.resizeterm(*stdscr.getmaxyx())
                 layout = apply_layout(stdscr, state)
                 redraw()
-            elif isinstance(event, Move.Right):
+            elif isinstance(event, events.Move.Right):
                 set_selection(
                     min(state.active_component_idx + 1, len(state.components) - 1)
                 )
-            elif isinstance(event, Move.Left):
+            elif isinstance(event, events.Move.Left):
                 set_selection(max(state.active_component_idx - 1, 0))
-            elif isinstance(event, Move.Up):
-                set_selection(max(state.active_component_idx - state.cols, 0))
-            elif isinstance(event, Move.Down):
+            elif isinstance(event, events.Move.Up):
+                set_selection(max(state.active_component_idx - state.grid.cols, 0))
+            elif isinstance(event, events.Move.Down):
                 set_selection(
                     min(
-                        state.active_component_idx + state.cols,
+                        state.active_component_idx + state.grid.cols,
                         len(state.components) - 1,
                     )
                 )
+            elif isinstance(event, events.Select):
+                if state.grid.rows == 1 and state.grid.cols == 1:
+                    continue
+                new_grid = GridState(rows=1, cols=1)
+                update_state(
+                    grid=new_grid,
+                    current_page=state.active_component_idx,
+                )
+                grid_layout_stack.append(new_grid)
+                layout = apply_layout(stdscr, state)
+                redraw()
+                current_handler = key_handlers.zoom_handler
+            elif isinstance(event, events.Undo):
+                log(f"Undoing gird selection {grid_layout_stack}")
+                if len(grid_layout_stack) > 1:
+                    grid_layout_stack.pop()
+                    new_grid = grid_layout_stack[-1]
+                    update_state(grid=new_grid)
+                    layout = apply_layout(stdscr, state)
+                    layout.main.clear()
+                    status(f"New grid {new_grid}")
+                    redraw()
+                current_handler = key_handlers.default_handler
             else:
                 log(f"Unknown event {event}")
     except KeyboardInterrupt:

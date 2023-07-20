@@ -114,7 +114,7 @@ def run(stdscr: curses.window) -> None:
                 continue
 
             if page_components[i].file_.loaded is not None:
-                page_components[i].state.frame += 12
+                page_components[i].state.frame += 1
                 page_components[i].state.frame %= page_components[i].file_.loaded.shape[
                     0
                 ]
@@ -130,7 +130,7 @@ def run(stdscr: curses.window) -> None:
     frame_number = 0
     while True:
         log(f"Drawing Frame {frame_number}")
-        time.sleep(0.03)
+        time.sleep(0.01)
         frame_number += 1
         state.current_page = (state.current_page + 1) % state.paginator.n_pages(
             len(state.components)
