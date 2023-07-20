@@ -33,6 +33,10 @@ dev = [
     "isort",
     "pytest",
 ]
+video = [
+    "imageio[ffmpeg]",
+]
+
 
 [project.urls]
 Repository = "https://github.com/kevinyu/inspec"
