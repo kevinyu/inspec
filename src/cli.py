@@ -63,5 +63,18 @@ def listen(
     ))
 
 
+@app.command()
+def open(
+    files: list[str] = typer.Argument(..., help="Path to file(s) or directory(s)"),
+    rows: int = typer.Option(1, help="Height of the output image in characters"),
+    cols: int = typer.Option(1, help="Width of the output image in characters"),
+):
+    """
+    Open interactive GUI
+    """
+    from inspec_app.app import main
+    main(files, rows, cols)
+
+
 if __name__ == "__main__":
     app()
