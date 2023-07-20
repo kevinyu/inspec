@@ -11,17 +11,14 @@ import curses
 import time
 from typing import Generic, Optional, TypeVar
 
+import inspec_app.layout
 import pydantic
 from colormaps import get_colormap
-from inspec_app.paginate import GridPaginator
 from inspec_app import draw
-import inspec_app.layout
+from inspec_app.paginate import GridPaginator
 from inspec_core.base_view import Size, ViewT
 from inspec_core.basic_audio_view import BasicAudioReader, BasicAudioView
-from inspec_core.basic_image_view import (
-    BasicImageView,
-    GreyscaleImageReader,
-)
+from inspec_core.basic_image_view import BasicImageView, GreyscaleImageReader
 from inspec_curses import context
 from render.renderer import Renderer, make_intensity_renderer
 from render.types import RGB, CharShape, Intensity
@@ -42,7 +39,9 @@ class AudioComponentView(ComponentView[Intensity, BasicAudioReader, BasicAudioVi
     pass
 
 
-class ImageComponentView(ComponentView[Intensity, GreyscaleImageReader, BasicImageView]):
+class ImageComponentView(
+    ComponentView[Intensity, GreyscaleImageReader, BasicImageView]
+):
     pass
 
 

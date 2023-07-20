@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+from typing import Optional
+
 import numpy as np
+from inspec_core.base_view import FileReader, Size, View
 from numpy.typing import NDArray
 from PIL import Image
 from pydantic import BaseModel
 from render.types import RGB, Intensity
-from inspec_core.base_view import FileReader, Size, View
 
 
 class BasicImageView(View):
@@ -59,10 +61,15 @@ class BasicImageReader(BaseModel, FileReader[RGB, BasicImageView]):
 
 class GreyscaleImageReader(BaseModel, FileReader[Intensity, BasicImageView]):
     filename: str
+    im: Optional[Image.Image] = None
+
+    class Config:
+        arbitrary_types_allowed = True
 
     def get_view(self, view: BasicImageView, size: Size.Size) -> NDArray:
-        im = Image.open(self.filename)
-        ar = im.size[1] / im.size[0]
+        if self.im is None:
+            self.im = Image.open(self.filename)
+        ar = self.im.size[1] / self.im.size[0]
         if isinstance(size, Size.FixedSize):
             shape = (size.height, size.width)
         elif isinstance(size, Size.FixedWidth):
@@ -85,7 +92,7 @@ class GreyscaleImageReader(BaseModel, FileReader[Intensity, BasicImageView]):
         if view.thumbnail:
             raise NotImplementedError
         else:
-            im = im.resize((shape[1], shape[0]))
+            im = self.im.resize((shape[1], shape[0]))
             arr = np.asarray(im.convert(mode="L"))[::-1]
             arr = (arr / 255).astype(np.float32)
             arr = np.vectorize(Intensity)(arr)

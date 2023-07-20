@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import curses
-from dataclasses import dataclass
 import enum
+from dataclasses import dataclass
 
 from inspec_core.base_view import Size
 
@@ -48,23 +48,37 @@ def layout_grid(
     ]
 
 
-def make_border(window: curses.window) -> tuple[curses.window, curses.window]:
+def make_border(
+    window: curses.window, solid: bool = False
+) -> tuple[curses.window, curses.window]:
     """
     Draws unicode border on window
 
     Returns outer and inner windows.
     """
     outer_size = window.getmaxyx()
-    window.border(
-        0,
-        0,
-        0,
-        0,
-        curses.ACS_ULCORNER,
-        curses.ACS_URCORNER,
-        curses.ACS_LLCORNER,
-        curses.ACS_LRCORNER,
-    )
+    if solid:
+        window.border(
+            0,
+            0,
+            0,
+            0,
+            curses.ACS_ULCORNER,
+            curses.ACS_URCORNER,
+            curses.ACS_LLCORNER,
+            curses.ACS_LRCORNER,
+        )
+    else:
+        window.border(
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+        )
 
     return window, window.derwin(
         outer_size[0] - 2,
@@ -101,11 +115,7 @@ def layout_1d(
     Layout spans horizontally
     """
     window_size = window.getmaxyx()
-    fixed_space = sum(
-        span.value
-        for span in spans
-        if isinstance(span, Span.Fixed)
-    )
+    fixed_space = sum(span.value for span in spans if isinstance(span, Span.Fixed))
 
     relevant_idx = 0 if direction is Direction.Column else 1
     space = window_size[relevant_idx]
@@ -118,15 +128,9 @@ def layout_1d(
 
     flexible_space = space - fixed_space - pad * (len(spans) - 1)
 
-    total_share = sum(
-        span.value
-        for span in spans
-        if isinstance(span, Span.Stretch)
-    )
+    total_share = sum(span.value for span in spans if isinstance(span, Span.Stretch))
 
-    space_per_share = (
-        flexible_space // total_share if total_share > 0 else 0
-    )
+    space_per_share = flexible_space // total_share if total_share > 0 else 0
 
     windows = []
     pos = 0

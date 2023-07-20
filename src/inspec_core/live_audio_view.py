@@ -1,17 +1,17 @@
 from __future__ import annotations
+
 import asyncio
 import enum
-
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any, AsyncIterator, Optional
 
 import numpy as np
-from numpy.typing import NDArray
+from audio_utils import db_scale, stream_audio
 from inspec.transform import compute_spectrogram, resize
 from inspec_core.base_view import FileStreamer, Size, View
+from numpy.typing import NDArray
 from pydantic import BaseModel
-from audio_utils import db_scale, stream_audio
 from render.types import Intensity
-from concurrent.futures import ThreadPoolExecutor
 
 
 class TimeRange(BaseModel):
@@ -56,15 +56,12 @@ class LiveAudioComponent(BaseModel, FileStreamer[Intensity, LiveAudioViewState])
         return super().model_post_init(__context)
 
     async def _listen(self, view: LiveAudioViewState, size: Size.FixedSize) -> None:
-        buffer = np.zeros((
-            view.listen.chunk_size * view.listen.step_chunks,
-            view.listen.channels
-        ))
+        buffer = np.zeros(
+            (view.listen.chunk_size * view.listen.step_chunks, view.listen.channels)
+        )
         counter = 0
         async for chunk in stream_audio():
-            buffer[
-                counter * chunk.frames:(counter + 1) * chunk.frames,
-            ] = chunk.data
+            buffer[counter * chunk.frames : (counter + 1) * chunk.frames,] = chunk.data
             counter = (counter + 1) % view.listen.step_chunks
             if counter % view.listen.step_chunks == 0:
                 self.executor.submit(
@@ -75,7 +72,13 @@ class LiveAudioComponent(BaseModel, FileStreamer[Intensity, LiveAudioViewState])
                     size,
                 )
 
-    def _conversion(self, buffer: NDArray, sampling_rate: int, view: LiveAudioViewState, size: Size.FixedSize) -> None:
+    def _conversion(
+        self,
+        buffer: NDArray,
+        sampling_rate: int,
+        view: LiveAudioViewState,
+        size: Size.FixedSize,
+    ) -> None:
         assert self._loop is not None
         desired_rows = size.height
         desired_cols = size.width

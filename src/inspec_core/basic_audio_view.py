@@ -5,10 +5,10 @@ from typing import Optional
 import numpy as np
 import soundfile
 from inspec.transform import compute_spectrogram, resize
+from inspec_core.base_view import FileReader, Size, View
 from numpy.typing import NDArray
 from pydantic import BaseModel
 from render.types import Intensity
-from inspec_core.base_view import FileReader, Size, View
 
 
 class BasicAudioView(View):
@@ -24,22 +24,26 @@ class BasicAudioView(View):
 
 class BasicAudioReader(BaseModel, FileReader[Intensity, BasicAudioView]):
     filename: str
+    spec: Optional[NDArray] = None
+
+    class Config:
+        arbitrary_types_allowed = True
 
     def get_view(self, view: BasicAudioView, size: Size.FixedSize) -> NDArray:
-        data, sampling_rate = soundfile.read(self.filename)
+        if self.spec is None:
+            data, sampling_rate = soundfile.read(self.filename)
+            _, _, self.spec = compute_spectrogram(
+                data[:, view.channel],
+                sampling_rate,
+                spec_sample_rate=view.spec_sampling_rate,
+                freq_spacing=view.spec_freq_spacing,
+                min_freq=view.min_freq,
+                max_freq=view.max_freq,
+            )
 
-        _, _, spec = compute_spectrogram(
-            data[:, view.channel],
-            sampling_rate,
-            spec_sample_rate=view.spec_sampling_rate,
-            freq_spacing=view.spec_freq_spacing,
-            min_freq=view.min_freq,
-            max_freq=view.max_freq,
-        )
-
-        min_val = np.min(spec)
-        max_val = np.max(spec)
-        arr = (spec - min_val) / (max_val - min_val)
+        min_val = np.min(self.spec)
+        max_val = np.max(self.spec)
+        arr = (self.spec - min_val) / (max_val - min_val)
         arr = resize(
             arr,
             target_height=size.height,

@@ -32,7 +32,7 @@ class GridPaginator(pydantic.BaseModel):
         return self.rows * self.cols
 
     def n_pages(self, n_items: int) -> int:
-        return math.ceil(n_items / self.page_size)
+        return max(1, math.ceil(n_items / self.page_size))
 
     def locate(self, index: int) -> Position:
         page = index // self.page_size

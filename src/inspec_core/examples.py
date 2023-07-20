@@ -1,4 +1,3 @@
-
 import asyncio
 import enum
 import os
@@ -6,7 +5,6 @@ from concurrent.futures import ThreadPoolExecutor
 from typing import Optional
 
 import numpy as np
-
 from colormaps import get_colormap
 from inspec_core.base_view import Size
 from inspec_core.live_audio_view import LiveAudioComponent, LiveAudioViewState
@@ -35,7 +33,7 @@ async def print_live_audio(
 
     size = Size.FixedSize(
         height=width or os.get_terminal_size().columns,  # 'width'
-        width=1,                                         # 'height'
+        width=1,  # 'height'
     )
     view = LiveAudioViewState(
         # This is transposed since we want to print out spectrogram vertically

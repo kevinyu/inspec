@@ -13,8 +13,8 @@ from typing import Optional
 
 import pydantic
 from colormaps import get_colormap
-from inspec_app.paginate import GridPaginator
 from inspec_app import draw
+from inspec_app.paginate import GridPaginator
 from inspec_core.video_view import BasicVideoView, GreyscaleMp4Reader
 from inspec_curses import context
 from render.renderer import Renderer, make_intensity_renderer
@@ -115,7 +115,9 @@ def run(stdscr: curses.window) -> None:
 
             if page_components[i].file_.loaded is not None:
                 page_components[i].state.frame += 12
-                page_components[i].state.frame %= (page_components[i].file_.loaded.shape[0])
+                page_components[i].state.frame %= page_components[i].file_.loaded.shape[
+                    0
+                ]
 
             render_window_with_border(
                 window,

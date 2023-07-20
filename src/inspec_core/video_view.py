@@ -1,14 +1,14 @@
-
 from __future__ import annotations
+
 from typing import Optional
 
+import imageio
 import numpy as np
 from inspec.transform import resize
+from inspec_core.base_view import FileReader, Size, View
 from numpy.typing import NDArray
 from pydantic import BaseModel
 from render.types import Intensity
-from inspec_core.base_view import FileReader, Size, View
-import imageio
 
 
 class BasicVideoView(View):
@@ -36,4 +36,4 @@ class GreyscaleMp4Reader(BaseModel, FileReader[Intensity, BasicVideoView]):
         frame = np.clip(frame / 255, 0, 1)
         frame = np.flipud(frame)
 
-        return  np.vectorize(Intensity)(frame)
+        return np.vectorize(Intensity)(frame)
