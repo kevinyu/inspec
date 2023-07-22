@@ -17,7 +17,6 @@ from inspec_curses import context
 from render.renderer import Renderer, make_intensity_renderer
 from render.types import RGB, CharShape, Intensity
 
-HELP_MESSAGE = "[q] Quit [l] Next page [h] Previous page [?] Help"
 T = TypeVar("T", Intensity, RGB)
 U = TypeVar("U")
 FileReaderT = TypeVar("FileReaderT", BasicAudioReader, GreyscaleImageReader)
@@ -108,13 +107,11 @@ def apply_layout(window: curses.window, state: PanelAppState) -> Windows:
     help_window = draw.layout_1d(
         draw.layout_1d(
             main_window,
-            [draw.Span.Fixed(4), draw.Span.Stretch(1), draw.Span.Fixed(4)],
+            [draw.Span.Fixed(2), draw.Span.Stretch(1), draw.Span.Fixed(2)],
             direction=draw.Direction.Row,
-            pad=4,
         )[1],
-        [draw.Span.Fixed(4), draw.Span.Stretch(1), draw.Span.Fixed(4)],
+        [draw.Span.Fixed(1), draw.Span.Stretch(1), draw.Span.Fixed(1)],
         direction=draw.Direction.Column,
-        pad=4,
     )[1]
 
     grid_windows = draw.layout_grid(main_window, state.grid.rows, state.grid.cols)
@@ -156,6 +153,9 @@ class Stack(Generic[U]):
     def pop(self) -> U:
         return self._stack.pop()
 
+    def size(self) -> int:
+        return len(self._stack)
+
     def ensure(self, handler_type: Type[U]) -> None:
         if not isinstance(self.current(), handler_type):
             raise ValueError(f"Expected handler of type {handler_type}")
@@ -179,7 +179,7 @@ async def run(
         components=components,
     )
     layout = apply_layout(stdscr, state)
-    grid_layout_stack: list[GridState] = [state.grid]
+    grid: Stack[GridState] = Stack(state.grid)
     handler: Stack[key_handlers.KeyHandler] = Stack(key_handlers.default_handler)
 
     cmap = get_colormap("greys")
@@ -271,15 +271,19 @@ async def run(
             event = await events_queue.get()
             if isinstance(event, events.QuitEvent):
                 break
-            elif isinstance(event, events.NextPageEvent):
+            elif isinstance(event, events.NextPage):
                 state.current_page = (state.current_page + 1) % state.paginator.n_pages(
                     len(state.components)
                 )
+                if state.paginator.locate_abs(state.active_component_idx).page != state.current_page:
+                    state.active_component_idx = state.paginator.locate_rel(state.current_page, 0).abs_idx
                 redraw()
-            elif isinstance(event, events.PrevPageEvent):
+            elif isinstance(event, events.PrevPage):
                 state.current_page = (state.current_page - 1) % state.paginator.n_pages(
                     len(state.components)
                 )
+                if state.paginator.locate_abs(state.active_component_idx).page != state.current_page:
+                    state.active_component_idx = state.paginator.locate_rel(state.current_page, 0).abs_idx
                 redraw()
             elif isinstance(event, events.LogEvent):
                 log(event.msg)
@@ -303,25 +307,28 @@ async def run(
                     )
                 )
             elif isinstance(event, events.Select):
-                new_grid = GridState(rows=1, cols=1)
-                update_grid(grid=new_grid)
-                grid_layout_stack.append(new_grid)
+                # Go into row=1 col=1 mode
+                if handler.current() == key_handlers.zoom_handler:
+                    continue
+                grid.push(GridState(rows=1, cols=1))
+                update_grid(grid=grid.current())
                 layout = apply_layout(stdscr, state)
                 redraw()
                 handler.push(key_handlers.zoom_handler)
             elif isinstance(event, events.ShowHelp):
-                if handler.current() == key_handlers.help_handler:
+                if isinstance(handler.current(), key_handlers.HelpHandler):
                     continue
                 show_help_window(layout.help, handler.current())
-                handler.push(key_handlers.help_handler)
+                handler.push(key_handlers.make_help_handler(handler.current()))
             elif isinstance(event, events.CloseHelp):
                 redraw()
                 handler.pop()
+                if event.passthru_event is not None:
+                    await events_queue.put(event.passthru_event)
             elif isinstance(event, events.Back):
-                if len(grid_layout_stack) > 1:
-                    grid_layout_stack.pop()
-                    new_grid = grid_layout_stack[-1]
-                    update_grid(grid=new_grid)
+                if grid.size() > 1:
+                    grid.pop()
+                    update_grid(grid=grid.current())
                     layout = apply_layout(stdscr, state)
                     layout.main.clear()
                     redraw()

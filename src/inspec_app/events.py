@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Optional
 import pydantic
 
 
@@ -10,11 +10,11 @@ class QuitEvent(Event):
     pass
 
 
-class NextPageEvent(Event):
+class NextPage(Event):
     pass
 
 
-class PrevPageEvent(Event):
+class PrevPage(Event):
     pass
 
 
@@ -61,4 +61,4 @@ class ShowHelp(Event):
 
 
 class CloseHelp(Event):
-    pass
+    passthru_event: Optional[Event] = None
