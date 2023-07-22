@@ -19,6 +19,7 @@ dependencies = [
     "Pillow",
     "click",
     "numpy",
+    "opencv-python",
     "sounddevice",
     "soundfile",
     "wheel",
@@ -34,9 +35,6 @@ dev = [
     "pre-commit",
     "pytest",
     "twine",
-]
-video = [
-    "opencv-python",
 ]
 
 [project.urls]
