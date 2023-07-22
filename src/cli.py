@@ -1,10 +1,10 @@
+from __future__ import annotations
 import asyncio
 import os
 from typing import Literal, Optional, cast
 
 import typer
 
-import inspec
 from render.types import CharShape
 
 
@@ -19,6 +19,7 @@ def imshow(
     chars: CharShape = typer.Option(CharShape.Full, help="Shape of the output characters"),
 ):
     """Print an image to stdout"""
+    import inspec
     assert chars in {CharShape.Full, CharShape.Half}
     chars = cast(Literal[CharShape.Full, CharShape.Half], chars)
     inspec.imshow(filename, height=height, width=width, chars=chars)
@@ -33,6 +34,7 @@ def show(
     cmap: str = typer.Option("viridis", help="Name of the colormap to use"),
 ):
     """Print an audio file to stdout"""
+    import inspec
     width = width or os.get_terminal_size().columns // 2
     height = height or os.get_terminal_size().lines // 2
     if chars == CharShape.Quarter:
@@ -46,12 +48,13 @@ def show(
 def listen(
     channel: int = 0,
     width: Optional[int] = typer.Option(None, help="Width of the output stream in characters"),
-    mode: inspec.LivePrintMode = typer.Option(inspec.LivePrintMode.Fixed, help="Mode to use for printing"),
+    mode = typer.Option("inspec.LivePrintMode.Fixed", help="Mode to use for printing"),
     gain: float = typer.Option(0.0, help="Gain to apply to the audio"),
     cmap: str = typer.Option("viridis", help="Name of the colormap to use"),
     chars: CharShape = typer.Option(CharShape.Full, help="Shape of the output characters"),
 ):
     """Listen to audio and print to stdout"""
+    import inspec
     width = width or os.get_terminal_size().columns
     asyncio.run(inspec.listen(
         channel=channel,
