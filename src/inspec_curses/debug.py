@@ -12,6 +12,6 @@ def breakpoint():
         stdscr.keypad(False)
         curses.echo()
         curses.endwin()
-        ipdb.set_trace(frame=inspect.currentframe().f_back.f_back)  # type: ignore
+        ipdb.set_trace(frame=inspect.currentframe().f_back)  # type: ignore
     else:
         ipdb.set_trace()

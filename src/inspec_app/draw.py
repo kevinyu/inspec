@@ -192,10 +192,17 @@ class InputError:
     msg: str
 
 
+class InputEscape(Exception):
+    pass
+
+
 class Textbox(curses.textpad.Textbox):
     def do_command(self, ch: str | int) -> None:
         # This is here becaues backspace doesn't work
         # https://github.com/python/cpython/issues/60436
+        if ch == -1 or ch == 27:  # This is ctrl-c and escape
+            raise InputEscape()
+            return super().do_command(7)
         if ch == curses.KEY_BACKSPACE or ch == 127:
             return super().do_command(curses.KEY_BACKSPACE)
         else:
@@ -218,7 +225,7 @@ def request_input(
         Direction.Column,
     )
 
-    require_text = "(ctrl-h to delete)"
+    require_text = "(esc to cancel)"
     title_window.addstr(
         0, 0, msg[: title_window.getmaxyx()[1] - 1 - len(require_text)] + require_text
     )
@@ -230,10 +237,10 @@ def request_input(
 
     try:
         resp_input.edit()
-    except KeyboardInterrupt:
+    except InputEscape:
         return
-    else:
-        resp = resp_input.gather()
+
+    resp = resp_input.gather()
 
     if not str(resp).strip():
         return None
