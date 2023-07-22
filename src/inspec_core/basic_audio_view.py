@@ -4,7 +4,7 @@ from typing import Optional
 
 import numpy as np
 import soundfile
-from inspec.transform import compute_spectrogram, resize
+from audio_utils import compute_spectrogram, resize
 from inspec_core.base_view import FileReader, Size, View
 from numpy.typing import NDArray
 from pydantic import BaseModel

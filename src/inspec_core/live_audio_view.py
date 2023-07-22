@@ -6,8 +6,7 @@ from concurrent.futures import ThreadPoolExecutor
 from typing import Any, AsyncIterator, Optional
 
 import numpy as np
-from audio_utils import db_scale, stream_audio
-from inspec.transform import compute_spectrogram, resize
+from audio_utils import compute_spectrogram, db_scale, resize, stream_audio
 from inspec_core.base_view import FileStreamer, Size, View
 from numpy.typing import NDArray
 from pydantic import BaseModel
