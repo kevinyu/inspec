@@ -45,12 +45,12 @@ def test_resize_smaller():
 
     expected_3_3 = np.array([[1, 2.5, 4], [4, 5.5, 7], [7, 10, 13]])
 
-    x_ = resize(x, 3, 3)
+    x_ = resize(x, (3, 3))
     np.testing.assert_array_equal(x_, expected_3_3)
 
     expected_2_2 = np.array([[1, 4], [7, 13]])
 
-    x_ = resize(x, 2, 2)
+    x_ = resize(x, (2, 2))
     np.testing.assert_array_equal(x_, expected_2_2)
 
 
@@ -74,11 +74,11 @@ def test_resize_bigger():
         ]
     )
 
-    x_ = resize(x, 5, 5)
+    x_ = resize(x, (5, 5))
     np.testing.assert_array_equal(x_, expected_5_5)
 
 
 def test_resize_realistic_size():
     x = np.random.random((200, 6000))
-    x_ = resize(x, 40, 160)
+    x_ = resize(x, (40, 160))
     assert x_.shape == (40, 160)

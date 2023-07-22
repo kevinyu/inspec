@@ -2,6 +2,8 @@
 
 Visually inspect audio files and images from the command line by displaying them as unicode characters.
 
+Tested on `png`, `jpg`, `mp4`, and `wav` files.
+
 ## Quick start
 
 ```

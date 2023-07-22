@@ -110,11 +110,11 @@ def listen(
 
 @cli.command()
 @click.argument("files", nargs=-1)
-@click.option("--rows", type=int, default=2, help="Grid rows")
+@click.option("--rows", type=int, default=1, help="Grid rows")
 @click.option("--cols", type=int, default=2, help="Grid columns")
 def open(
     files: list[str],
-    rows: int = 2,
+    rows: int = 1,
     cols: int = 2,
 ):
     """

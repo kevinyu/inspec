@@ -6,10 +6,11 @@ from concurrent.futures import ThreadPoolExecutor
 from typing import Any, AsyncIterator, Optional
 
 import numpy as np
-from audio_utils import compute_spectrogram, db_scale, resize, stream_audio
-from inspec_core.base_view import FileStreamer, Size, View
 from numpy.typing import NDArray
 from pydantic import BaseModel
+
+from audio_utils import compute_spectrogram, db_scale, resize, stream_audio
+from inspec_core.base_view import FileStreamer, Size, View
 from render.types import Intensity
 
 
@@ -92,7 +93,7 @@ class LiveAudioComponent(BaseModel, FileStreamer[Intensity, LiveAudioViewState])
                 min_freq=view.min_freq,
                 max_freq=view.max_freq,
             )
-            spec = resize(spec, desired_rows, desired_cols)
+            spec = resize(spec, (desired_rows, desired_cols))
             arrays.append(spec)
         data = np.stack(arrays, axis=2)
         # scale to 0 to 1

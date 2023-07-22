@@ -6,6 +6,7 @@ from typing import AsyncIterator, Generic, Self, TypeVar, Union
 
 from numpy.typing import NDArray
 from pydantic import BaseModel
+
 from render.types import CharShape
 
 T = TypeVar("T", covariant=True)
@@ -73,12 +74,18 @@ ViewT = TypeVar("ViewT", bound=View)
 class FileReader(Generic[T, ViewT], abc.ABC):
     @abc.abstractmethod
     def get_view(self, view: ViewT, size: Size.Size) -> NDArray[T]:  # type: ignore
+        """
+        Returns an array (height/rows, width/cols) to be displayed
+        """
         raise NotImplementedError
 
 
 class FileStreamer(Generic[T, ViewT], abc.ABC):
     @abc.abstractmethod
     async def stream_view(self, view: ViewT, size: Size.Size) -> AsyncIterator[NDArray[T]]:  # type: ignore
+        """
+        Streams arrays of (height/rows, width/cols) to be displayed
+        """
         raise NotImplementedError
 
 

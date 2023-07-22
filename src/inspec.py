@@ -5,7 +5,7 @@ from concurrent.futures import ThreadPoolExecutor
 from typing import Literal, Optional
 
 import options
-from colormaps import get_colormap
+from colormaps import get_colormap, valid_colormaps
 from inspec_core.base_view import Size
 from inspec_core.live_audio_view import LiveAudioComponent, LiveAudioViewState
 from render import make_intensity_renderer, make_rgb_renderer
@@ -51,7 +51,6 @@ def ashow(
     cmap: str = "viridis",
     chars: CharShape = CharShape.Full,
 ):
-    from colormaps import get_colormap, valid_colormaps
     from inspec_core.audio_view import AudioReader, AudioViewState
 
     try:
@@ -79,11 +78,16 @@ def vshow(
     height: Optional[int] = None,
     width: Optional[int] = None,
     frame: int = 0,
+    cmap: str = "viridis",
+    mode: options.VideoMode = options.VideoMode.Greyscale,
     chars: Literal[CharShape.Full, CharShape.Half] = CharShape.Full,
 ):
-    from inspec_core.video_view import RGBVideoFrameReader, VideoViewState
+    from inspec_core.video_view import (
+        GreyscaleVideoFrameReader,
+        RGBVideoFrameReader,
+        VideoViewState,
+    )
 
-    reader = RGBVideoFrameReader(filename=filename)
     size = (
         Size.FixedSize(width=width, height=height)
         if width and height
@@ -94,7 +98,20 @@ def vshow(
         else Size.MaxSize.fill_terminal(shape=chars)
     )
     view = VideoViewState(frame=frame)
-    renderer = make_rgb_renderer(shape=chars)
+    if mode is options.VideoMode.Greyscale:
+        try:
+            intensity_map = get_colormap(cmap)
+        except KeyError:
+            raise ValueError(
+                f"Invalid colormap {cmap}. Valid colormaps are {valid_colormaps()}"
+            )
+
+        reader = GreyscaleVideoFrameReader(filename=filename)
+        renderer = make_intensity_renderer(intensity_map, shape=chars)
+    else:
+        reader = RGBVideoFrameReader(filename=filename)
+        renderer = make_rgb_renderer(shape=chars)
+
     arr = reader.get_view(view, size)
     display(renderer.apply(arr))
 

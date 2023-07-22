@@ -90,11 +90,6 @@ class AudioReader(BaseModel, FileReader[Intensity, AudioViewState]):
         min_val = np.min(spec)
         max_val = np.max(spec)
         arr = (spec - min_val) / (max_val - min_val)
-        arr = resize(
-            arr,
-            target_height=size.height,
-            target_width=size.width,
-        )
+        arr = resize(arr, (size.height, size.width))
         arr = np.vectorize(Intensity)(arr)
-
         return arr

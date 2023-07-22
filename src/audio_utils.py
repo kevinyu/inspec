@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 import asyncio
 import dataclasses
 from typing import Any, AsyncIterator, Optional, TypeVar
@@ -27,9 +28,7 @@ def list_devices():
     return sd.query_devices()
 
 
-async def stream_audio(
-    device_idx: Optional[int] = None
-) -> AsyncIterator[AudioChunk]:
+async def stream_audio(device_idx: Optional[int] = None) -> AsyncIterator[AudioChunk]:
     """
     Stream audio from audio device (defualt None)
     """
@@ -37,10 +36,7 @@ async def stream_audio(
     loop = asyncio.get_running_loop()
 
     def cb(
-        indata: NDArray[np.int16],
-        frames: int,
-        __time: Any,
-        __status: sd.CallbackFlags
+        indata: NDArray[np.int16], frames: int, __time: Any, __status: sd.CallbackFlags
     ):
         loop.call_soon_threadsafe(
             q.put_nowait,
@@ -198,9 +194,7 @@ def compute_spectrogram(
     return t_arr, freq_arr, spec
 
 
-def resize(
-    spec: SpectrogramArray, target_height: int, target_width: int
-) -> SpectrogramArray:
+def resize(spec: SpectrogramArray, target_shape: tuple[int, int]) -> SpectrogramArray:
     """Resize a 2D array with bilinear interpolation
 
     A modified version of https://chao-ji.github.io/jekyll/update/2018/07/19/BilinearResize.html
@@ -210,20 +204,20 @@ def resize(
     """
     assert spec.ndim == 2
 
-    original_height, original_width = spec.shape
-    resized = np.empty([target_height, target_width])
+    original_shape = spec.shape
+    resized = np.empty([target_shape[0], target_shape[1]])
 
-    if target_height == 1:
-        return resize_1d(spec[0], target_width)[None, :]
+    if target_shape[0] == 1:
+        return resize_1d(spec[0], target_shape[1])[None, :]
 
-    if target_width == 1:
-        return resize_1d(spec[:, 0], target_height)[:, None]
+    if target_shape[1] == 1:
+        return resize_1d(spec[:, 0], target_shape[0])[:, None]
 
-    dy = (original_height - 1) / (target_height - 1)
-    dx = (original_width - 1) / (target_width - 1)
+    dy = (original_shape[0] - 1) / (target_shape[0] - 1)
+    dx = (original_shape[1] - 1) / (target_shape[1] - 1)
 
-    for i in range(target_height):
-        for j in range(target_width):
+    for i in range(target_shape[0]):
+        for j in range(target_shape[1]):
             # Where would this point have been in the old coordinates?
             reference_i = i * dy
             reference_j = j * dx
@@ -237,9 +231,9 @@ def resize(
             # being ever-so-slightly greater than original_height|width
             # When that happens, lets just round it down. It will
             # receive a negligible weight anyway
-            if ref_j_upper == original_width:
+            if ref_j_upper == original_shape[1]:
                 ref_j_upper -= 1
-            elif ref_i_upper == original_height:
+            elif ref_i_upper == original_shape[0]:
                 ref_i_upper -= 1
 
             corner_00 = spec[ref_i_lower, ref_j_lower]

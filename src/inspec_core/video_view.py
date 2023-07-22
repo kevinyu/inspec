@@ -97,10 +97,9 @@ class GreyscaleVideoFrameReader(BaseVideoReader[Intensity, VideoViewState]):
             size, original_width=metadata.width, original_height=metadata.height
         )
         frame = self.loaded[1][view.frame]
-        frame = resize(frame, target_shape.height, target_shape.width)
+        frame = cv2.resize(frame, (target_shape.width, target_shape.height))
         frame = np.clip(frame / 255, 0, 1)
         frame = np.flipud(frame)
-
         return np.vectorize(Intensity)(frame)
 
 
@@ -145,11 +144,9 @@ class RGBVideoFrameReader(BaseVideoReader[RGB, VideoViewState]):
             size, original_width=metadata.width, original_height=metadata.height
         )
         frame = self.loaded[1][view.frame]
-        frame = resize(frame, target_shape.height, target_shape.width)
-        frame = np.clip(frame / 255, 0, 1)
+        frame = cv2.resize(frame, (target_shape.width, target_shape.height))
         frame = np.flipud(frame)
-
-        return np.vectorize(self._to_rgb)(frame)
+        return np.vectorize(RGBVideoFrameReader._to_rgb, signature="(n) -> ()")(frame)
 
 
 class GreyscaleVideoReader(BaseVideoReader[Intensity, VideoViewState]):
@@ -182,7 +179,9 @@ class GreyscaleVideoReader(BaseVideoReader[Intensity, VideoViewState]):
         target_shape = preserve_aspect_ratio(
             size, original_width=metadata.width, original_height=metadata.height
         )
-        frame = resize(self.loaded[view.frame], target_shape.height, target_shape.width)
+        frame = resize(
+            self.loaded[view.frame], (target_shape.height, target_shape.width)
+        )
         frame = np.clip(frame / 255, 0, 1)
         frame = np.flipud(frame)
 
@@ -215,7 +214,7 @@ class GreyscaleVideoStreamer(BaseModel, FileStreamer[Intensity, View]):
             while ret:
                 ret, frame = cap.read()
                 frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-                frame = resize(frame, target_shape.height, target_shape.width)
+                frame = resize(frame, (target_shape.height, target_shape.width))
                 frame = np.clip(frame / 255, 0, 1)
                 frame = np.flipud(frame)
                 yield np.vectorize(Intensity)(frame)

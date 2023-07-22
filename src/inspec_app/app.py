@@ -236,14 +236,19 @@ async def run(  # noqa: C901
         layout.status.refresh()
 
     def redraw(window_idxs: Optional[set[int]] = None, clear: bool = True) -> None:
+        if clear:
+            for i, window in enumerate(layout.grid):
+                if window_idxs is not None and i not in window_idxs:
+                    continue
+                window.clear()
+                window.refresh()
+
         for i, window in enumerate(layout.grid):
             if window_idxs is not None and i not in window_idxs:
                 continue
 
             position = state.paginator.locate_rel(state.current_page, i)
 
-            if clear:
-                window.clear()
             if position.abs_idx >= len(state.components):
                 window.refresh()
                 continue
