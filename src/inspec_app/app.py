@@ -2,7 +2,7 @@ import abc
 import asyncio
 import curses
 import os
-from typing import Generic, Optional, TypeVar
+from typing import Generic, Optional, Type, TypeVar
 
 import pydantic
 from colormaps import get_colormap
@@ -19,6 +19,7 @@ from render.types import RGB, CharShape, Intensity
 
 HELP_MESSAGE = "[q] Quit [l] Next page [h] Previous page [?] Help"
 T = TypeVar("T", Intensity, RGB)
+U = TypeVar("U")
 FileReaderT = TypeVar("FileReaderT", BasicAudioReader, GreyscaleImageReader)
 
 
@@ -91,17 +92,31 @@ class Windows(pydantic.BaseModel):
     status: curses.window
     debug: curses.window
     grid: list[curses.window]
+    help: curses.window
 
     class Config:
         arbitrary_types_allowed = True
 
 
-def apply_layout(stdscr: curses.window, state: PanelAppState) -> Windows:
+def apply_layout(window: curses.window, state: PanelAppState) -> Windows:
     main_window, status_window, debug_window = draw.layout_1d(
-        stdscr,
+        window,
         [draw.Span.Stretch(1), draw.Span.Fixed(1), draw.Span.Fixed(1)],
         direction=draw.Direction.Column,
     )
+
+    help_window = draw.layout_1d(
+        draw.layout_1d(
+            main_window,
+            [draw.Span.Fixed(4), draw.Span.Stretch(1), draw.Span.Fixed(4)],
+            direction=draw.Direction.Row,
+            pad=4,
+        )[1],
+        [draw.Span.Fixed(4), draw.Span.Stretch(1), draw.Span.Fixed(4)],
+        direction=draw.Direction.Column,
+        pad=4,
+    )[1]
+
     grid_windows = draw.layout_grid(main_window, state.grid.rows, state.grid.cols)
 
     return Windows(
@@ -109,7 +124,41 @@ def apply_layout(stdscr: curses.window, state: PanelAppState) -> Windows:
         status=status_window,
         debug=debug_window,
         grid=grid_windows,
+        help=help_window,
     )
+
+
+def show_help_window(window: curses.window, handler: key_handlers.KeyHandler) -> None:
+    window.clear()
+    _, inner_window = draw.make_border(window, solid=True)
+    help_text_paged = draw.page_and_wrap_text(
+        handler.help(),
+        width=inner_window.getmaxyx()[1],
+        height=inner_window.getmaxyx()[0] - 1,
+    )
+    inner_window.addstr(0, 0, handler.title)
+    for i, line in enumerate(help_text_paged[0]):  # FIXME: only showing first page for now.
+        inner_window.addstr(i + 1, 0, line)
+    window.refresh()
+
+
+class Stack(Generic[U]):
+
+    def __init__(self, default: U) -> None:
+        self._stack: list[U] = [default]
+
+    def current(self) -> U:
+        return self._stack[-1]
+
+    def push(self, handler: U) -> None:
+        self._stack.append(handler)
+
+    def pop(self) -> U:
+        return self._stack.pop()
+
+    def ensure(self, handler_type: Type[U]) -> None:
+        if not isinstance(self.current(), handler_type):
+            raise ValueError(f"Expected handler of type {handler_type}")
 
 
 async def run(
@@ -131,7 +180,7 @@ async def run(
     )
     layout = apply_layout(stdscr, state)
     grid_layout_stack: list[GridState] = [state.grid]
-    current_handler: key_handlers.KeyHandler = key_handlers.default_handler
+    handler: Stack[key_handlers.KeyHandler] = Stack(key_handlers.default_handler)
 
     cmap = get_colormap("greys")
     renderer = make_intensity_renderer(cmap, shape=CharShape.Half)
@@ -139,10 +188,6 @@ async def run(
 
     keys_queue = asyncio.Queue()
     events_queue = asyncio.Queue()
-
-    def update_grid(grid: GridState) -> None:
-        state.grid = grid
-        state.current_page = state.paginator.locate_abs(state.active_component_idx).page
 
     async def listen_for_keys() -> None:
         """
@@ -170,8 +215,6 @@ async def run(
         layout.status.refresh()
 
     def redraw(window_idxs: Optional[set[int]] = None) -> None:
-        slice_ = state.paginator.page_slice(state.current_page)
-        page_components = state.components[slice_]
         for i, window in enumerate(layout.grid):
             if window_idxs is not None and i not in window_idxs:
                 continue
@@ -179,11 +222,11 @@ async def run(
             position = state.paginator.locate_rel(state.current_page, i)
 
             window.clear()
-            if position.abs_idx >= len(page_components):
+            if position.abs_idx >= len(state.components):
                 window.refresh()
                 continue
 
-            component = page_components[position.abs_idx]
+            component = state.components[position.abs_idx]
             _, inner_window = set_border(i, position.abs_idx == state.active_component_idx)
             render_component(inner_window, component, renderer)
             window.refresh()
@@ -195,6 +238,10 @@ async def run(
         layout.grid[window_idx].addstr(0, 1, component.file_.filename)
         layout.grid[window_idx].refresh()
         return outer_window, inner_window
+
+    def update_grid(grid: GridState) -> None:
+        state.grid = grid
+        state.current_page = state.paginator.locate_abs(state.active_component_idx).page
 
     def set_selection(idx: int) -> None:
         new_position = state.paginator.locate_abs(idx)
@@ -212,7 +259,7 @@ async def run(
     async def key_handler_task() -> None:
         while True:
             ch = await keys_queue.get()
-            events_queue.put_nowait(current_handler.handle(ch))
+            events_queue.put_nowait(handler.current().handle(ch))
 
     handler_task = loop.create_task(key_handler_task())
     key_listener = loop.create_task(listen_for_keys())
@@ -256,15 +303,21 @@ async def run(
                     )
                 )
             elif isinstance(event, events.Select):
-                if state.grid.rows == 1 and state.grid.cols == 1:
-                    continue
                 new_grid = GridState(rows=1, cols=1)
                 update_grid(grid=new_grid)
                 grid_layout_stack.append(new_grid)
                 layout = apply_layout(stdscr, state)
                 redraw()
-                current_handler = key_handlers.zoom_handler
-            elif isinstance(event, events.Undo):
+                handler.push(key_handlers.zoom_handler)
+            elif isinstance(event, events.ShowHelp):
+                if handler.current() == key_handlers.help_handler:
+                    continue
+                show_help_window(layout.help, handler.current())
+                handler.push(key_handlers.help_handler)
+            elif isinstance(event, events.CloseHelp):
+                redraw()
+                handler.pop()
+            elif isinstance(event, events.Back):
                 if len(grid_layout_stack) > 1:
                     grid_layout_stack.pop()
                     new_grid = grid_layout_stack[-1]
@@ -272,7 +325,7 @@ async def run(
                     layout = apply_layout(stdscr, state)
                     layout.main.clear()
                     redraw()
-                current_handler = key_handlers.default_handler
+                handler.pop()
             else:
                 log(f"Unknown event {event}")
     except KeyboardInterrupt:

@@ -6,6 +6,7 @@ from inspec_app import events
 
 
 class KeyHandler(pydantic.BaseModel):
+    title: str
     mapping: dict[tuple[int, ...], tuple[events.Event, bool]]
 
     @staticmethod
@@ -18,7 +19,7 @@ class KeyHandler(pydantic.BaseModel):
         return "|".join([str(keyname) for key in keys if (keyname := KeyHandler._key_to_str(key))])
 
     def help(self) -> str:
-        return "; ".join([
+        return "\n".join([
             f"[{KeyHandler._keys_to_str(keys)}]: {event.__class__.__name__}"
             for keys, (event, show_help) in self.mapping.items()
             if show_help
@@ -32,7 +33,7 @@ class KeyHandler(pydantic.BaseModel):
 
     def handle(self, ch: int) -> Optional[events.Event]:
         if ch == ord("?"):
-            return events.LogEvent(msg=self.help())
+            return events.ShowHelp()
 
         for keys, (event, _) in self.mapping.items():
             if ch in keys:
@@ -51,32 +52,38 @@ class InputHandler(KeyHandler):
 
 
 default_handler = KeyHandler(
+    title="Main view",
     mapping={
         (ord("q"),): (events.QuitEvent(), True),
-        (ord("l"),): (events.NextPageEvent(), False),
-        (ord("h"),): (events.PrevPageEvent(), False),
+        (ord("l"),): (events.NextPageEvent(), True),
+        (ord("h"),): (events.PrevPageEvent(), True),
         # Python intercepts the SIGWINCH signal and prevents curses from seeing KEY_RESIZE
         # so resizing the window is not supported.
         # (curses.KEY_RESIZE,): (events.WindowResized(), False),
-        (curses.KEY_RIGHT,): (events.Move.Right(), False),
-        (curses.KEY_LEFT,): (events.Move.Left(), False),
-        (curses.KEY_UP,): (events.Move.Up(), False),
-        (curses.KEY_DOWN,): (events.Move.Down(), False),
+        (curses.KEY_RIGHT,): (events.Move.Right(), True),
+        (curses.KEY_LEFT,): (events.Move.Left(), True),
+        (curses.KEY_UP,): (events.Move.Up(), True),
+        (curses.KEY_DOWN,): (events.Move.Down(), True),
         (curses.KEY_ENTER, 10, ord("o")): (events.Select(), True),
     }
 )
 
 
 zoom_handler = KeyHandler(
+    title="Zoomed view",
     mapping={
-        # Python intercepts the SIGWINCH signal and prevents curses from seeing KEY_RESIZE
-        # so resizing the window is not supported.
-        # (curses.KEY_RESIZE,): (events.WindowResized(), False),
-        (curses.KEY_RIGHT,): (events.Move.Right(), False),
-        (curses.KEY_LEFT,): (events.Move.Left(), False),
-        (curses.KEY_UP,): (events.Move.Up(), False),
-        (curses.KEY_DOWN,): (events.Move.Down(), False),
-        (curses.KEY_BACKSPACE, 27, ord("q"), curses.KEY_ENTER, 10): (events.Undo(), True),
+        (curses.KEY_RIGHT,): (events.Move.Right(), True),
+        (curses.KEY_LEFT,): (events.Move.Left(), True),
+        (curses.KEY_UP,): (events.Move.Up(), True),
+        (curses.KEY_DOWN,): (events.Move.Down(), True),
+        (curses.KEY_BACKSPACE, 27, ord("q"), curses.KEY_ENTER, 10): (events.Back(), True),
     }
 )
 
+
+help_handler = KeyHandler(
+    title="Help view",
+    mapping={
+        (curses.KEY_BACKSPACE, 27, ord("q"), curses.KEY_ENTER, 10): (events.CloseHelp(), True),
+    }
+)

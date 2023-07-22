@@ -3,6 +3,7 @@ from __future__ import annotations
 import curses
 import enum
 from dataclasses import dataclass
+import textwrap
 
 from inspec_core.base_view import Size
 
@@ -161,3 +162,19 @@ def layout_1d(
         pos += width + pad
 
     return windows
+
+
+def page_and_wrap_text(text: str, width: int, height: int) -> list[list[str]]:
+    """
+    Split text into pages and wrap each page to width
+    """
+    lines = [
+        textwrap.wrap(chunk, width=width, replace_whitespace=False)
+        for chunk in text.split("\n")
+    ]
+    flattened = [line for chunk in lines for line in chunk]
+
+    pages = [
+        flattened[i : i + height] for i in range(0, len(flattened), height)
+    ]
+    return pages

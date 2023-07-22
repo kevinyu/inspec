@@ -48,9 +48,17 @@ class Select(Event):
     pass
 
 
-class Undo(Event):
+class Back(Event):
     pass
 
 
 class KeyPress(Event):
     key: str
+
+
+class ShowHelp(Event):
+    pass
+
+
+class CloseHelp(Event):
+    pass
