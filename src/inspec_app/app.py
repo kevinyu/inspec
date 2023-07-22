@@ -5,13 +5,12 @@ import os
 from typing import Generic, Optional, Type, TypeVar
 
 import pydantic
+
 from colormaps import get_colormap
-from inspec_app import draw
-from inspec_app import events
-from inspec_app import key_handlers
+from inspec_app import draw, events, key_handlers
 from inspec_app.paginate import GridPaginator
-from inspec_core.base_view import ViewT
 from inspec_core.audio_view import AudioReaderComponent, AudioViewState
+from inspec_core.base_view import ViewT
 from inspec_core.basic_image_view import BasicImageView, GreyscaleImageReader
 from inspec_curses import context
 from render.renderer import Renderer, make_intensity_renderer
@@ -30,7 +29,9 @@ class ComponentView(pydantic.BaseModel, Generic[T, FileReaderT, ViewT], abc.ABC)
         arbitrary_types_allowed = True
 
 
-class AudioComponentView(ComponentView[Intensity, AudioReaderComponent, AudioViewState]):
+class AudioComponentView(
+    ComponentView[Intensity, AudioReaderComponent, AudioViewState]
+):
     pass
 
 
@@ -146,13 +147,14 @@ def show_help_window(window: curses.window, handler: key_handlers.KeyHandler) ->
         height=inner_window.getmaxyx()[0] - 1,
     )
     inner_window.addstr(0, 0, handler.title)
-    for i, line in enumerate(help_text_paged[0]):  # FIXME: only showing first page for now.
+    for i, line in enumerate(
+        help_text_paged[0]
+    ):  # FIXME: only showing first page for now.
         inner_window.addstr(i + 1, 0, line)
     window.refresh()
 
 
 class Stack(Generic[U]):
-
     def __init__(self, default: U) -> None:
         self._stack: list[U] = [default]
 
@@ -173,7 +175,7 @@ class Stack(Generic[U]):
             raise ValueError(f"Expected handler of type {handler_type}")
 
 
-async def run(
+async def run(  # noqa: C901
     stdscr: curses.window,
     components: list[SupportedComponent],
     rows: int = 1,
@@ -243,7 +245,9 @@ async def run(
                 continue
 
             component = state.components[position.abs_idx]
-            _, inner_window = set_border(i, position.abs_idx == state.active_component_idx)
+            _, inner_window = set_border(
+                i, position.abs_idx == state.active_component_idx
+            )
             render_component(inner_window, component, renderer)
             window.refresh()
         curses.curs_set(0)
@@ -252,8 +256,12 @@ async def run(
         if not len(state.components):
             return layout.grid[window_idx], layout.grid[window_idx]
 
-        component = state.components[state.paginator.locate_rel(state.current_page, window_idx).abs_idx]
-        outer_window, inner_window = draw.make_border(layout.grid[window_idx], solid=solid)
+        component = state.components[
+            state.paginator.locate_rel(state.current_page, window_idx).abs_idx
+        ]
+        outer_window, inner_window = draw.make_border(
+            layout.grid[window_idx], solid=solid
+        )
         layout.grid[window_idx].addstr(0, 1, component.file_.filename)
 
         if isinstance(component, AudioComponentView):
@@ -301,15 +309,25 @@ async def run(
                 state.current_page = (state.current_page + 1) % state.paginator.n_pages(
                     len(state.components)
                 )
-                if state.paginator.locate_abs(state.active_component_idx).page != state.current_page:
-                    state.active_component_idx = state.paginator.locate_rel(state.current_page, 0).abs_idx
+                if (
+                    state.paginator.locate_abs(state.active_component_idx).page
+                    != state.current_page
+                ):
+                    state.active_component_idx = state.paginator.locate_rel(
+                        state.current_page, 0
+                    ).abs_idx
                 redraw()
             elif isinstance(event, events.PrevPage):
                 state.current_page = (state.current_page - 1) % state.paginator.n_pages(
                     len(state.components)
                 )
-                if state.paginator.locate_abs(state.active_component_idx).page != state.current_page:
-                    state.active_component_idx = state.paginator.locate_rel(state.current_page, 0).abs_idx
+                if (
+                    state.paginator.locate_abs(state.active_component_idx).page
+                    != state.current_page
+                ):
+                    state.active_component_idx = state.paginator.locate_rel(
+                        state.current_page, 0
+                    ).abs_idx
                 redraw()
             elif isinstance(event, events.LogEvent):
                 log(event.msg)
@@ -361,7 +379,9 @@ async def run(
                 handler.pop()
             elif isinstance(event, events.RequestInput):
                 layout.user_input.clear()
-                result = draw.request_input(layout.user_input, str(event.kind.__name__), event.kind.from_str)
+                result = draw.request_input(
+                    layout.user_input, str(event.kind.__name__), event.kind.from_str
+                )
                 if result is None:
                     redraw()
                 elif isinstance(result, draw.InputResult):
@@ -443,7 +463,7 @@ def main(files: list[str], rows: int = 1, cols: int = 1) -> None:
     def run_fn(stdscr: curses.window) -> None:
         asyncio.run(run(stdscr, rows=rows, cols=cols, components=components))
 
-    curses.wrapper(run_fn)
+    context.run_with_stdscr(run_fn)
 
 
 if __name__ == "__main__":

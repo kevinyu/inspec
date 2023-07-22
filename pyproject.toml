@@ -55,3 +55,9 @@ namespaces = false
 profile = "black"
 src_paths = "inspec"
 extend_skip = [".env", "env"]
+
+[tool.flake8]
+ignore = "E203, E266, E501, W503, F403, F401"
+max-line-length = 100
+max-complexity = 18
+select = "B,C,E,F,W,T4,B9"

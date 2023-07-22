@@ -3,6 +3,8 @@ from __future__ import annotations
 import contextvars
 import curses
 import logging
+import os
+from typing import Optional
 
 from inspec_curses.color_pair import ColorToSlot
 from render.colors import XTermColor
@@ -12,6 +14,9 @@ logger = logging.getLogger(__name__)
 
 _CURRENT_COLORMAP: contextvars.ContextVar[ColorToSlot] = contextvars.ContextVar(
     "_CURRENT_COLORMAP"
+)
+_CURRENT_STDSCR: contextvars.ContextVar[curses.window] = contextvars.ContextVar(
+    "_CURRENT_STDSCR"
 )
 
 
@@ -95,3 +100,37 @@ def display(window: curses.window, arr: ColoredCharArray):
                 draw(window, row_idx, col_idx, char)
             except curses.error:
                 pass
+
+
+def run_with_stdscr(func) -> None:
+    """
+    Wrapper around curses.wrapper() that sets the current curses window as a context variable
+    """
+    _prev_pythonbreakpoint = os.environ.get("PYTHONBREAKPOINT", None)
+    os.environ["PYTHONBREAKPOINT"] = "inspec_curses.debug.breakpoint"
+    token: Optional[contextvars.Token[curses.window]] = None
+
+    def inner(stdscr: curses.window):
+        nonlocal token
+        token = _CURRENT_STDSCR.set(stdscr)
+        func(stdscr)
+
+    try:
+        curses.wrapper(inner)
+    finally:
+        if _prev_pythonbreakpoint is not None:
+            os.environ["PYTHONBREAKPOINT"] = _prev_pythonbreakpoint
+        if token:
+            _CURRENT_STDSCR.reset(token)
+
+
+def current_stdscr() -> curses.window:
+    """
+    Get the current app context's curses window
+    """
+    stdscr = _CURRENT_STDSCR.get(None)
+    if stdscr is None:
+        raise RuntimeError(
+            "Curses not initialized; have you called curses.wrapper() yet?"
+        )
+    return stdscr

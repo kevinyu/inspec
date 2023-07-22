@@ -1,5 +1,7 @@
 import curses
+import curses.textpad
 from typing import Optional
+
 import pydantic
 
 from inspec_app import events
@@ -34,14 +36,18 @@ class KeyHandler(pydantic.BaseModel):
 
     @staticmethod
     def _keys_to_str(keys: tuple[int]) -> str:
-        return "|".join([str(keyname) for key in keys if (keyname := KeyHandler._key_to_str(key))])
+        return "|".join(
+            [str(keyname) for key in keys if (keyname := KeyHandler._key_to_str(key))]
+        )
 
     def help(self) -> str:
-        return "\n".join([
-            f"[{KeyHandler._keys_to_str(keys)}]: {event}"
-            for keys, (event, show_help) in self.mapping.items()
-            if show_help
-        ])
+        return "\n".join(
+            [
+                f"[{KeyHandler._keys_to_str(keys)}]: {event}"
+                for keys, (event, show_help) in self.mapping.items()
+                if show_help
+            ]
+        )
 
     def handle_unknown(self, ch: int) -> Optional[events.Event]:
         return events.LogEvent(msg=f"Unknown key {ch}")
@@ -64,7 +70,6 @@ class KeyHandler(pydantic.BaseModel):
 
 
 class InputHandler(KeyHandler):
-
     def handle_alphanumeric(self, ch: int) -> Optional[events.Event]:
         return events.KeyPress(key=chr(ch))
 
@@ -73,6 +78,7 @@ class HelpHandler(KeyHandler):
     """
     Passes through unknown keys to the parent
     """
+
     parent: KeyHandler
 
     def handle_unknown(self, ch: int) -> Optional[events.CloseHelp]:
@@ -101,7 +107,7 @@ default_handler = KeyHandler(
         (curses.KEY_UP,): (events.Move.Up(), True),
         (curses.KEY_DOWN,): (events.Move.Down(), True),
         (curses.KEY_ENTER, 10, ord("o")): (events.Select(), True),
-    }
+    },
 )
 
 
@@ -115,8 +121,11 @@ zoom_handler = KeyHandler(
         (ord("r"),): (events.RequestInput(kind=events.SetRows), True),
         (ord("c"),): (events.RequestInput(kind=events.SetCols), True),
         (ord("t"),): (events.RequestInput(kind=events.SetTimeRange), True),
-        (curses.KEY_BACKSPACE, 27, ord("q"), curses.KEY_ENTER, 10): (events.Back(), True),
-    }
+        (curses.KEY_BACKSPACE, 27, ord("q"), curses.KEY_ENTER, 10): (
+            events.Back(),
+            True,
+        ),
+    },
 )
 
 
@@ -125,6 +134,9 @@ def make_help_handler(parent: KeyHandler):
         title="Help view",
         parent=default_handler,
         mapping={
-            (curses.KEY_BACKSPACE, 27, ord("q"), curses.KEY_ENTER, 10): (events.CloseHelp(), True),
-        }
+            (curses.KEY_BACKSPACE, 27, ord("q"), curses.KEY_ENTER, 10): (
+                events.CloseHelp(),
+                True,
+            ),
+        },
     )

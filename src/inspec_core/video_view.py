@@ -4,10 +4,11 @@ from typing import Optional
 
 import imageio
 import numpy as np
-from inspec.transform import resize
-from inspec_core.base_view import FileReader, Size, View
 from numpy.typing import NDArray
 from pydantic import BaseModel
+
+from audio_utils import resize
+from inspec_core.base_view import FileReader, Size, View
 from render.types import Intensity
 
 

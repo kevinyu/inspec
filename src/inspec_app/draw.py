@@ -3,8 +3,8 @@ from __future__ import annotations
 import curses
 import curses.textpad
 import enum
-from dataclasses import dataclass
 import textwrap
+from dataclasses import dataclass
 from typing import Callable, Generic, Optional, TypeVar
 
 from inspec_core.base_view import Size
@@ -178,9 +178,7 @@ def page_and_wrap_text(text: str, width: int, height: int) -> list[list[str]]:
     ]
     flattened = [line for chunk in lines for line in chunk]
 
-    pages = [
-        flattened[i : i + height] for i in range(0, len(flattened), height)
-    ]
+    pages = [flattened[i : i + height] for i in range(0, len(flattened), height)]
     return pages
 
 
@@ -194,10 +192,18 @@ class InputError:
     msg: str
 
 
+class Textbox(curses.textpad.Textbox):
+    def do_command(self, ch: str | int) -> None:
+        # This is here becaues backspace doesn't work
+        # https://github.com/python/cpython/issues/60436
+        if ch == curses.KEY_BACKSPACE or ch == 127:
+            return super().do_command(curses.KEY_BACKSPACE)
+        else:
+            return super().do_command(ch)
+
+
 def request_input(
-    window: curses.window,
-    msg: str,
-    cast_response: Callable[[str], T] = str
+    window: curses.window, msg: str, cast_response: Callable[[str], T] = str
 ) -> InputResult[T] | InputError | None:
     resp = ""
 
@@ -213,10 +219,12 @@ def request_input(
     )
 
     require_text = "(ctrl-h to delete)"
-    title_window.addstr(0, 0, msg[:title_window.getmaxyx()[1] - 1 - len(require_text)] + require_text)
+    title_window.addstr(
+        0, 0, msg[: title_window.getmaxyx()[1] - 1 - len(require_text)] + require_text
+    )
 
     _, inner_window = make_border(input_window, solid=True)
-    resp_input = curses.textpad.Textbox(inner_window)
+    resp_input = Textbox(inner_window)
 
     window.refresh()
 

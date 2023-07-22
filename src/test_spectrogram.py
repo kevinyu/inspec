@@ -17,57 +17,62 @@ def test_get_frequencies():
 
 
 def test_spectrogram():
-    signal = np.random.random(48000,)
+    signal = np.random.random(
+        48000,
+    )
     t, f, spec = compute_spectrogram(signal, 48000, 1000, 50)
     assert spec.shape == (459, 1000)
 
-    signal = np.random.random(48000,)
-    t, f, spec = compute_spectrogram(signal, 48000, 1000, 50, min_freq=1000, max_freq=10000)
+    signal = np.random.random(
+        48000,
+    )
+    t, f, spec = compute_spectrogram(
+        signal, 48000, 1000, 50, min_freq=1000, max_freq=10000
+    )
     assert f[0] > 1000
     assert f[-1] < 10000
 
 
 def test_resize_smaller():
-    x = np.array([
-        [1, 2, 3, 4],
-        [3, 4, 5, 6],
-        [5, 6, 7, 8],
-        [7, 9, 11, 13],
-    ])
+    x = np.array(
+        [
+            [1, 2, 3, 4],
+            [3, 4, 5, 6],
+            [5, 6, 7, 8],
+            [7, 9, 11, 13],
+        ]
+    )
 
-    expected_3_3 = np.array([
-        [1, 2.5, 4],
-        [4, 5.5, 7],
-        [7, 10, 13]
-    ])
+    expected_3_3 = np.array([[1, 2.5, 4], [4, 5.5, 7], [7, 10, 13]])
 
     x_ = resize(x, 3, 3)
     np.testing.assert_array_equal(x_, expected_3_3)
 
-    expected_2_2 = np.array([
-        [1, 4],
-        [7, 13]
-    ])
+    expected_2_2 = np.array([[1, 4], [7, 13]])
 
     x_ = resize(x, 2, 2)
     np.testing.assert_array_equal(x_, expected_2_2)
 
 
-def test_resize_bigger(self):
-    x = np.array([
-        [1, 2, 3, 4],
-        [3, 4, 5, 6],
-        [5, 6, 7, 8],
-        [7, 9, 11, 13],
-    ])
+def test_resize_bigger():
+    x = np.array(
+        [
+            [1, 2, 3, 4],
+            [3, 4, 5, 6],
+            [5, 6, 7, 8],
+            [7, 9, 11, 13],
+        ]
+    )
 
-    expected_5_5 = np.array([
-        [1., 1.75, 2.5, 3.25, 4.],
-        [ 2.5, 3.25, 4., 4.75, 5.5],
-        [ 4., 4.75, 5.5, 6.25, 7.],
-        [ 5.5, 6.4375, 7.375, 8.3125, 9.25],
-        [ 7., 8.5, 10., 11.5, 13.],
-    ])
+    expected_5_5 = np.array(
+        [
+            [1.0, 1.75, 2.5, 3.25, 4.0],
+            [2.5, 3.25, 4.0, 4.75, 5.5],
+            [4.0, 4.75, 5.5, 6.25, 7.0],
+            [5.5, 6.4375, 7.375, 8.3125, 9.25],
+            [7.0, 8.5, 10.0, 11.5, 13.0],
+        ]
+    )
 
     x_ = resize(x, 5, 5)
     np.testing.assert_array_equal(x_, expected_5_5)
