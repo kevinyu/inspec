@@ -46,7 +46,6 @@ inspec = "cli:app"
 
 [tool.setuptools.packages.find]
 where = ["src"]
-include = ["inspec_legacy", "inspec_cli", "inspec_curses", "render", "view"]
 exclude = []
 namespaces = false
 

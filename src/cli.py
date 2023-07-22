@@ -4,7 +4,7 @@ from typing import Literal, Optional, cast
 
 import typer
 
-import inspec2 as inspec
+import inspec
 from render.types import CharShape
 
 
