@@ -5,7 +5,15 @@ import dataclasses
 from typing import Any, AsyncIterator, Optional, TypeVar
 
 import numpy as np
-import sounddevice as sd
+
+try:
+    import sounddevice as sd
+except OSError as e:
+    import warnings
+
+    warnings.warn("sounddevice could not be imported: %s" % e)
+    sd = None
+
 from numpy.typing import NDArray
 
 
@@ -25,6 +33,10 @@ def list_devices():
     """
     List the available audio devices
     """
+    if sd is None:
+        raise OSError(
+            "sounddevice could not be imported. You may need to install libportaudio2"
+        )
     return sd.query_devices()
 
 
@@ -32,11 +44,19 @@ async def stream_audio(device_idx: Optional[int] = None) -> AsyncIterator[AudioC
     """
     Stream audio from audio device (defualt None)
     """
+    if sd is None:
+        raise OSError(
+            "sounddevice could not be imported. You may need to install libportaudio2"
+        )
+
     q: asyncio.Queue[AudioChunk] = asyncio.Queue()
     loop = asyncio.get_running_loop()
 
     def cb(
-        indata: NDArray[np.int16], frames: int, __time: Any, __status: sd.CallbackFlags
+        indata: NDArray[np.int16],
+        frames: int,
+        __time,
+        __status,
     ):
         loop.call_soon_threadsafe(
             q.put_nowait,
