@@ -33,6 +33,7 @@ dev = [
     "black",
     "build",
     "flake8",
+    "ipdb",
     "isort",
     "pre-commit",
     "pyright",

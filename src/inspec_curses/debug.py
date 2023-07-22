@@ -1,7 +1,7 @@
 import curses
 import inspect
 
-import ipdb
+import ipdb  # type: ignore
 
 from inspec_curses import context
 
