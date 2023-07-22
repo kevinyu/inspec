@@ -12,18 +12,19 @@ import time
 from typing import Optional
 
 import pydantic
+
 from colormaps import get_colormap
 from inspec_app import draw
 from inspec_app.paginate import GridPaginator
-from inspec_core.video_view import BasicVideoView, GreyscaleMp4Reader
+from inspec_core.video_view import GreyscaleVideoReader, VideoViewState
 from inspec_curses import context
 from render.renderer import Renderer, make_intensity_renderer
 from render.types import CharShape, Intensity
 
 
 class VideComponent(pydantic.BaseModel, abc.ABC):
-    file_: GreyscaleMp4Reader
-    state: BasicVideoView
+    file_: GreyscaleVideoReader
+    state: VideoViewState
 
     class Config:
         arbitrary_types_allowed = True
@@ -78,8 +79,8 @@ def run(stdscr: curses.window) -> None:
         active_component_idx=0,
         components=[
             VideComponent(
-                file_=GreyscaleMp4Reader(filename="demo/seagulls.mp4"),
-                state=BasicVideoView(frame=0),
+                file_=GreyscaleVideoReader(filename="demo/seagulls.mp4"),
+                state=VideoViewState(frame=0),
             ),
         ],
     )

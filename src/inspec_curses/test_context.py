@@ -5,15 +5,16 @@ def _test_display():
     import time
 
     import numpy as np
+
     from colormaps import get_colormap
-    from inspec_core.audio_view import AudioReaderComponent, AudioViewState, TimeRange
+    from inspec_core.audio_view import AudioReader, AudioViewState, TimeRange
     from inspec_core.base_view import Size
     from inspec_curses.context import display, set_active
     from render import make_intensity_renderer
     from render.types import CharShape
 
     cmap = get_colormap("viridis")
-    reader = AudioReaderComponent(filename="demo/warbling.wav")
+    reader = AudioReader(filename="demo/warbling.wav")
     view = AudioViewState(
         time_range=TimeRange(start=0, end=1.0),
         channel=0,

@@ -28,7 +28,7 @@ source bin/activate
 pip install -e .
 ```
 
-Do `pip install -e .[video]` to have imageio ffmpeg support.
+You might need `ffmpeg` for video support not sure tho.
 
 Run tests
 

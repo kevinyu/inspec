@@ -2,10 +2,15 @@ import os
 from unittest import mock
 
 import pytest
+
+from inspec_core.audio_view import AudioReader, AudioViewState
 from inspec_core.base_view import Size
-from inspec_core.basic_audio_view import BasicAudioReader, BasicAudioView
-from inspec_core.basic_image_view import BasicImageReader, BasicImageView
-from inspec_core.video_view import BasicVideoView, GreyscaleMp4Reader
+from inspec_core.image_view import ImageReader, ImageViewState
+from inspec_core.video_view import (
+    GreyscaleVideoFrameReader,
+    GreyscaleVideoReader,
+    VideoViewState,
+)
 
 
 @pytest.fixture()
@@ -19,9 +24,9 @@ def test_image_reader(terminal_size):
     from render.display import display
     from render.types import CharShape
 
-    reader = BasicImageReader(filename="demo/mandrill.jpg")
+    reader = ImageReader(filename="demo/mandrill.jpg")
     size = Size.FixedSize.fill_terminal(shape=CharShape.Half)
-    view = BasicImageView(thumbnail=False)
+    view = ImageViewState(thumbnail=False)
     renderer = make_rgb_renderer(shape=CharShape.Half)
     arr = reader.get_view(view, size)
     display(renderer.apply(arr))
@@ -34,8 +39,8 @@ def test_audio_reader(terminal_size):
     from render.types import CharShape
 
     cmap = get_colormap("viridis")
-    reader = BasicAudioReader(filename="demo/warbling.wav")
-    view = BasicAudioView()
+    reader = AudioReader(filename="demo/warbling.wav")
+    view = AudioViewState()
     size = Size.FixedSize.fill_terminal(shape=CharShape.Half)
     renderer = make_intensity_renderer(cmap, shape=CharShape.Half)
     arr = reader.get_view(view, size)
@@ -49,8 +54,23 @@ def test_video_reader(terminal_size):
     from render.types import CharShape
 
     cmap = get_colormap("greys")
-    reader = GreyscaleMp4Reader(filename="demo/seagulls.mp4")
-    view = BasicVideoView()
+    reader = GreyscaleVideoReader(filename="demo/seagulls.mp4")
+    view = VideoViewState()
+    size = Size.FixedSize.fill_terminal(shape=CharShape.Half)
+    renderer = make_intensity_renderer(cmap, shape=CharShape.Half)
+    arr = reader.get_view(view, size)
+    display(renderer.apply(arr))
+
+
+def test_video_reader_frame(terminal_size):
+    from colormaps import get_colormap
+    from render import make_intensity_renderer
+    from render.display import display
+    from render.types import CharShape
+
+    cmap = get_colormap("greys")
+    reader = GreyscaleVideoFrameReader(filename="demo/seagulls.mp4")
+    view = VideoViewState()
     size = Size.FixedSize.fill_terminal(shape=CharShape.Half)
     renderer = make_intensity_renderer(cmap, shape=CharShape.Half)
     arr = reader.get_view(view, size)
@@ -61,3 +81,4 @@ if __name__ == "__main__":
     test_audio_reader(None)
     test_image_reader(None)
     test_video_reader(None)
+    test_video_reader_frame(None)

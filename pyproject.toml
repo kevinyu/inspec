@@ -36,9 +36,8 @@ dev = [
     "twine",
 ]
 video = [
-    "imageio[ffmpeg]",
+    "opencv-python",
 ]
-
 
 [project.urls]
 Repository = "https://github.com/kevinyu/inspec"

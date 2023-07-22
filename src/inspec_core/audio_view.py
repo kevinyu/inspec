@@ -4,10 +4,11 @@ from typing import Optional
 
 import numpy as np
 import soundfile
-from audio_utils import compute_spectrogram, resize
-from inspec_core.base_view import FileReader, Size, View
 from numpy.typing import NDArray
 from pydantic import BaseModel
+
+from audio_utils import compute_spectrogram, resize
+from inspec_core.base_view import FileReader, Size, View
 from render.types import Intensity
 
 
@@ -34,7 +35,7 @@ class AudioViewState(View):
         arbitrary_types_allowed = True
 
 
-class AudioReaderComponent(BaseModel, FileReader[Intensity, AudioViewState]):
+class AudioReader(BaseModel, FileReader[Intensity, AudioViewState]):
     class LoadedData(BaseModel):
         audio: NDArray[np.float64]
         sample_rate: int
@@ -59,15 +60,23 @@ class AudioReaderComponent(BaseModel, FileReader[Intensity, AudioViewState]):
         if self.data is None:
             audio, sample_rate = soundfile.read(self.filename, always_2d=True)
             channels = list(range(audio.shape[1]))
-            self.data = AudioReaderComponent.LoadedData(
+            self.data = AudioReader.LoadedData(
                 audio=audio, sample_rate=sample_rate, channels=channels
             )
         return self.data
 
     def get_view(self, view: AudioViewState, size: Size.FixedSize) -> NDArray:
         data = self._ensure_data()
-        start_idx = 0 if view.time_range.start is None else int(view.time_range.start * data.sample_rate)
-        end_idx = data.audio.shape[0] if view.time_range.end is None else int(view.time_range.end * data.sample_rate)
+        start_idx = (
+            0
+            if view.time_range.start is None
+            else int(view.time_range.start * data.sample_rate)
+        )
+        end_idx = (
+            data.audio.shape[0]
+            if view.time_range.end is None
+            else int(view.time_range.end * data.sample_rate)
+        )
 
         _, _, spec = compute_spectrogram(
             data.audio[start_idx:end_idx, view.channel],

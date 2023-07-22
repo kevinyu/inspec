@@ -99,6 +99,9 @@ default_handler = KeyHandler(
         (ord("r"),): (events.RequestInput(kind=events.SetRows), True),
         (ord("c"),): (events.RequestInput(kind=events.SetCols), True),
         (ord("t"),): (events.RequestInput(kind=events.SetTimeRange), True),
+        (ord("j"),): (events.PrevFrame(), True),
+        (ord("k"),): (events.NextFrame(), True),
+        (ord("f"),): (events.RequestInput(kind=events.JumpToFrame), True),
         # Python intercepts the SIGWINCH signal and prevents curses from seeing KEY_RESIZE
         # so resizing the window is not supported.
         # (curses.KEY_RESIZE,): (events.WindowResized(), False),
@@ -121,6 +124,9 @@ zoom_handler = KeyHandler(
         (ord("r"),): (events.RequestInput(kind=events.SetRows), True),
         (ord("c"),): (events.RequestInput(kind=events.SetCols), True),
         (ord("t"),): (events.RequestInput(kind=events.SetTimeRange), True),
+        (ord("j"),): (events.PrevFrame(), True),
+        (ord("k"),): (events.NextFrame(), True),
+        (ord("f"),): (events.RequestInput(kind=events.JumpToFrame), True),
         (curses.KEY_BACKSPACE, 27, ord("q"), curses.KEY_ENTER, 10): (
             events.Back(),
             True,

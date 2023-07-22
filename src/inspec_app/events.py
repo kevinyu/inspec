@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import enum
 from typing import Any, Callable, Generic, Optional, Self, Type, TypeVar, Union
+
 import pydantic
 
 from inspec_core.audio_view import TimeRange
@@ -10,7 +11,6 @@ T = TypeVar("T")
 
 
 class Event(pydantic.BaseModel):
-
     def __str__(self) -> str:
         return f"{self.__class__.__name__}"
 
@@ -73,6 +73,14 @@ class CloseHelp(Event):
     passthru_event: Optional[Event] = None
 
 
+class NextFrame(Event):
+    pass
+
+
+class PrevFrame(Event):
+    pass
+
+
 class UserInput(Generic[T], Event):
     value: T
 
@@ -84,22 +92,25 @@ class UserInput(Generic[T], Event):
         raise NotImplementedError
 
 
-class SetCols(UserInput[int]):
+class JumpToFrame(UserInput[int]):
+    @classmethod
+    def from_str(cls, value: str) -> JumpToFrame:
+        return cls(value=int(value))
 
+
+class SetCols(UserInput[int]):
     @classmethod
     def from_str(cls, value: str) -> SetCols:
         return cls(value=int(value))
 
 
 class SetRows(UserInput[int]):
-
     @classmethod
     def from_str(cls, value: str) -> SetRows:
         return cls(value=int(value))
 
 
 class SetTimeRange(UserInput[TimeRange]):
-
     @classmethod
     def from_str(cls, value: str) -> SetTimeRange:
         values = value.split("-")
@@ -107,17 +118,17 @@ class SetTimeRange(UserInput[TimeRange]):
             raise ValueError(f"Invalid time range {value}")
         try:
             t0 = float(values[0])
-        except:
+        except ValueError:
             t0 = None
         try:
             t1 = float(values[1])
-        except:
+        except ValueError:
             t1 = None
         return cls(value=TimeRange(start=t0, end=t1))
 
 
 class RequestInput(Event):
-    kind: Type[SetRows] | Type[SetCols] | Type[SetTimeRange]
+    kind: Type[SetRows] | Type[SetCols] | Type[SetTimeRange] | Type[JumpToFrame]
 
     def __str__(self) -> str:
         return f"Input({str(self.kind)})"

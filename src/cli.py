@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 import asyncio
 import os
 from typing import Literal, Optional, cast
@@ -22,7 +23,7 @@ def cli():
     "--chars",
     type=click.Choice([CharShape.Full, CharShape.Half]),
     default=CharShape.Full,
-    help="Shape of the output characters"
+    help="Shape of the output characters",
 )
 def imshow(
     filename: str,
@@ -32,6 +33,7 @@ def imshow(
 ):
     """Print an image to stdout"""
     import inspec
+
     inspec.imshow(filename, height=height, width=width, chars=chars)
 
 
@@ -43,7 +45,7 @@ def imshow(
     "--chars",
     type=click.Choice([CharShape.Full, CharShape.Half, CharShape.Quarter]),
     default=CharShape.Full,
-    help="Shape of the output characters"
+    help="Shape of the output characters",
 )
 @click.option("--cmap", type=str, default="greys", help="Name of the colormap to use")
 def show(
@@ -55,6 +57,7 @@ def show(
 ):
     """Print an audio file to stdout"""
     import inspec
+
     width = width or os.get_terminal_size().columns // 2
     height = height or os.get_terminal_size().lines // 2
     if chars == CharShape.Quarter:
@@ -71,7 +74,7 @@ def show(
     "--mode",
     type=click.Choice([options.LivePrintMode.Fixed, options.LivePrintMode.Scroll]),
     default=options.LivePrintMode.Fixed,
-    help="Mode to use for printing"
+    help="Mode to use for printing",
 )
 @click.option("--gain", type=float, default=0.0, help="Gain to apply to the audio")
 @click.option("--cmap", type=str, default="viridis", help="Name of the colormap to use")
@@ -79,7 +82,7 @@ def show(
     "--chars",
     type=click.Choice([CharShape.Full, CharShape.Half, CharShape.Quarter]),
     default=CharShape.Full,
-    help="Shape of the output characters"
+    help="Shape of the output characters",
 )
 def listen(
     channel: int,
@@ -91,25 +94,28 @@ def listen(
 ):
     """Listen to audio and print to stdout"""
     import inspec
+
     width = width or os.get_terminal_size().columns
-    asyncio.run(inspec.listen(
-        channel=channel,
-        width=width,
-        mode=mode,
-        gain=gain,
-        cmap=cmap,
-        chars=chars,
-    ))
+    asyncio.run(
+        inspec.listen(
+            channel=channel,
+            width=width,
+            mode=mode,
+            gain=gain,
+            cmap=cmap,
+            chars=chars,
+        )
+    )
 
 
 @cli.command()
 @click.argument("files", nargs=-1)
-@click.option("--rows", type=int, default=1, help="Height of the output image in characters")
-@click.option("--cols", type=int, default=1, help="Width of the output image in characters")
+@click.option("--rows", type=int, default=2, help="Grid rows")
+@click.option("--cols", type=int, default=2, help="Grid columns")
 def open(
     files: list[str],
-    rows: int = 1,
-    cols: int = 1,
+    rows: int = 2,
+    cols: int = 2,
 ):
     """
     Open interactive GUI
@@ -118,6 +124,7 @@ def open(
         click.echo("Must provide at least one file to open")
         return
     from inspec_app.app import main
+
     main(files, rows, cols)
 
 
