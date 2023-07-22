@@ -5,9 +5,11 @@ from __future__ import annotations
 
 import abc
 import bisect
-from typing import Any, Optional, Self
+from typing import Any, Optional
 
 import pydantic
+from typing_extensions import Self
+
 from render import x256
 from render.types import RGB, Intensity, XTermColor
 

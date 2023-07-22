@@ -23,6 +23,7 @@ dependencies = [
     "pydantic",
     "sounddevice",
     "soundfile",
+    "typing-extensions",
     "wheel",
     "windows-curses; platform_system=='Windows'",
 ]

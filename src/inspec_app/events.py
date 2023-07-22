@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-import enum
-from typing import Any, Callable, Generic, Optional, Self, Type, TypeVar, Union
+from typing import Any, Generic, Optional, Type, TypeVar
 
 import pydantic
+from typing_extensions import Self
 
 from inspec_core.audio_view import TimeRange
 

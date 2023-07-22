@@ -3,10 +3,12 @@ from __future__ import annotations
 import abc
 import warnings
 from dataclasses import dataclass
-from typing import Generic, Iterator, Literal, Protocol, TypeVar
+from typing import Generic, Iterator, TypeVar
 
 import numpy as np
 from numpy.typing import NDArray
+from typing_extensions import Literal, Protocol
+
 from render import chars
 from render.colors import IntensityMap, RGBMap
 from render.types import (
@@ -43,6 +45,7 @@ class Renderer(Generic[InputT], Protocol):
     input type, and we don't want to do validation here -- ideally this conversion
     is quite fast.
     """
+
     def scale(self) -> CharDimensions:
         ...
 

@@ -2,10 +2,11 @@ from __future__ import annotations
 
 import abc
 import os
-from typing import AsyncIterator, Generic, Self, TypeVar, Union
+from typing import AsyncIterator, Generic, TypeVar, Union
 
 from numpy.typing import NDArray
 from pydantic import BaseModel
+from typing_extensions import Self
 
 from render.types import CharShape
 

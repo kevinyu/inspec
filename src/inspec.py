@@ -2,7 +2,9 @@ import enum
 import os
 import sys
 from concurrent.futures import ThreadPoolExecutor
-from typing import Literal, Optional
+from typing import Optional
+
+from typing_extensions import Literal
 
 import options
 from colormaps import get_colormap, valid_colormaps

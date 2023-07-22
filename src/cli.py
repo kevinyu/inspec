@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import asyncio
 import os
-from typing import Literal, Optional, cast
+from typing import Optional
 
 import click
+from typing_extensions import Literal
 
 import options
 from render.types import CharShape
