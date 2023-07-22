@@ -16,23 +16,24 @@ classifiers = [
 ]
 requires-python = ">=3.9"
 dependencies = [
-    "click",
-    "soundfile",
-    "numpy",
     "Pillow",
+    "click",
+    "numpy",
     "sounddevice",
+    "soundfile",
     "wheel",
     "windows-curses; platform_system=='Windows'",
 ]
 
 [project.optional-dependencies]
 dev = [
+    "black",
     "build",
     "flake8",
-    "twine",
-    "black",
     "isort",
+    "pre-commit",
     "pytest",
+    "twine",
 ]
 video = [
     "imageio[ffmpeg]",
