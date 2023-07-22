@@ -3,7 +3,7 @@ requires = ["setuptools", "wheel"]
 
 [project]
 name = "inspec"
-version = "1.0.0"
+version = "0.4.0"
 description = "Inspect audio and image files from command line"
 readme = "README.md"
 authors = [{name = "Kevin Yu", email = "thekevinyu@gmail.edu"}]
@@ -27,6 +27,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
+    "build",
     "flake8",
     "twine",
     "black",
