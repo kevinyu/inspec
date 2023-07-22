@@ -10,6 +10,8 @@ Tested on `png`, `jpg`, `mp4`, and `wav` files.
 pip install inspec
 ```
 
+From command line
+
 ```
 Usage: inspec [OPTIONS] COMMAND [ARGS]...
 
@@ -18,6 +20,17 @@ Commands:
   listen  Listen to audio and print to stdout
   open    Open interactive GUI
   show    Print an audio file to stdout
+```
+
+From python
+
+```python
+import inspec
+
+inspec.imshow("path/to/image/file.png")
+inspec.ashow("path/to/audio/file.wav")
+inspec.vshow("path/to/video/file.mp4")
+inspec.listen()
 ```
 
 ## Dev setup
