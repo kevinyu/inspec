@@ -16,7 +16,7 @@ classifiers = [
 ]
 requires-python = ">=3.9"
 dependencies = [
-    "typer",
+    "click",
     "SoundFile",
     "numpy",
     "Pillow",
@@ -43,7 +43,7 @@ video = [
 Repository = "https://github.com/kevinyu/inspec"
 
 [project.scripts]
-inspec = "cli:app"
+inspec = "cli:cli"
 
 [tool.setuptools.packages.find]
 where = ["src"]

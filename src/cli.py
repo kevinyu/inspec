@@ -3,36 +3,55 @@ import asyncio
 import os
 from typing import Literal, Optional, cast
 
-import typer
+import click
 
 import options
 from render.types import CharShape
 
 
-app = typer.Typer(no_args_is_help=True)
+@click.group()
+def cli():
+    pass
 
 
-@app.command()
+@cli.command()
+@click.argument("filename")
+@click.option("--height", type=int, help="Height of the output image in characters")
+@click.option("--width", type=int, help="Width of the output image in characters")
+@click.option(
+    "--chars",
+    type=click.Choice([CharShape.Full, CharShape.Half]),
+    default=CharShape.Full,
+    help="Shape of the output characters"
+)
 def imshow(
-    filename: str = typer.Argument(..., help="Path to image file"),
-    height: Optional[int] = typer.Option(None, help="Height of the output image in characters"),
-    width: Optional[int] = typer.Option(None, help="Width of the output image in characters"),
-    chars: CharShape = typer.Option(CharShape.Full, help="Shape of the output characters"),
+    filename: str,
+    height: Optional[int],
+    width: Optional[int],
+    chars: Literal[CharShape.Full, CharShape.Half],
 ):
     """Print an image to stdout"""
     import inspec
-    assert chars in {CharShape.Full, CharShape.Half}
-    chars = cast(Literal[CharShape.Full, CharShape.Half], chars)
     inspec.imshow(filename, height=height, width=width, chars=chars)
 
 
-@app.command()
+@cli.command()
+@click.argument("filename")
+@click.option("--height", type=int, help="Height of the output image in characters")
+@click.option("--width", type=int, help="Width of the output image in characters")
+@click.option(
+    "--chars",
+    type=click.Choice([CharShape.Full, CharShape.Half, CharShape.Quarter]),
+    default=CharShape.Full,
+    help="Shape of the output characters"
+)
+@click.option("--cmap", type=str, default="greys", help="Name of the colormap to use")
 def show(
-    filename: str = typer.Argument(..., help="Path to audio file"),
-    height: int = typer.Option(None, help="Height of the output image in characters"),
-    width: int = typer.Option(None, help="Width of the output image in characters"),
-    chars: CharShape = typer.Option(CharShape.Half, help="Shape of the output characters"),
-    cmap: str = typer.Option("viridis", help="Name of the colormap to use"),
+    filename: str,
+    height: int,
+    width: int,
+    chars: CharShape,
+    cmap: str,
 ):
     """Print an audio file to stdout"""
     import inspec
@@ -45,14 +64,30 @@ def show(
     inspec.ashow(filename, height=height, width=width, chars=chars, cmap=cmap)
 
 
-@app.command()
+@cli.command()
+@click.option("--channel", type=int, default=0, help="Channel to listen to")
+@click.option("--width", type=int, help="Width of the output stream in characters")
+@click.option(
+    "--mode",
+    type=click.Choice([options.LivePrintMode.Fixed, options.LivePrintMode.Scroll]),
+    default=options.LivePrintMode.Fixed,
+    help="Mode to use for printing"
+)
+@click.option("--gain", type=float, default=0.0, help="Gain to apply to the audio")
+@click.option("--cmap", type=str, default="viridis", help="Name of the colormap to use")
+@click.option(
+    "--chars",
+    type=click.Choice([CharShape.Full, CharShape.Half, CharShape.Quarter]),
+    default=CharShape.Full,
+    help="Shape of the output characters"
+)
 def listen(
-    channel: int = 0,
-    width: Optional[int] = typer.Option(None, help="Width of the output stream in characters"),
-    mode: options.LivePrintMode = typer.Option(options.LivePrintMode.Fixed, help="Mode to use for printing"),
-    gain: float = typer.Option(0.0, help="Gain to apply to the audio"),
-    cmap: str = typer.Option("viridis", help="Name of the colormap to use"),
-    chars: CharShape = typer.Option(CharShape.Full, help="Shape of the output characters"),
+    channel: int,
+    width: Optional[int],
+    mode: options.LivePrintMode,
+    gain: float,
+    cmap: str,
+    chars: CharShape,
 ):
     """Listen to audio and print to stdout"""
     import inspec
@@ -67,18 +102,24 @@ def listen(
     ))
 
 
-@app.command()
+@cli.command()
+@click.argument("files", nargs=-1)
+@click.option("--rows", type=int, default=1, help="Height of the output image in characters")
+@click.option("--cols", type=int, default=1, help="Width of the output image in characters")
 def open(
-    files: list[str] = typer.Argument(..., help="Path to file(s) or directory(s)"),
-    rows: int = typer.Option(1, help="Height of the output image in characters"),
-    cols: int = typer.Option(1, help="Width of the output image in characters"),
+    files: list[str],
+    rows: int = 1,
+    cols: int = 1,
 ):
     """
     Open interactive GUI
     """
+    if not files:
+        click.echo("Must provide at least one file to open")
+        return
     from inspec_app.app import main
     main(files, rows, cols)
 
 
 if __name__ == "__main__":
-    app()
+    cli()

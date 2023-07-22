@@ -238,6 +238,10 @@ async def run(
                 window.refresh()
                 continue
 
+            if not len(state.components):
+                window.refresh()
+                continue
+
             component = state.components[position.abs_idx]
             _, inner_window = set_border(i, position.abs_idx == state.active_component_idx)
             render_component(inner_window, component, renderer)
@@ -245,6 +249,9 @@ async def run(
         curses.curs_set(0)
 
     def set_border(window_idx: int, solid: bool) -> tuple[curses.window, curses.window]:
+        if not len(state.components):
+            return layout.grid[window_idx], layout.grid[window_idx]
+
         component = state.components[state.paginator.locate_rel(state.current_page, window_idx).abs_idx]
         outer_window, inner_window = draw.make_border(layout.grid[window_idx], solid=solid)
         layout.grid[window_idx].addstr(0, 1, component.file_.filename)
@@ -370,6 +377,7 @@ async def run(
                     status("Max 8 cols")
                     event.value = 8
                 update_grid(grid=GridState(rows=state.grid.rows, cols=event.value))
+                grid.push(state.grid)
                 layout = apply_layout(stdscr, state)
                 layout.main.clear()
                 redraw()
@@ -378,6 +386,7 @@ async def run(
                     status("Max 8 rows")
                     event.value = 8
                 update_grid(grid=GridState(rows=event.value, cols=state.grid.cols))
+                grid.push(state.grid)
                 layout = apply_layout(stdscr, state)
                 layout.main.clear()
                 redraw()
@@ -438,6 +447,16 @@ def main(files: list[str], rows: int = 1, cols: int = 1) -> None:
 
 
 if __name__ == "__main__":
-    import typer
+    import click
 
-    typer.run(main)
+    @click.command()
+    @click.argument("files", nargs=-1)
+    @click.option("--rows", default=1, help="Number of rows in grid")
+    @click.option("--cols", default=1, help="Number of cols in grid")
+    def cli(files: list[str], rows: int, cols: int) -> None:
+        if not len(files):
+            click.echo("Must specify at least one file")
+            return
+        main(files, rows=rows, cols=cols)
+
+    cli()
