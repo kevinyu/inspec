@@ -53,7 +53,7 @@ namespaces = false
 
 [tool.isort]
 profile = "black"
-src_paths = "inspec"
+src_paths = "src"
 extend_skip = [".env", "env"]
 
 [tool.flake8]

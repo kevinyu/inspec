@@ -1,6 +1,6 @@
+import curses
 from unittest import mock
 
-import curses
 import pytest
 
 from inspec_curses import context
@@ -19,6 +19,7 @@ def mock_curses_colors():
     curses.COLOR_PAIRS = 256
     with mock.patch("curses.init_pair", mock_init_pair):
         yield mock_curses_colors
+
 
 def test_set_active(mock_curses_colors):
     # Test this by setting the slots (but mocking curses)

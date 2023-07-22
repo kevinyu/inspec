@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from typing import Any, Iterator
 
 import pydantic
+
 from render import chars
 from render.types import IChar, XTermColor
 
@@ -38,7 +39,9 @@ class ColorToSlot(pydantic.BaseModel):
         # * 22 colors, we need 231 slots
         # * 23 colors, we need 253 slots
         if len(self.colors) > 22:
-            raise ValueError("Cannot initialize a curses colorset with more than 22 colors")
+            raise ValueError(
+                "Cannot initialize a curses colorset with more than 22 colors"
+            )
         self._color_idx = {color: i for i, color in enumerate(self.colors)}
 
     def _get_slot(self, bin1: int, bin2: int) -> ColorPairSlot:

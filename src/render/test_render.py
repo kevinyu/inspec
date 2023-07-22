@@ -1,4 +1,5 @@
 import numpy as np
+
 from colormaps import get_colormap
 from render import make_intensity_renderer, make_rgb_renderer
 from render.display import display
