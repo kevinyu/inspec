@@ -16,3 +16,8 @@ repos:
   - id: flake8
     entry: pflake8
     additional_dependencies: [pyproject-flake8]
+
+- repo: https://github.com/RobertCraigie/pyright-python
+  rev: v1.1.318
+  hooks:
+  - id: pyright
