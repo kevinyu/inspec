@@ -5,6 +5,7 @@ from typing import Literal, Optional, cast
 
 import typer
 
+import options
 from render.types import CharShape
 
 
@@ -48,7 +49,7 @@ def show(
 def listen(
     channel: int = 0,
     width: Optional[int] = typer.Option(None, help="Width of the output stream in characters"),
-    mode = typer.Option("inspec.LivePrintMode.Fixed", help="Mode to use for printing"),
+    mode: options.LivePrintMode = typer.Option(options.LivePrintMode.Fixed, help="Mode to use for printing"),
     gain: float = typer.Option(0.0, help="Gain to apply to the audio"),
     cmap: str = typer.Option("viridis", help="Name of the colormap to use"),
     chars: CharShape = typer.Option(CharShape.Full, help="Shape of the output characters"),

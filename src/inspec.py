@@ -4,6 +4,7 @@ import sys
 from concurrent.futures import ThreadPoolExecutor
 from typing import Literal, Optional
 
+import options
 from colormaps import get_colormap
 from inspec_core.base_view import Size
 from inspec_core.live_audio_view import LiveAudioComponent, LiveAudioViewState
@@ -75,15 +76,10 @@ def ashow(
     display(renderer.apply(arr))
 
 
-class LivePrintMode(str, enum.Enum):
-    Scroll = "scroll"
-    Fixed = "fixed"
-
-
 async def listen(
     channel: int = 0,
     width: Optional[int] = None,
-    mode: LivePrintMode = LivePrintMode.Fixed,
+    mode: options.LivePrintMode = options.LivePrintMode.Fixed,
     gain: float = 0.0,
     cmap: str = "viridis",
     chars: CharShape = CharShape.Full,
@@ -104,5 +100,5 @@ async def listen(
     async for arr in component.stream_view(view, size):
         display(
             renderer.apply(arr[:, :, channel].T),
-            end="\n" if mode is LivePrintMode.Scroll else "\r",
+            end="\n" if mode is options.LivePrintMode.Scroll else "\r",
         )
