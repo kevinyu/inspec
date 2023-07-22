@@ -38,7 +38,7 @@ class KeyHandler(pydantic.BaseModel):
 
     def help(self) -> str:
         return "\n".join([
-            f"[{KeyHandler._keys_to_str(keys)}]: {event.__class__.__name__}"
+            f"[{KeyHandler._keys_to_str(keys)}]: {event}"
             for keys, (event, show_help) in self.mapping.items()
             if show_help
         ])
@@ -90,6 +90,9 @@ default_handler = KeyHandler(
         (ord("q"),): (events.QuitEvent(), True),
         (ord("l"),): (events.NextPage(), True),
         (ord("h"),): (events.PrevPage(), True),
+        (ord("r"),): (events.RequestInput(kind=events.SetRows), True),
+        (ord("c"),): (events.RequestInput(kind=events.SetCols), True),
+        (ord("t"),): (events.RequestInput(kind=events.SetTimeRange), True),
         # Python intercepts the SIGWINCH signal and prevents curses from seeing KEY_RESIZE
         # so resizing the window is not supported.
         # (curses.KEY_RESIZE,): (events.WindowResized(), False),
@@ -109,6 +112,9 @@ zoom_handler = KeyHandler(
         (curses.KEY_LEFT,): (events.Move.Left(), True),
         (curses.KEY_UP,): (events.Move.Up(), True),
         (curses.KEY_DOWN,): (events.Move.Down(), True),
+        (ord("r"),): (events.RequestInput(kind=events.SetRows), True),
+        (ord("c"),): (events.RequestInput(kind=events.SetCols), True),
+        (ord("t"),): (events.RequestInput(kind=events.SetTimeRange), True),
         (curses.KEY_BACKSPACE, 27, ord("q"), curses.KEY_ENTER, 10): (events.Back(), True),
     }
 )

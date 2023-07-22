@@ -12,13 +12,18 @@ from render.types import Intensity
 
 
 class TimeRange(BaseModel):
+    start: Optional[float] = None
+    end: Optional[float] = None
+
+
+class EffectiveTimeRange(BaseModel):
     start: float
     end: float
 
 
 class AudioViewState(View):
-    time_range: TimeRange
-    channel: int
+    time_range: TimeRange = TimeRange()
+    channel: int = 0
 
     spec_sampling_rate: int = 1000
     spec_freq_spacing: float = 50.0
@@ -41,6 +46,15 @@ class AudioReaderComponent(BaseModel, FileReader[Intensity, AudioViewState]):
     filename: str
     data: Optional[LoadedData] = None
 
+    def effective_time_range(self, view: AudioViewState) -> EffectiveTimeRange:
+        data = self._ensure_data()
+        return EffectiveTimeRange(
+            start=0 if view.time_range.start is None else view.time_range.start,
+            end=data.audio.shape[0] / data.sample_rate
+            if view.time_range.end is None
+            else view.time_range.end,
+        )
+
     def _ensure_data(self) -> LoadedData:
         if self.data is None:
             audio, sample_rate = soundfile.read(self.filename, always_2d=True)
@@ -52,8 +66,8 @@ class AudioReaderComponent(BaseModel, FileReader[Intensity, AudioViewState]):
 
     def get_view(self, view: AudioViewState, size: Size.FixedSize) -> NDArray:
         data = self._ensure_data()
-        start_idx = int(view.time_range.start * data.sample_rate)
-        end_idx = int(view.time_range.end * data.sample_rate)
+        start_idx = 0 if view.time_range.start is None else int(view.time_range.start * data.sample_rate)
+        end_idx = data.audio.shape[0] if view.time_range.end is None else int(view.time_range.end * data.sample_rate)
 
         _, _, spec = compute_spectrogram(
             data.audio[start_idx:end_idx, view.channel],

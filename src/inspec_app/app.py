@@ -11,7 +11,7 @@ from inspec_app import events
 from inspec_app import key_handlers
 from inspec_app.paginate import GridPaginator
 from inspec_core.base_view import ViewT
-from inspec_core.basic_audio_view import BasicAudioReader, BasicAudioView
+from inspec_core.audio_view import AudioReaderComponent, AudioViewState
 from inspec_core.basic_image_view import BasicImageView, GreyscaleImageReader
 from inspec_curses import context
 from render.renderer import Renderer, make_intensity_renderer
@@ -19,7 +19,7 @@ from render.types import RGB, CharShape, Intensity
 
 T = TypeVar("T", Intensity, RGB)
 U = TypeVar("U")
-FileReaderT = TypeVar("FileReaderT", BasicAudioReader, GreyscaleImageReader)
+FileReaderT = TypeVar("FileReaderT", AudioReaderComponent, GreyscaleImageReader)
 
 
 class ComponentView(pydantic.BaseModel, Generic[T, FileReaderT, ViewT], abc.ABC):
@@ -30,7 +30,7 @@ class ComponentView(pydantic.BaseModel, Generic[T, FileReaderT, ViewT], abc.ABC)
         arbitrary_types_allowed = True
 
 
-class AudioComponentView(ComponentView[Intensity, BasicAudioReader, BasicAudioView]):
+class AudioComponentView(ComponentView[Intensity, AudioReaderComponent, AudioViewState]):
     pass
 
 
@@ -92,6 +92,7 @@ class Windows(pydantic.BaseModel):
     debug: curses.window
     grid: list[curses.window]
     help: curses.window
+    user_input: curses.window
 
     class Config:
         arbitrary_types_allowed = True
@@ -114,6 +115,16 @@ def apply_layout(window: curses.window, state: PanelAppState) -> Windows:
         direction=draw.Direction.Column,
     )[1]
 
+    user_input_window = draw.layout_1d(
+        draw.layout_1d(
+            main_window,
+            [draw.Span.Fixed(2), draw.Span.Stretch(1), draw.Span.Fixed(2)],
+            direction=draw.Direction.Row,
+        )[1],
+        [draw.Span.Fixed(3), draw.Span.Fixed(6)],
+        direction=draw.Direction.Column,
+    )[1]
+
     grid_windows = draw.layout_grid(main_window, state.grid.rows, state.grid.cols)
 
     return Windows(
@@ -122,6 +133,7 @@ def apply_layout(window: curses.window, state: PanelAppState) -> Windows:
         debug=debug_window,
         grid=grid_windows,
         help=help_window,
+        user_input=user_input_window,
     )
 
 
@@ -236,6 +248,13 @@ async def run(
         component = state.components[state.paginator.locate_rel(state.current_page, window_idx).abs_idx]
         outer_window, inner_window = draw.make_border(layout.grid[window_idx], solid=solid)
         layout.grid[window_idx].addstr(0, 1, component.file_.filename)
+
+        if isinstance(component, AudioComponentView):
+            time_range = component.file_.effective_time_range(component.state)
+            time_range_str = f"{time_range.start:.2f}s-{time_range.end:.2f}s"
+            start_col = layout.grid[window_idx].getmaxyx()[1] - len(time_range_str) - 1
+            layout.grid[window_idx].addstr(0, start_col, time_range_str)
+
         layout.grid[window_idx].refresh()
         return outer_window, inner_window
 
@@ -333,6 +352,40 @@ async def run(
                     layout.main.clear()
                     redraw()
                 handler.pop()
+            elif isinstance(event, events.RequestInput):
+                layout.user_input.clear()
+                result = draw.request_input(layout.user_input, str(event.kind.__name__), event.kind.from_str)
+                if result is None:
+                    redraw()
+                elif isinstance(result, draw.InputResult):
+                    await events_queue.put(result.value)
+                elif isinstance(result, draw.InputError):
+                    status(result.msg)
+                    layout.user_input.clear()
+                    redraw()
+                else:
+                    raise ValueError(f"Unknown input result {result}")
+            elif isinstance(event, events.SetCols):
+                if event.value > 8:
+                    status("Max 8 cols")
+                    event.value = 8
+                update_grid(grid=GridState(rows=state.grid.rows, cols=event.value))
+                layout = apply_layout(stdscr, state)
+                layout.main.clear()
+                redraw()
+            elif isinstance(event, events.SetRows):
+                if event.value > 8:
+                    status("Max 8 rows")
+                    event.value = 8
+                update_grid(grid=GridState(rows=event.value, cols=state.grid.cols))
+                layout = apply_layout(stdscr, state)
+                layout.main.clear()
+                redraw()
+            elif isinstance(event, events.SetTimeRange):
+                for component in state.components:
+                    if isinstance(component, AudioComponentView):
+                        component.state.time_range = event.value
+                redraw()
             else:
                 log(f"Unknown event {event}")
     except KeyboardInterrupt:
@@ -362,8 +415,8 @@ def expand_folders(files: list[str], recursive: bool = False) -> list[str]:
 def resolve_component(filename: str) -> Optional[SupportedComponent]:
     if filename.endswith(".wav"):
         return AudioComponentView(
-            file_=BasicAudioReader(filename=filename),
-            state=BasicAudioView(),
+            file_=AudioReaderComponent(filename=filename),
+            state=AudioViewState(),
         )
     elif filename.endswith(".png") or filename.endswith(".jpg"):
         return ImageComponentView(

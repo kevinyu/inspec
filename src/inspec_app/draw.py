@@ -1,11 +1,15 @@
 from __future__ import annotations
 
 import curses
+import curses.textpad
 import enum
 from dataclasses import dataclass
 import textwrap
+from typing import Callable, Generic, Optional, TypeVar
 
 from inspec_core.base_view import Size
+
+T = TypeVar("T")
 
 
 def size_from_window(window: curses.window) -> Size.FixedSize:
@@ -178,3 +182,55 @@ def page_and_wrap_text(text: str, width: int, height: int) -> list[list[str]]:
         flattened[i : i + height] for i in range(0, len(flattened), height)
     ]
     return pages
+
+
+@dataclass
+class InputResult(Generic[T]):
+    value: T
+
+
+@dataclass
+class InputError:
+    msg: str
+
+
+def request_input(
+    window: curses.window,
+    msg: str,
+    cast_response: Callable[[str], T] = str
+) -> InputResult[T] | InputError | None:
+    resp = ""
+
+    _, title_window = make_border(window, solid=True)
+
+    title_window, input_window = layout_1d(
+        title_window,
+        [
+            Span.Fixed(1),
+            Span.Fixed(3),
+        ],
+        Direction.Column,
+    )
+
+    require_text = "(ctrl-h to delete)"
+    title_window.addstr(0, 0, msg[:title_window.getmaxyx()[1] - 1 - len(require_text)] + require_text)
+
+    _, inner_window = make_border(input_window, solid=True)
+    resp_input = curses.textpad.Textbox(inner_window)
+
+    window.refresh()
+
+    try:
+        resp_input.edit()
+    except KeyboardInterrupt:
+        return
+    else:
+        resp = resp_input.gather()
+
+    if not str(resp).strip():
+        return None
+
+    try:
+        return InputResult(cast_response(str(resp).strip()))
+    except ValueError as e:
+        return InputError(str(e))
