@@ -129,7 +129,6 @@ def run(stdscr: curses.window) -> None:
     redraw()
     frame_number = 0
     while True:
-        log(f"Drawing Frame {frame_number}")
         time.sleep(0.01)
         frame_number += 1
         state.current_page = (state.current_page + 1) % state.paginator.n_pages(

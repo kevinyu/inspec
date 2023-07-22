@@ -1,6 +1,8 @@
 from unittest import mock
 
+import curses
 import pytest
+
 from inspec_curses import context
 from inspec_curses.color_pair import ColorToSlot
 from render import chars
@@ -14,10 +16,9 @@ def mock_curses_colors():
     def mock_init_pair(slot, fg, bg):
         mock_curses_colors[slot] = (fg, bg)
 
+    curses.COLOR_PAIRS = 256
     with mock.patch("curses.init_pair", mock_init_pair):
         yield mock_curses_colors
-
-
 
 def test_set_active(mock_curses_colors):
     # Test this by setting the slots (but mocking curses)
@@ -31,13 +32,13 @@ def test_set_active(mock_curses_colors):
     )
     context.set_active(color_to_slot.colors)
 
-    assert set(mock_curses_colors.keys()) == {0, 1, 2, 3, 4, 5}
-    assert mock_curses_colors[0] == (1, 0)
-    assert mock_curses_colors[1] == (100, 0)
-    assert mock_curses_colors[2] == (100, 1)
-    assert mock_curses_colors[3] == (255, 0)
-    assert mock_curses_colors[4] == (255, 1)
-    assert mock_curses_colors[5] == (255, 100)
+    assert set(mock_curses_colors.keys()) == {1, 2, 3, 4, 5, 6}
+    assert mock_curses_colors[1] == (1, 0)
+    assert mock_curses_colors[2] == (100, 0)
+    assert mock_curses_colors[3] == (100, 1)
+    assert mock_curses_colors[4] == (255, 0)
+    assert mock_curses_colors[5] == (255, 1)
+    assert mock_curses_colors[6] == (255, 100)
 
 
 def test_color_to_slot(mock_curses_colors):

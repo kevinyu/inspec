@@ -1,7 +1,7 @@
 import curses
 
 
-def test_display():
+def _test_display():
     import time
 
     import numpy as np
@@ -40,4 +40,4 @@ def test_display():
 
 
 if __name__ == "__main__":
-    test_display()
+    _test_display()
