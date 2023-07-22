@@ -25,6 +25,7 @@ class LogEvent(Event):
         assert len(self.msg.split("\n")) == 1
         return super().model_post_init(__context)
 
+
 class WindowResized(Event):
     pass
 

@@ -68,23 +68,17 @@ class PanelAppState(pydantic.BaseModel):
         )
 
 
-def render_window_with_border(
+def render_component(
     window: curses.window,
     component: SupportedComponent,
     renderer: Renderer[Intensity],
-    solid: bool = False,
 ) -> None:
-    _, inner_window = draw.make_border(window, solid=solid)
-
-    # component.file_.filename
-    window.addstr(0, 1, component.file_.filename)
-
-    size = draw.size_from_window(inner_window)
+    size = draw.size_from_window(window)
     size.height *= renderer.scale().height
     size.width *= renderer.scale().width
 
     context.display(
-        inner_window,
+        window,
         renderer.apply(
             # This call works as long as we ensure that the component file_ and state types align.
             component.file_.get_view(component.state, size),  # type: ignore
@@ -146,29 +140,9 @@ async def run(
     keys_queue = asyncio.Queue()
     events_queue = asyncio.Queue()
 
-    def update_state(
-        grid: Optional[GridState] = None,
-        current_page: Optional[int] = None,
-        active_component_idx: Optional[int] = None,
-        components: Optional[list[SupportedComponent]] = None,
-    ) -> None:
-        nonlocal state
-        if all(v is None for v in (grid, current_page, active_component_idx, components)):
-            return
-
-        new_state = state.model_copy()
-        if grid is not None:
-            new_state.grid = grid
-            if current_page is None:
-                new_state.current_page = new_state.paginator.locate(state.active_component_idx).page
-        if current_page is not None:
-            new_state.current_page = current_page
-        if active_component_idx is not None:
-            new_state.active_component_idx = active_component_idx
-        if components is not None:
-            new_state.components = components
-
-        state = new_state
+    def update_grid(grid: GridState) -> None:
+        state.grid = grid
+        state.current_page = state.paginator.locate_abs(state.active_component_idx).page
 
     async def listen_for_keys() -> None:
         """
@@ -198,39 +172,42 @@ async def run(
     def redraw(window_idxs: Optional[set[int]] = None) -> None:
         slice_ = state.paginator.page_slice(state.current_page)
         page_components = state.components[slice_]
-
         for i, window in enumerate(layout.grid):
-            component_idx = slice_.start + i
             if window_idxs is not None and i not in window_idxs:
                 continue
 
+            position = state.paginator.locate_rel(state.current_page, i)
+
             window.clear()
-            if i >= len(page_components):
+            if position.abs_idx >= len(page_components):
                 window.refresh()
                 continue
 
-            render_window_with_border(
-                window,
-                page_components[i],
-                renderer,
-                solid=component_idx == state.active_component_idx,
-            )
+            component = page_components[position.abs_idx]
+            _, inner_window = set_border(i, position.abs_idx == state.active_component_idx)
+            render_component(inner_window, component, renderer)
             window.refresh()
+        curses.curs_set(0)
+
+    def set_border(window_idx: int, solid: bool) -> tuple[curses.window, curses.window]:
+        component = state.components[state.paginator.locate_rel(state.current_page, window_idx).abs_idx]
+        outer_window, inner_window = draw.make_border(layout.grid[window_idx], solid=solid)
+        layout.grid[window_idx].addstr(0, 1, component.file_.filename)
+        layout.grid[window_idx].refresh()
+        return outer_window, inner_window
 
     def set_selection(idx: int) -> None:
-        # TODO: this is really hacky.
-        position = state.paginator.locate(idx)
-        if position.page != state.current_page:
-            state.current_page = position.page
+        new_position = state.paginator.locate_abs(idx)
+        if new_position.page != state.current_page:
+            state.current_page = new_position.page
             state.active_component_idx = idx
             redraw()
             return
 
-        old_position = state.paginator.locate(state.active_component_idx)
-        old_window_idx = old_position.col + old_position.row * state.grid.cols
-        new_window_idx = position.col + position.row * state.grid.cols
+        old_position = state.paginator.locate_abs(state.active_component_idx)
+        set_border(old_position.rel_idx, solid=False)
+        set_border(new_position.rel_idx, solid=True)
         state.active_component_idx = idx
-        redraw(window_idxs={old_window_idx, new_window_idx})
 
     async def key_handler_task() -> None:
         while True:
@@ -248,14 +225,14 @@ async def run(
             if isinstance(event, events.QuitEvent):
                 break
             elif isinstance(event, events.NextPageEvent):
-                update_state(current_page=(state.current_page + 1) % state.paginator.n_pages(
+                state.current_page = (state.current_page + 1) % state.paginator.n_pages(
                     len(state.components)
-                ))
+                )
                 redraw()
             elif isinstance(event, events.PrevPageEvent):
-                update_state(current_page=(state.current_page - 1) % state.paginator.n_pages(
+                state.current_page = (state.current_page - 1) % state.paginator.n_pages(
                     len(state.components)
-                ))
+                )
                 redraw()
             elif isinstance(event, events.LogEvent):
                 log(event.msg)
@@ -282,23 +259,18 @@ async def run(
                 if state.grid.rows == 1 and state.grid.cols == 1:
                     continue
                 new_grid = GridState(rows=1, cols=1)
-                update_state(
-                    grid=new_grid,
-                    current_page=state.active_component_idx,
-                )
+                update_grid(grid=new_grid)
                 grid_layout_stack.append(new_grid)
                 layout = apply_layout(stdscr, state)
                 redraw()
                 current_handler = key_handlers.zoom_handler
             elif isinstance(event, events.Undo):
-                log(f"Undoing gird selection {grid_layout_stack}")
                 if len(grid_layout_stack) > 1:
                     grid_layout_stack.pop()
                     new_grid = grid_layout_stack[-1]
-                    update_state(grid=new_grid)
+                    update_grid(grid=new_grid)
                     layout = apply_layout(stdscr, state)
                     layout.main.clear()
-                    status(f"New grid {new_grid}")
                     redraw()
                 current_handler = key_handlers.default_handler
             else:

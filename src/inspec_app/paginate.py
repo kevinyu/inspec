@@ -10,18 +10,45 @@ import pydantic
 
 class Position(pydantic.BaseModel):
     page: int
-    row: int
-    col: int
+    abs_idx: int
+    rel_idx: int
 
 
 class GridPaginator(pydantic.BaseModel):
-    class Direction(str, enum.Enum):
-        RowMajor = "row_major"
-        ColumnMajor = "column_major"
+    """
+    Represent page numbers, absolute position, and relative position in a paginated grid
 
+     page 0        page 1
+    ┌────┬────┐  ┌────┬────┐
+    │ 0 0│ 1 1│  │ 4 0│ 5 1│
+    ├────┼────┤  ├────┼────┤
+    │ 2 2│ 3 3│  │ 6 2│ 7 3│
+    └────┴────┘  └────┴────┘
+
+    In these examples
+
+     page x
+    ┌────┐
+    │ y z│
+    └────┘
+
+    x is the page number
+    y is the absolute position
+    z is the relative position
+
+    Generally, given the page size (rows * cols), you can make these transformations:
+
+    [page]    x = y // (rows * cols)
+    [abs_idx] y = x * (rows * cols) + z
+    [rel_idx] z = y % (rows * cols)
+
+    These tranforms are represented by the following methods:
+
+    locate_abs(abs_idx) -> Position(page, abs_idx, rel_idx, row, col)
+    locate_rel(page, rel_idx) -> Position(page, abs_idx, rel_idx, row, col)
+    """
     rows: int
     cols: int
-    direction: Direction = Direction.RowMajor
 
     def model_post_init(self, __context: Any) -> None:
         assert self.rows > 0
@@ -34,27 +61,14 @@ class GridPaginator(pydantic.BaseModel):
     def n_pages(self, n_items: int) -> int:
         return max(1, math.ceil(n_items / self.page_size))
 
-    def locate(self, index: int) -> Position:
-        page = index // self.page_size
-        index_in_page = index % self.page_size
-        if self.direction is self.Direction.RowMajor:
-            row = index_in_page // self.cols
-            col = index_in_page % self.cols
-        elif self.direction is self.Direction.ColumnMajor:
-            row = index_in_page % self.rows
-            col = index_in_page // self.rows
-        else:
-            raise ValueError(f"Unknown direction {self.direction}")
-        return Position(page=page, row=row, col=col)
+    def locate_abs(self, abs_idx: int) -> Position:
+        page = abs_idx // self.page_size
+        index_in_page = abs_idx % self.page_size
+        return Position(page=page, abs_idx=abs_idx, rel_idx=index_in_page)
 
-    def invert(self, position: Position) -> int:
-        if self.direction is self.Direction.RowMajor:
-            index = position.row * self.cols + position.col
-        elif self.direction is self.Direction.ColumnMajor:
-            index = position.col * self.rows + position.row
-        else:
-            raise ValueError(f"Unknown direction {self.direction}")
-        return position.page * self.page_size + index
+    def locate_rel(self, page: int, rel_idx: int) -> Position:
+        abs_idx = page * self.page_size + rel_idx
+        return Position(page=page, abs_idx=abs_idx, rel_idx=rel_idx)
 
     def page_slice(self, page_index: int) -> slice:
         return slice(page_index * self.page_size, (page_index + 1) * self.page_size)
