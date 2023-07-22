@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import asyncio
-import enum
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any, AsyncIterator, Optional
 

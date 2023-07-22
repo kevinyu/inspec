@@ -1,7 +1,6 @@
 """
 Stateless pagination utility functions
 """
-import enum
 import math
 from typing import Any
 
@@ -47,6 +46,7 @@ class GridPaginator(pydantic.BaseModel):
     locate_abs(abs_idx) -> Position(page, abs_idx, rel_idx, row, col)
     locate_rel(page, rel_idx) -> Position(page, abs_idx, rel_idx, row, col)
     """
+
     rows: int
     cols: int
 

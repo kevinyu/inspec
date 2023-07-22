@@ -116,7 +116,7 @@ def run(stdscr: curses.window) -> None:
 
             if page_components[i].file_.loaded is not None:
                 page_components[i].state.frame += 1
-                page_components[i].state.frame %= page_components[i].file_.loaded.shape[
+                page_components[i].state.frame %= page_components[i].file_.loaded.shape[  # type: ignore
                     0
                 ]
 

@@ -5,7 +5,7 @@ import curses.textpad
 import enum
 import textwrap
 from dataclasses import dataclass
-from typing import Callable, Generic, Optional, TypeVar
+from typing import Callable, Generic, TypeVar
 
 from inspec_core.base_view import Size
 
