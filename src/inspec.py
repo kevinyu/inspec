@@ -7,11 +7,11 @@ from typing_extensions import Literal
 
 from inspec_core import options
 from inspec_core.colormaps import get_colormap, valid_colormaps
-from inspec_core.components.base_view import Size
 from inspec_core.components.live_audio_view import (
     LiveAudioComponent,
     LiveAudioViewState,
 )
+from inspec_core.components.size import Size
 from inspec_core.render import make_intensity_renderer, make_rgb_renderer
 from inspec_core.render.display import display
 from inspec_core.render.types import CharShape

@@ -10,7 +10,8 @@ from pydantic import BaseModel
 from inspec_core.audio_utils import compute_spectrogram, resize
 from inspec_core.render.types import Intensity
 
-from .base_view import FileReader, Size, View
+from .base_view import FileReader, View
+from .size import Size
 
 
 class TimeRange(BaseModel):

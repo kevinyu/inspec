@@ -11,7 +11,8 @@ from pydantic import BaseModel
 from inspec_core.audio_utils import compute_spectrogram, db_scale, resize, stream_audio
 from inspec_core.render.types import Intensity
 
-from .base_view import FileStreamer, Size, View
+from .base_view import FileStreamer, View
+from .size import Size
 
 
 class TimeRange(BaseModel):

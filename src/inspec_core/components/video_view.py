@@ -10,8 +10,8 @@ from pydantic import BaseModel
 from inspec_core.audio_utils import resize
 from inspec_core.render.types import RGB, Intensity
 
-from .base_view import FileReader, FileStreamer, Size, T, View, ViewT
-from .size import preserve_aspect_ratio
+from .base_view import FileReader, FileStreamer, T, View, ViewT
+from .size import Size, preserve_aspect_ratio
 
 
 def get_video_metadata(

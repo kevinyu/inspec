@@ -9,8 +9,8 @@ from inspec_core.render.display import display
 from inspec_core.render.types import CharShape
 
 from .audio_view import AudioReader, AudioViewState
-from .base_view import Size
 from .image_view import ImageReader, ImageViewState
+from .size import Size
 from .video_view import GreyscaleVideoFrameReader, GreyscaleVideoReader, VideoViewState
 
 

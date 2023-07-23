@@ -8,7 +8,7 @@ def _test_display():
 
     from inspec_core.colormaps import get_colormap
     from inspec_core.components.audio_view import AudioReader, AudioViewState, TimeRange
-    from inspec_core.components.base_view import Size
+    from inspec_core.components.size import Size
     from inspec_core.render import make_intensity_renderer
     from inspec_core.render.types import CharShape
 

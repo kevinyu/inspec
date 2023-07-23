@@ -1,5 +1,4 @@
-from .base_view import Size
-from .size import Shape, preserve_aspect_ratio
+from .size import Shape, Size, preserve_aspect_ratio
 
 
 def test_preserve_aspect_ratio():

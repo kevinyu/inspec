@@ -9,8 +9,8 @@ from pydantic import BaseModel
 
 from inspec_core.render.types import RGB, Intensity
 
-from .base_view import FileReader, Size, View
-from .size import preserve_aspect_ratio
+from .base_view import FileReader, View
+from .size import Size, preserve_aspect_ratio
 
 
 class ImageViewState(View):

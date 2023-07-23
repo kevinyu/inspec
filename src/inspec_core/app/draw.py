@@ -7,7 +7,7 @@ import textwrap
 from dataclasses import dataclass
 from typing import Callable, Generic, TypeVar
 
-from inspec_core.components.base_view import Size
+from inspec_core.components.size import Size
 
 T = TypeVar("T")
 
