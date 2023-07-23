@@ -23,12 +23,13 @@ jobs:
         python -m venv env
         source env/bin/activate
         python -m pip install --upgrade pip
+        pip install pytest pyright
         pip install .
     - name: Test with pytest
       run: |
-        pip install pytest
+        source env/bin/activate
         pytest src/
     - name: Test with pyright
       run: |
-        pip install pyright
+        source env/bin/activate
         pyright src/
