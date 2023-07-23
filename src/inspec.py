@@ -1,4 +1,3 @@
-import enum
 import os
 import sys
 from concurrent.futures import ThreadPoolExecutor
@@ -6,13 +5,16 @@ from typing import Optional
 
 from typing_extensions import Literal
 
-import options
-from colormaps import get_colormap, valid_colormaps
-from inspec_core.base_view import Size
-from inspec_core.live_audio_view import LiveAudioComponent, LiveAudioViewState
-from render import make_intensity_renderer, make_rgb_renderer
-from render.display import display
-from render.types import CharShape
+from inspec_core import options
+from inspec_core.colormaps import get_colormap, valid_colormaps
+from inspec_core.components.base_view import Size
+from inspec_core.components.live_audio_view import (
+    LiveAudioComponent,
+    LiveAudioViewState,
+)
+from inspec_core.render import make_intensity_renderer, make_rgb_renderer
+from inspec_core.render.display import display
+from inspec_core.render.types import CharShape
 
 # Set Console Mode so that ANSI codes will work
 if sys.platform == "win32":
@@ -28,7 +30,7 @@ def imshow(
     width: Optional[int] = None,
     chars: Literal[CharShape.Full, CharShape.Half] = CharShape.Full,
 ):
-    from inspec_core.image_view import ImageReader, ImageViewState
+    from inspec_core.components.image_view import ImageReader, ImageViewState
 
     reader = ImageReader(filename=filename)
     size = (
@@ -53,7 +55,7 @@ def ashow(
     cmap: str = "viridis",
     chars: CharShape = CharShape.Full,
 ):
-    from inspec_core.audio_view import AudioReader, AudioViewState
+    from inspec_core.components.audio_view import AudioReader, AudioViewState
 
     try:
         intensity_map = get_colormap(cmap)
@@ -84,7 +86,7 @@ def vshow(
     mode: options.VideoMode = options.VideoMode.Greyscale,
     chars: Literal[CharShape.Full, CharShape.Half] = CharShape.Full,
 ):
-    from inspec_core.video_view import (
+    from inspec_core.components.video_view import (
         GreyscaleVideoFrameReader,
         RGBVideoFrameReader,
         VideoViewState,
@@ -144,3 +146,15 @@ async def listen(
             renderer.apply(arr[:, :, channel].T),
             end="\n" if mode is options.LivePrintMode.Scroll else "\r",
         )
+
+
+__all__ = [
+    "CharShape",
+    "ashow",
+    "imshow",
+    "get_colormap",
+    "listen",
+    "options",
+    "valid_colormaps",
+    "vshow",
+]

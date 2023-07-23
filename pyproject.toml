@@ -45,11 +45,15 @@ dev = [
 Repository = "https://github.com/kevinyu/inspec"
 
 [project.scripts]
-inspec = "cli:cli"
+inspec = "inspec_core.cli:cli"
+
+[tool.setuptools]
+py-modules = ["inspec"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
-exclude = []
+include = ["inspec_core", "inspec_core*"]
+exclude = ["*/examples/*", "*/tests/*"]
 namespaces = false
 
 [tool.isort]
